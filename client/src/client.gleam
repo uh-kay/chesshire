@@ -92,13 +92,22 @@ fn init(_) -> #(Model, Effect(Message)) {
     Error(_) -> #(NotFound, None)
   }
   let ws_url = case uri {
-    Some(uri) ->
-      case uri.host, uri.port {
-        Some(host), Some(port) ->
-          "ws://" <> host <> ":" <> int.to_string(port) <> "/ws/"
-        Some(host), None -> "wss://" <> host <> "/ws/"
-        _, _ -> ""
+    Some(uri) -> {
+      let scheme = case uri.scheme {
+        Some("https") -> "wss://"
+        _ -> "ws://"
       }
+      case uri.host {
+        Some(host) -> {
+          let port = case uri.port {
+            Some(port) -> ":" <> int.to_string(port)
+            None -> ""
+          }
+          scheme <> host <> port <> "/ws/"
+        }
+        None -> ""
+      }
+    }
     None -> ""
   }
   let game = cheg.new()
