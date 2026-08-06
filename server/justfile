@@ -1,0 +1,7 @@
+set dotenv-load
+
+dev:
+    watchexec -e gleam --stop-timeout 500ms -r just run
+
+run:
+    gleam run
