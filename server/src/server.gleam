@@ -1,5 +1,6 @@
 import envoy
 import gleam/erlang/process
+import gleam/int
 import gleam/result
 import mist
 import server/context
@@ -17,13 +18,16 @@ pub fn main() -> Nil {
   let assert Ok(priv_directory) = wisp.priv_directory("server")
   let static_directory = priv_directory <> "/static"
 
+  let port_str = result.unwrap(envoy.get("PORT"), "8000")
+  let assert Ok(port) = int.parse(port_str)
+
   let assert Ok(_) =
     wisp_mist.handler(
       router.handle_request(_, static_directory, ctx),
       secret_key,
     )
     |> mist.new
-    |> mist.port(8000)
+    |> mist.port(port)
     |> mist.start
 
   process.sleep_forever()
