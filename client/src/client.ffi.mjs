@@ -1,8 +1,8 @@
-export function createWebsocket(uri) {
+export function create_websocket(uri) {
   return new WebSocket(uri);
 }
 
-export function sendMessage(ws, message) {
+export function send_message(ws, message) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(message);
   } else {
@@ -12,7 +12,7 @@ export function sendMessage(ws, message) {
   }
 }
 
-export function receiveMessage(ws) {
+export function receive_message(ws) {
   return new Promise((resolve, reject) => {
     ws.addEventListener(
       "message",
@@ -32,17 +32,11 @@ export function monotonic_time() {
   return performance.now();
 }
 
-export function createTimer(interval, msg, dispatch) {
-  const id = setInterval(() => {
-    dispatch(msg);
-  }, interval);
-  return id;
-}
-
-export function removeTimer(id) {
-  clearInterval(id);
-}
-
 export function set_timeout(delay, cb) {
   window.setTimeout(cb, delay);
+}
+
+export function websocket_url(path) {
+  const protocol = window.location.protocol == "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}${path}`;
 }

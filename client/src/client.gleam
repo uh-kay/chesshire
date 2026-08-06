@@ -91,25 +91,7 @@ fn init(_) -> #(Model, Effect(Message)) {
     }
     Error(_) -> #(NotFound, None)
   }
-  let ws_url = case uri {
-    Some(uri) -> {
-      let scheme = case uri.scheme {
-        Some("https") -> "wss://"
-        _ -> "ws://"
-      }
-      case uri.host {
-        Some(host) -> {
-          let port = case uri.port {
-            Some(port) -> ":" <> int.to_string(port)
-            None -> ""
-          }
-          scheme <> host <> port <> "/ws/"
-        }
-        None -> ""
-      }
-    }
-    None -> ""
-  }
+  let ws_url = websocket_url("/ws/")
   let game = cheg.new()
   let has_ended = case cheg.state(game) {
     cheg.Continue -> False
@@ -455,13 +437,13 @@ fn reset_timer(duration: Int) -> Effect(Message) {
 // EXTERNALS ------------------------------------------------------------------
 pub type Websocket
 
-@external(javascript, "./client.ffi.mjs", "createWebsocket")
+@external(javascript, "./client.ffi.mjs", "create_websocket")
 fn create_websocket(uri: String) -> Websocket
 
-@external(javascript, "./client.ffi.mjs", "sendMessage")
+@external(javascript, "./client.ffi.mjs", "send_message")
 fn send_message(ws: Websocket, message: String) -> Nil
 
-@external(javascript, "./client.ffi.mjs", "receiveMessage")
+@external(javascript, "./client.ffi.mjs", "receive_message")
 fn receive_message(ws: Websocket) -> Promise(String)
 
 @external(javascript, "./client.ffi.mjs", "monotonic_time")
@@ -469,6 +451,9 @@ fn monotonic_time() -> Int
 
 @external(javascript, "./client.ffi.mjs", "set_timeout")
 fn set_timeout(delay: Int, cb: fn() -> a) -> Nil
+
+@external(javascript, "./client.ffi.mjs", "websocket_url")
+fn websocket_url(path: String) -> String
 
 // VIEW -----------------------------------------------------------------------
 
