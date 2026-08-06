@@ -96,7 +96,7 @@ fn init(_) -> #(Model, Effect(Message)) {
       case uri.host, uri.port {
         Some(host), Some(port) ->
           "ws://" <> host <> ":" <> int.to_string(port) <> "/ws/"
-        Some(host), None -> "ws://" <> host <> "/ws/"
+        Some(host), None -> "wss://" <> host <> "/ws/"
         _, _ -> ""
       }
     None -> ""
