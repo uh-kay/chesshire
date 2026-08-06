@@ -1,7 +1,6 @@
 import cheg
 import client/accordion
 import client/component
-import envoy
 import gleam/bool
 import gleam/dynamic/decode
 import gleam/http/response
@@ -9,7 +8,6 @@ import gleam/int
 import gleam/javascript/promise.{type Promise}
 import gleam/json
 import gleam/option.{type Option, None, Some}
-import gleam/result
 import gleam/uri
 import icon
 import lustre
@@ -80,9 +78,6 @@ pub type Route {
 }
 
 fn init(_) -> #(Model, Effect(Message)) {
-  let ws_url =
-    envoy.get("SERVER_WS_URL") |> result.unwrap("ws://localhost:8000/ws/")
-
   let #(route, uri) = case modem.initial_uri() {
     Ok(uri) -> {
       #(
@@ -95,6 +90,16 @@ fn init(_) -> #(Model, Effect(Message)) {
       )
     }
     Error(_) -> #(NotFound, None)
+  }
+  let ws_url = case uri {
+    Some(uri) ->
+      case uri.host, uri.port {
+        Some(host), Some(port) ->
+          "ws://" <> host <> ":" <> int.to_string(port) <> "/ws/"
+        Some(host), None -> "ws://" <> host <> "/ws/"
+        _, _ -> ""
+      }
+    None -> ""
   }
   let game = cheg.new()
   let has_ended = case cheg.state(game) {
