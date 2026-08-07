@@ -50,6 +50,7 @@ pub type Model {
     link_copied: Bool,
     faq: accordion.Model,
     uri: option.Option(uri.Uri),
+    game_state: cheg.GameState,
   )
 }
 
@@ -129,6 +130,7 @@ fn init(_) -> #(Model, Effect(Message)) {
       link_copied: False,
       faq: accordion.init(accordion_items),
       uri:,
+      game_state: cheg.Continue,
     )
   let effect =
     effect.batch([
@@ -267,6 +269,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
               has_ended:,
               guest_joined: game_view.guest_joined,
               role: Some(game_view.role),
+              game_state: game_view.game_state,
             )
 
           #(model, effect)
@@ -592,7 +595,7 @@ fn view(model: Model) -> Element(Message) {
                   model.time.black_time,
                   model.time.white_time,
                   model.role,
-                  cheg.state(model.game),
+                  model.game_state,
                 ),
               ],
             )

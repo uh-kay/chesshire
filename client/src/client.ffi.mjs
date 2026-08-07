@@ -38,5 +38,9 @@ export function set_timeout(delay, cb) {
 
 export function websocket_url(path) {
   const protocol = window.location.protocol == "https:" ? "wss:" : "ws:";
-  return `${protocol}//${window.location.host}${path}`;
+  if (protocol === "ws:") {
+    return `${protocol}//localhost:8000${path}`;
+  } else {
+    return `${protocol}//${window.location.host}${path}`;
+  }
 }
