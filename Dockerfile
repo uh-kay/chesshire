@@ -7,6 +7,7 @@ RUN xcaddy build \
 FROM erlang:29.0.4 AS build
 COPY --from=ghcr.io/gleam-lang/gleam:v1.18.1-erlang-alpine /bin/gleam /bin/gleam
 COPY . /app/
+RUN cd /app/client && gleam run -m lustre/dev build --outdir=/app/server/priv/static/ --minify
 RUN cd /app/server && gleam export erlang-shipment
 
 # Run
