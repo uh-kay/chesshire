@@ -26,6 +26,7 @@ fn game_to_json(game: Game) -> json.Json {
     white_pieces:,
     current_piece:,
     current_piece_moves:,
+    last_move:,
   ) = game.game
   json.object([
     #(
@@ -69,6 +70,10 @@ fn game_to_json(game: Game) -> json.Json {
         ])
     }),
     #("current_piece_moves", json.array(current_piece_moves, json.int)),
+    #(
+      "last_move",
+      json.preprocessed_array([json.int(last_move.0), json.int(last_move.1)]),
+    ),
   ])
 }
 
@@ -132,6 +137,11 @@ fn game_decoder() -> decode.Decoder(Game) {
     "current_piece_moves",
     decode.list(decode.int),
   )
+  use last_move <- decode.field("last_move", {
+    use from <- decode.field(0, decode.int)
+    use to <- decode.field(1, decode.int)
+    decode.success(#(from, to))
+  })
   decode.success(
     Game(game.Game(
       board:,
@@ -147,6 +157,7 @@ fn game_decoder() -> decode.Decoder(Game) {
       white_pieces:,
       current_piece:,
       current_piece_moves:,
+      last_move:,
     )),
   )
 }
@@ -258,7 +269,7 @@ pub fn state(game: Game) -> GameState {
   }
 }
 
-pub fn new() {
+pub fn new() -> Game {
   Game(game.new())
 }
 
@@ -289,7 +300,7 @@ pub fn board(game: Game) -> Dict(Int, #(PieceType, PieceColor)) {
   })
 }
 
-pub fn piece_to_piece_type(piece: Piece) {
+pub fn piece_to_piece_type(piece: Piece) -> PieceType {
   case piece {
     board.Pawn -> Pawn
     board.Knight -> Knight
@@ -300,14 +311,14 @@ pub fn piece_to_piece_type(piece: Piece) {
   }
 }
 
-pub fn color_to_piece_color(color: board.Color) {
+pub fn color_to_piece_color(color: board.Color) -> PieceColor {
   case color {
     board.White -> White
     board.Black -> Black
   }
 }
 
-pub fn move_to(move: Move) {
+pub fn move_to(move: Move) -> Int {
   move.move.to
 }
 
@@ -332,29 +343,33 @@ pub fn role_to_json(role: Role) -> Json {
   }
 }
 
-pub fn role(game: Game) {
+pub fn role(game: Game) -> Role {
   case game.game.to_move {
     board.White -> Host
     board.Black -> Guest
   }
 }
 
-pub fn to_move(game: Game) {
+pub fn to_move(game: Game) -> PieceColor {
   case game.game.to_move {
     board.White -> White
     board.Black -> Black
   }
 }
 
-pub fn role_to_color(role: Role) {
+pub fn role_to_color(role: Role) -> PieceColor {
   case role {
     Host -> White
     Guest -> Black
   }
 }
 
-pub fn legal_moves(game: Game) {
+pub fn legal_moves(game: Game) -> List(Move) {
   list.map(move.legal(game.game), Move)
+}
+
+pub fn last_move(game: Game) -> #(Int, Int) {
+  game.game.last_move
 }
 
 pub fn legal_moves_for_piece(

@@ -21,6 +21,7 @@ pub type Game {
     white_pieces: PieceInfo,
     current_piece: Option(#(Int, Option(#(board.Piece, board.Color)))),
     current_piece_moves: List(Int),
+    last_move: #(Int, Int),
   )
 }
 
@@ -137,6 +138,7 @@ pub fn new() {
     ),
     zobrist_hash:,
     previous_positions: [],
+    last_move: #(-1, -1),
   )
 }
 

@@ -35,13 +35,13 @@ pub fn game_view(model: Model) -> Element(Message) {
   html.div(
     [
       attribute.class(
-        "grid grid-cols-8 lg:max-w-[calc(88*8px)] max-w-[calc(64*8px)] outline-1 ",
+        "grid grid-cols-8 lg:max-w-[calc(88*8px)] max-w-[calc(64*8px)] outline-1",
       ),
       case model.role {
         Some(role) ->
           case role {
-            Host -> attribute.class(" rotate-180")
-            Guest -> attribute.none()
+            Host -> attribute.class("scale-y-[-1]")
+            Guest -> attribute.class("scale-x-[-1]")
           }
         None -> attribute.none()
       },
@@ -66,6 +66,14 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
     |> dict.from_list
     |> dict.combine(new_board, fn(_, _) { None })
 
+  echo new_board
+    |> dict.to_list
+    |> list.sort(fn(a, b) {
+      let #(pos_a, _) = a
+      let #(pos_b, _) = b
+      int.compare(pos_a, pos_b)
+    })
+
   new_board
   |> dict.to_list
   |> list.sort(fn(a, b) {
@@ -73,10 +81,10 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
     let #(pos_b, _) = b
     int.compare(pos_a, pos_b)
   })
-  |> list.index_map(fn(square, i) {
+  |> list.map(fn(square) {
     let #(pos, piece) = square
-    let row = i / 8
-    let col = i % 8
+    let row = pos / 8
+    let col = pos % 8
 
     let color = case { row + col } % 2 {
       0 -> Black
@@ -91,17 +99,17 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
       False -> color
     }
 
-    let squares = list.map(model.moves, fn(move) { cheg.move_to(move) })
+    let #(last_from, last_to) = cheg.last_move(model.game)
 
-    case list.contains(squares, pos), model.role {
-      True, Some(role) -> {
-        case list.find(model.moves, fn(m) { cheg.move_to(m) == pos }) {
-          Ok(move) -> dot_cell(color, role, piece, move)
-          Error(_) -> cell(pos, role, color, piece)
+    case model.role {
+      Some(role) -> {
+        let last_move = last_from == pos || last_to == pos
+        case list.find(model.moves, fn(move) { cheg.move_to(move) == pos }) {
+          Ok(move) -> dot_cell(color, role, piece, move, last_move)
+          Error(_) -> cell(pos, role, color, piece, last_move)
         }
       }
-      False, Some(role) -> cell(pos, role, color, piece)
-      _, None -> element.none()
+      None -> element.none()
     }
   })
 }
@@ -111,6 +119,7 @@ fn dot_cell(
   role: cheg.Role,
   piece: Option(#(cheg.PieceType, cheg.PieceColor)),
   move: cheg.Move,
+  last_move: Bool,
 ) -> Element(Message) {
   html.div(
     [
@@ -122,8 +131,12 @@ fn dot_cell(
         Brown -> "bg-amber-900/70"
       }),
       attribute.class(case piece {
-        Some(_) -> " border-2 border-red-500"
+        Some(_) -> "border-2 border-red-500"
         None -> ""
+      }),
+      attribute.class(case last_move {
+        True -> "bg-yellow-400/30"
+        False -> ""
       }),
       event.on_click(UserClickedTargetSquare(move)),
     ],
@@ -134,8 +147,8 @@ fn dot_cell(
             Some(_) ->
               "w-18"
               <> case role {
-                Host -> " rotate-180"
-                Guest -> ""
+                Host -> " scale-y-[-1]"
+                Guest -> " scale-x-[-1]"
               }
             None -> "w-3 h-3 lg:w-5 lg:h-5 rounded-full bg-black/30"
           }),
@@ -151,12 +164,12 @@ fn cell(
   role: cheg.Role,
   cell_color: CellColor,
   piece: Option(#(cheg.PieceType, cheg.PieceColor)),
+  last_move: Bool,
 ) -> Element(Message) {
   html.div(
     [
-      attribute.class(
-        "w-12 h-12 md:w-16 md:h-16 lg:w-22 lg:h-22 flex justify-center items-center",
-      ),
+      attribute.class("w-12 h-12 md:w-16 md:h-16 lg:w-22 lg:h-22"),
+      attribute.class("flex justify-center items-center relative"),
       attribute.class(case cell_color {
         White -> "bg-green-200/50"
         Black -> "bg-green-700/70"
@@ -169,10 +182,10 @@ fn cell(
     [
       html.div(
         [
-          attribute.class("w-18 flex justify-center"),
+          attribute.class("w-18 z-40 flex justify-center"),
           attribute.class(case role {
-            Host -> " rotate-180"
-            Guest -> ""
+            Host -> "scale-y-[-1]"
+            Guest -> "scale-x-[-1]"
           }),
         ],
         [
@@ -180,6 +193,15 @@ fn cell(
             piece_view(piece),
           ]),
         ],
+      ),
+      html.div(
+        [
+          attribute.class(case last_move {
+            True -> "absolute inset-0 bg-yellow-400/30"
+            False -> ""
+          }),
+        ],
+        [],
       ),
     ],
   )

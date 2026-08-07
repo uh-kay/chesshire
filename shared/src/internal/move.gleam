@@ -549,6 +549,7 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
     ),
     zobrist_hash: previous_hash,
     previous_positions:,
+    last_move: _,
   ) = game
 
   let castling = case to_move {
@@ -607,6 +608,8 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
     board.Black -> black_king_position
   }
 
+  let last_move = #(from, to)
+
   // TODO: calculate incrementally
   let attack_information = attack.calculate(board, king_position, to_move)
 
@@ -632,6 +635,7 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
     ),
     zobrist_hash:,
     previous_positions:,
+    last_move:,
   )
 }
 
@@ -658,6 +662,7 @@ fn do_apply(
     white_pieces:,
     zobrist_hash: previous_hash,
     previous_positions:,
+    last_move: _,
   ) = game
 
   let #(
@@ -786,6 +791,8 @@ fn do_apply(
     False -> #(half_moves + 1, [previous_hash, ..previous_positions])
   }
 
+  let last_move = #(from, to)
+
   // TODO: update incrementally
   let attack_information =
     attack.calculate(board, opposing_king_position, to_move)
@@ -804,6 +811,7 @@ fn do_apply(
     white_pieces:,
     zobrist_hash:,
     previous_positions:,
+    last_move:,
   )
 }
 
