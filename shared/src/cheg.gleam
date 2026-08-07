@@ -151,18 +151,6 @@ fn game_decoder() -> decode.Decoder(Game) {
   )
 }
 
-// pub fn main() {
-//   let game = new()
-
-//   let game =
-//     game
-//     |> apply_move(Move(move: move.Move(11, 19, board.Pawn)))
-//     |> apply_move(Move(move: move.Move(61, 53, board.Pawn)))
-//     |> apply_move(Move(move.Move(10, 18, board.Pawn)))
-//     |> apply_move(Move(move.Move(62, 78, board.Pawn)))
-//     |> apply_move(Move(move.Move(2, 47, board.Bishop)))
-// }
-
 pub opaque type Game {
   Game(game: game.Game)
 }
@@ -396,6 +384,7 @@ pub fn legal_moves_for_piece(
     board.White -> game.game.white_pieces.king_position
     board.Black -> game.game.black_pieces.king_position
   }
+
   // Update attack information first before getting moves to make sure the moves
   // are correct.
   let game =

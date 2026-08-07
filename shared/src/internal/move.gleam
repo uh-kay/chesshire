@@ -112,7 +112,7 @@ fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
   }
   let forward_one = direction.in_direction(position, forward)
 
-  use <- bool.guard(list.contains(board.river_square, forward_one), [])
+  use <- bool.guard(list.contains(board.river_square, forward_one), moves)
 
   let is_promotion = forward_one / 8 == promotion_rank
   let rank = board.rank(position)
