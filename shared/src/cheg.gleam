@@ -277,6 +277,10 @@ pub fn apply_move(game: Game, move: Move) -> Game {
   Game(move.apply(game.game, move.move))
 }
 
+pub fn in_check(game: Game) {
+  game.game.attack_information.in_check
+}
+
 pub type PieceType {
   Pawn
   Knight

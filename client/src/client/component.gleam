@@ -104,9 +104,16 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
     case model.role {
       Some(role) -> {
         let last_move = last_from == pos || last_to == pos
+        let in_check = cheg.in_check(model.game)
+        let checked_piece = case in_check, cheg.to_move(model.game) {
+          True, cheg.Black -> Some(#(cheg.King, cheg.Black))
+          True, cheg.White -> Some(#(cheg.King, cheg.White))
+          _, _ -> None
+        }
+
         case list.find(model.moves, fn(move) { cheg.move_to(move) == pos }) {
           Ok(move) -> dot_cell(color, role, piece, move, last_move)
-          Error(_) -> cell(pos, role, color, piece, last_move)
+          Error(_) -> cell(pos, role, color, piece, last_move, checked_piece)
         }
       }
       None -> element.none()
@@ -165,6 +172,7 @@ fn cell(
   cell_color: CellColor,
   piece: Option(#(cheg.PieceType, cheg.PieceColor)),
   last_move: Bool,
+  checked_king: option.Option(#(cheg.PieceType, cheg.PieceColor)),
 ) -> Element(Message) {
   html.div(
     [
@@ -175,6 +183,11 @@ fn cell(
         Black -> "bg-green-700/70"
         Blue -> "bg-blue-700/70"
         Brown -> "bg-amber-900/70"
+      }),
+      attribute.class(case checked_king, piece {
+        Some(checked_king), Some(piece) if checked_king == piece ->
+          "aspect-square bg-radial-[at_50%_50%] from-red-500 to-transparent"
+        _, _ -> ""
       }),
       attribute.data("pos", int.to_string(pos)),
       event.on_click(UserClickedSquare(piece, pos)),
