@@ -38,7 +38,7 @@ pub type GameMsg {
 }
 
 pub type JoinReply {
-  JoinOk(role: cheg.Role, model: Chesshire)
+  JoinOk(role: cheg.Role, model: Chesshire, guest_joined: Bool)
   JoinRejected(reason: String)
 }
 
@@ -91,7 +91,10 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
           let new_state = GameActor(..state, host: Online(#(session, socket)))
           broadcast_payload(state, role, new_state)
 
-          actor.send(reply_to, JoinOk(Host, new_state.model))
+          actor.send(
+            reply_to,
+            JoinOk(Host, new_state.model, state.guest != Empty),
+          )
           actor.continue(new_state)
         }
 
@@ -100,7 +103,10 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
           let new_state = GameActor(..state, host: Online(#(session, socket)))
           broadcast_payload(state, role, new_state)
 
-          actor.send(reply_to, JoinOk(Host, new_state.model))
+          actor.send(
+            reply_to,
+            JoinOk(Host, new_state.model, state.guest != Empty),
+          )
           actor.continue(new_state)
         }
 
@@ -109,7 +115,10 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
           let new_state = GameActor(..state, guest: Online(#(session, socket)))
           broadcast_payload(state, role, new_state)
 
-          actor.send(reply_to, JoinOk(Guest, new_state.model))
+          actor.send(
+            reply_to,
+            JoinOk(Guest, new_state.model, state.guest != Empty),
+          )
           actor.continue(new_state)
         }
 
@@ -118,7 +127,10 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
           let new_state = GameActor(..state, guest: Online(#(session, socket)))
           broadcast_payload(state, role, new_state)
 
-          actor.send(reply_to, JoinOk(Guest, new_state.model))
+          actor.send(
+            reply_to,
+            JoinOk(Guest, new_state.model, state.guest != Empty),
+          )
           actor.continue(new_state)
         }
 
@@ -159,34 +171,25 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
                   let model = Chesshire(..state.model, game:)
                   let state = GameActor(..state, model:)
 
-                  let #(time, game_state) = get_time(state.model.game, state)
+                  let #(time, game_state) = get_time(game, state)
+
                   let host_payload =
-                    cheg.game_view_to_json(
-                      cheg.GameView(
-                        game:,
-                        game_state:,
-                        role: cheg.Host,
-                        time:,
-                        guest_joined: case state.guest {
-                          Online(_) -> True
-                          _ -> False
-                        },
-                      ),
-                    )
+                    cheg.game_view_to_json(cheg.GameView(
+                      game:,
+                      game_state:,
+                      role: cheg.Host,
+                      time:,
+                      guest_joined: state.guest != Empty,
+                    ))
                     |> json.to_string
                   let guest_payload =
-                    cheg.game_view_to_json(
-                      cheg.GameView(
-                        game:,
-                        game_state:,
-                        role: cheg.Guest,
-                        time:,
-                        guest_joined: case state.guest {
-                          Online(_) -> True
-                          _ -> False
-                        },
-                      ),
-                    )
+                    cheg.game_view_to_json(cheg.GameView(
+                      game:,
+                      game_state:,
+                      role: cheg.Guest,
+                      time:,
+                      guest_joined: state.guest != Empty,
+                    ))
                     |> json.to_string
 
                   let state =
@@ -227,32 +230,22 @@ fn broadcast_payload(
   new_state: GameActor,
 ) -> Nil {
   let host_payload =
-    cheg.game_view_to_json(
-      cheg.GameView(
-        game: state.model.game,
-        role: cheg.Host,
-        game_state: cheg.state(state.model.game),
-        time: state.model.time,
-        guest_joined: case new_state.guest {
-          Online(_) -> True
-          _ -> False
-        },
-      ),
-    )
+    cheg.game_view_to_json(cheg.GameView(
+      game: state.model.game,
+      role: cheg.Host,
+      game_state: cheg.state(state.model.game),
+      time: state.model.time,
+      guest_joined: new_state.guest != Empty,
+    ))
     |> json.to_string
   let guest_payload =
-    cheg.game_view_to_json(
-      cheg.GameView(
-        game: state.model.game,
-        role: cheg.Guest,
-        game_state: cheg.state(state.model.game),
-        time: state.model.time,
-        guest_joined: case new_state.guest {
-          Online(_) -> True
-          _ -> False
-        },
-      ),
-    )
+    cheg.game_view_to_json(cheg.GameView(
+      game: state.model.game,
+      role: cheg.Guest,
+      game_state: cheg.state(state.model.game),
+      time: state.model.time,
+      guest_joined: new_state.guest != Empty,
+    ))
     |> json.to_string
 
   broadcast(new_state, host_payload, guest_payload)

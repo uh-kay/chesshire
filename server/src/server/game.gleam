@@ -33,7 +33,7 @@ pub fn handle_ws(req: Request, invite_code: String, ctx: Context) -> Response {
           actor.call(game_subject, 1000, Join(session, _, outgoing))
 
         case join_result {
-          game.JoinOk(role:, model:) -> {
+          game.JoinOk(role:, model:, guest_joined:) -> {
             let selector = process.new_selector() |> process.select(outgoing)
             let payload =
               cheg.game_view_to_json(cheg.GameView(
@@ -41,7 +41,7 @@ pub fn handle_ws(req: Request, invite_code: String, ctx: Context) -> Response {
                 role:,
                 game_state: model.game_state,
                 time: model.time,
-                guest_joined: role == cheg.Guest,
+                guest_joined:,
               ))
               |> json.to_string
 
@@ -90,8 +90,9 @@ pub fn handle_ws(req: Request, invite_code: String, ctx: Context) -> Response {
                 wisp.log_info(reason)
                 websocket.Stop
               }
-              websocket.Binary(_) | websocket.Closed | websocket.Shutdown ->
+              websocket.Binary(_) | websocket.Closed | websocket.Shutdown -> {
                 websocket.Stop
+              }
             }
         }
       },

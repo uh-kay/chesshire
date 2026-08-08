@@ -67,14 +67,6 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
     |> dict.from_list
     |> dict.combine(new_board, fn(_, _) { None })
 
-  echo new_board
-    |> dict.to_list
-    |> list.sort(fn(a, b) {
-      let #(pos_a, _) = a
-      let #(pos_b, _) = b
-      int.compare(pos_a, pos_b)
-    })
-
   new_board
   |> dict.to_list
   |> list.sort(fn(a, b) {

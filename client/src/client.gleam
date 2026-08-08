@@ -1,7 +1,6 @@
 import cheg
 import client/accordion
 import client/component
-import gleam/bool
 import gleam/dynamic/decode
 import gleam/http/response
 import gleam/int
@@ -44,7 +43,6 @@ pub type Model {
     current_piece_moves: List(cheg.Move),
     websocket: Option(Websocket),
     role: Option(cheg.Role),
-    has_ended: Bool,
     guest_joined: Bool,
     offset: Int,
     link_copied: Bool,
@@ -94,10 +92,7 @@ fn init(_) -> #(Model, Effect(Message)) {
   }
   let ws_url = websocket_url("/ws/")
   let game = cheg.new()
-  let has_ended = case cheg.state(game) {
-    cheg.Continue -> False
-    _ -> True
-  }
+
   let #(init_msg, websocket) = case route {
     Game(id:) -> {
       let ws = create_websocket(ws_url <> id)
@@ -123,7 +118,6 @@ fn init(_) -> #(Model, Effect(Message)) {
       time:,
       lobby_code: "",
       role: None,
-      has_ended:,
       guest_joined: False,
       // in the future calculate based on latency
       offset: 0,
@@ -170,7 +164,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
             Some(#(piece_type, piece_color))
               if player_color == to_move
               && player_color == piece_color
-              && !model.has_ended
+              && model.game_state == cheg.Continue
             ->
               cheg.legal_moves_for_piece(
                 model.game,
@@ -241,16 +235,6 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
     ServerUpdatedGame(body:) -> {
       case json.parse(body, cheg.game_view_decoder()) {
         Ok(game_view) -> {
-          let has_ended = case game_view.game_state {
-            cheg.Continue -> False
-            _ -> True
-          }
-
-          use <- bool.guard(has_ended, return: #(
-            Model(..model, has_ended: True),
-            stop_clock(),
-          ))
-
           let black_tick = case cheg.to_move(game_view.game) {
             cheg.Black -> monotonic_time()
             cheg.White -> model.time.black_tick
@@ -260,13 +244,15 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
             cheg.White -> monotonic_time()
           }
 
-          let effect = listen(model.websocket)
+          let effect = case game_view.game_state != cheg.Continue {
+            True -> stop_clock()
+            False -> listen(model.websocket)
+          }
           let model =
             Model(
               ..model,
               game: game_view.game,
               time: shared.Time(..game_view.time, black_tick:, white_tick:),
-              has_ended:,
               guest_joined: game_view.guest_joined,
               role: Some(game_view.role),
               game_state: game_view.game_state,
@@ -342,7 +328,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
             white_time:,
             started: False,
           ),
-          has_ended: True,
+          // guest_joined: True,
         )
       let effect = effect.none()
 
@@ -465,7 +451,6 @@ fn view(model: Model) -> Element(Message) {
     Some(uri) -> uri.to_string(uri)
     None -> ""
   }
-  // let lobby_url = "" <> "/game/"
 
   case model.route {
     Home -> {
@@ -543,7 +528,7 @@ fn view(model: Model) -> Element(Message) {
       layout(content)
     }
     NotFound -> element.none()
-    Game(id: _) ->
+    Game(id: _) -> {
       case model.guest_joined {
         False -> {
           let content =
@@ -562,7 +547,8 @@ fn view(model: Model) -> Element(Message) {
                 html.button(
                   [
                     attribute.class("rounded-r-md p-2 cursor-pointer"),
-                    attribute.class("bg-blue-500 text-white hover:bg-blue-600"),
+                    attribute.class("bg-blue-500 text-white"),
+                    attribute.class("hover:bg-blue-600"),
                     event.on_click(UserClickedCopyLink(lobby_url)),
                   ],
                   [
@@ -603,6 +589,7 @@ fn view(model: Model) -> Element(Message) {
           layout(content)
         }
       }
+    }
   }
 }
 
