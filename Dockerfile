@@ -6,7 +6,10 @@ RUN xcaddy build \
     --with github.com/mholt/caddy-ratelimit
 
 # Build Gleam
-FROM ghcr.io/gleam-lang/gleam:${GLEAM_VERSION}-erlang-alpine AS builder
+FROM ghcr.io/gleam-lang/gleam:${GLEAM_VERSION}-erlang-alpine AS gleam-bin
+
+FROM erlang:29.0.4 AS builder
+COPY --from=gleam-bin /bin/gleam /bin/gleam
 
 COPY ./shared /build/shared
 COPY ./client /build/client
