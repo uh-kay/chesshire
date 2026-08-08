@@ -1,4 +1,5 @@
 ARG GLEAM_VERSION=v1.18.1
+ARG ERLANG_VERSION=29.0.4
 
 # Build Caddy
 FROM caddy:2-builder-alpine AS caddy-builder
@@ -8,7 +9,7 @@ RUN xcaddy build \
 # Build Gleam
 FROM ghcr.io/gleam-lang/gleam:${GLEAM_VERSION}-erlang-alpine AS gleam-bin
 
-FROM erlang:29.0.4 AS builder
+FROM erlang:${ERLANG_VERSION} AS builder
 COPY --from=gleam-bin /bin/gleam /bin/gleam
 
 COPY ./shared /build/shared
@@ -39,4 +40,4 @@ RUN chmod +x /start.sh
 
 ENV CADDY_PORT=8080
 ENV PORT=4000
-CMD ["./start.sh"]
+CMD ["/start.sh"]
