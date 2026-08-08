@@ -9,6 +9,7 @@ RUN xcaddy build \
 # Build Gleam
 FROM ghcr.io/gleam-lang/gleam:${GLEAM_VERSION}-erlang-alpine AS gleam-bin
 
+# Use Erlang runtime to have git available for git dependencies
 FROM erlang:${ERLANG_VERSION} AS builder
 COPY --from=gleam-bin /bin/gleam /bin/gleam
 

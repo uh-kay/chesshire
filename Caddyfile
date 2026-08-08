@@ -7,7 +7,7 @@
     rate_limit {
         zone api_limit {
             key {remote_host}
-            events 10
+            events 20
             window 1m
         }
     }

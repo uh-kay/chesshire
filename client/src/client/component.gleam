@@ -6,6 +6,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/set
 import icon
+import internal/board
 import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html
@@ -90,13 +91,13 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
       0 -> Black
       _ -> White
     }
-    let color = case row == 4 {
-      True ->
-        case col == 1 || col == 6 {
+    let color = case list.contains(board.river_square, pos) {
+      True -> Blue
+      False ->
+        case list.contains(board.bridge_square, pos) {
           True -> Brown
-          False -> Blue
+          False -> color
         }
-      False -> color
     }
 
     let #(last_from, last_to) = cheg.last_move(model.game)
