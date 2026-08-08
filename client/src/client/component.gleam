@@ -276,14 +276,14 @@ pub fn clock_view(
       cheg.Draw(reason:) ->
         html.p([], [
           html.text(case reason {
-            cheg.ThreefoldRepetition -> "Draw: threefold repetition"
-            cheg.InsufficientMaterial -> "Draw: insufficient material"
-            cheg.Stalemate -> "Draw: stalemate"
-            cheg.FiftyMoves -> "Draw: fifty move rule"
+            cheg.ThreefoldRepetition -> "🤝 Draw: threefold repetition"
+            cheg.InsufficientMaterial -> "🤝 Draw: insufficient material"
+            cheg.Stalemate -> "🤝 Draw: stalemate"
+            cheg.FiftyMoves -> "🤝 Draw: fifty move rule"
           }),
         ])
-      cheg.WhiteWin -> html.p([], [html.text("White wins")])
-      cheg.BlackWin -> html.p([], [html.text("Black wins")])
+      cheg.WhiteWin -> html.p([], [html.text("White wins 🎉")])
+      cheg.BlackWin -> html.p([], [html.text("Black wins 🎉")])
     }
 
     Ok(
