@@ -123,11 +123,11 @@ fn dot_cell(
 ) -> Element(Message) {
   html.div(
     [
-      attribute.class("flex items-center justify-center"),
+      attribute.class("flex items-center justify-center relative"),
       attribute.class(case cell_color {
         White -> "bg-green-200/50"
         Black -> "bg-green-700/70"
-        Blue -> "bg-blue-700/70"
+        Blue -> "bg-blue-700"
         Brown -> "bg-amber-900/70"
       }),
       attribute.class(case piece {
@@ -141,6 +141,26 @@ fn dot_cell(
       event.on_click(UserClickedTargetSquare(move)),
     ],
     [
+      {
+        let special_square_style = [
+          attribute.class("absolute text-white"),
+          attribute.class(case role {
+            Host -> "bottom-0 left-2"
+            Guest -> "top-0 right-2"
+          }),
+        ]
+        case cell_color {
+          Blue ->
+            html.div([attribute.class("text-xl"), ..special_square_style], [
+              html.text("~"),
+            ])
+          Brown ->
+            html.div([attribute.class("text-base"), ..special_square_style], [
+              html.text("]["),
+            ])
+          _ -> element.none()
+        }
+      },
       html.div(
         [
           attribute.class(case piece {
@@ -174,7 +194,7 @@ fn cell(
       attribute.class(case cell_color {
         White -> "bg-green-200/50"
         Black -> "bg-green-700/70"
-        Blue -> "bg-blue-700/70"
+        Blue -> "bg-blue-700"
         Brown -> "bg-amber-900/70"
       }),
       attribute.class(case checked_king, piece {
@@ -186,6 +206,26 @@ fn cell(
       event.on_click(UserClickedSquare(piece, pos)),
     ],
     [
+      {
+        let special_square_style = [
+          attribute.class("absolute text-white"),
+          attribute.class(case role {
+            Host -> "bottom-0 left-2"
+            Guest -> "top-0 right-2"
+          }),
+        ]
+        case cell_color {
+          Blue ->
+            html.div([attribute.class("text-xl"), ..special_square_style], [
+              html.text("~"),
+            ])
+          Brown ->
+            html.div([attribute.class("text-base"), ..special_square_style], [
+              html.text("]["),
+            ])
+          _ -> element.none()
+        }
+      },
       html.div(
         [
           attribute.class("w-18 z-40 flex justify-center"),
