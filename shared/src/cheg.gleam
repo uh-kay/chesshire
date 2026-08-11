@@ -27,6 +27,7 @@ fn game_to_json(game: Game) -> json.Json {
     current_piece:,
     current_piece_moves:,
     last_move:,
+    board_variant:,
   ) = game.game
   json.object([
     #(
@@ -74,6 +75,7 @@ fn game_to_json(game: Game) -> json.Json {
       "last_move",
       json.preprocessed_array([json.int(last_move.0), json.int(last_move.1)]),
     ),
+    #("board_variant", board.variant_to_json(board_variant)),
   ])
 }
 
@@ -142,6 +144,7 @@ fn game_decoder() -> decode.Decoder(Game) {
     use to <- decode.field(1, decode.int)
     decode.success(#(from, to))
   })
+  use board_variant <- decode.field("board_variant", board.variant_decoder())
   decode.success(
     Game(game.Game(
       board:,
@@ -158,6 +161,7 @@ fn game_decoder() -> decode.Decoder(Game) {
       current_piece:,
       current_piece_moves:,
       last_move:,
+      board_variant:,
     )),
   )
 }
@@ -535,4 +539,12 @@ pub fn move_decoder() -> decode.Decoder(Move) {
     }
     _ -> decode.failure(Move(move.Castle(from: 0, to: 0)), "Move")
   }
+}
+
+pub fn river_square(game: Game) {
+  board.river_square(game.game.board_variant)
+}
+
+pub fn bridge_square(game: Game) {
+  board.bridge_square(game.game.board_variant)
 }

@@ -9,6 +9,7 @@ import internal/move/attack
 pub type Game {
   Game(
     board: board.Board,
+    board_variant: board.Variant,
     to_move: board.Color,
     castling: Castling,
     en_passant_square: Option(Int),
@@ -139,6 +140,7 @@ pub fn new() {
     zobrist_hash:,
     previous_positions: [],
     last_move: #(-1, -1),
+    board_variant: board.TwoBridge,
   )
 }
 

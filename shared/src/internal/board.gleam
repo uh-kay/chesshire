@@ -9,6 +9,27 @@ import gleam/result
 pub type Board =
   Dict(Int, #(Piece, Color))
 
+pub type Variant {
+  TwoBridge
+  MiddleBridge
+}
+
+pub fn variant_to_json(variant: Variant) -> Json {
+  case variant {
+    TwoBridge -> json.string("two_bridge")
+    MiddleBridge -> json.string("middle_bridge")
+  }
+}
+
+pub fn variant_decoder() -> Decoder(Variant) {
+  use variant <- decode.then(decode.string)
+  case variant {
+    "two_bridge" -> decode.success(TwoBridge)
+    "middle_bridge" -> decode.success(MiddleBridge)
+    _ -> decode.failure(TwoBridge, "Variant")
+  }
+}
+
 pub type Piece {
   Pawn
   Knight
@@ -98,9 +119,9 @@ pub fn rank(position: Int) {
 
 pub const pawn_promotions = [Queen, Knight, Bishop, Rook]
 
-pub const river_square = [32, 34, 35, 36, 37, 39]
+// pub const river_square = [32, 34, 35, 36, 37, 39]
 
-pub const bridge_square = [33, 38]
+// pub const bridge_square = [33, 38]
 
 pub const pawn_value = 1
 
@@ -113,6 +134,20 @@ pub const rook_value = 5
 pub const queen_value = 9
 
 pub const king_value = 9001
+
+pub fn river_square(variant: Variant) {
+  case variant {
+    TwoBridge -> [32, 34, 35, 36, 37, 39]
+    MiddleBridge -> [32, 33, 34, 37, 38, 39]
+  }
+}
+
+pub fn bridge_square(variant: Variant) {
+  case variant {
+    TwoBridge -> [33, 38]
+    MiddleBridge -> [35, 36]
+  }
+}
 
 pub fn piece_value(piece: Piece) {
   case piece {

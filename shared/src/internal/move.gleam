@@ -83,12 +83,14 @@ pub fn moves_for_piece(
   piece: board.Piece,
   moves: List(Move),
 ) {
+  let river_square = board.river_square(game.board_variant)
+
   case piece {
     board.Pawn -> pawn_moves(game, position, moves)
     board.Knight ->
       list.filter(
         knight_moves(game, position, moves, direction.knight_directions),
-        fn(move) { !list.contains(board.river_square, move.to) },
+        fn(move) { !list.contains(river_square, move.to) },
       )
     board.King -> king_moves(game, position, moves, direction.queen_directions)
     board.Bishop ->
@@ -101,6 +103,8 @@ pub fn moves_for_piece(
 }
 
 fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
+  let river_square = board.river_square(game.board_variant)
+
   let #(forward, left, right, promotion_rank) = case game.to_move {
     board.White -> #(direction.up, direction.up_left, direction.up_right, 8)
     board.Black -> #(
@@ -112,7 +116,7 @@ fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
   }
   let forward_one = direction.in_direction(position, forward)
 
-  use <- bool.guard(list.contains(board.river_square, forward_one), moves)
+  use <- bool.guard(list.contains(river_square, forward_one), moves)
 
   let is_promotion = forward_one / 8 == promotion_rank
   let rank = board.rank(position)
@@ -410,11 +414,13 @@ fn regular_king_moves(
   moves: List(Move),
   directions: List(Direction),
 ) {
+  let river_square = board.river_square(game.board_variant)
+
   case directions {
     [] -> moves
     [direction, ..directions] -> {
       let new_position = direction.in_direction(position, direction)
-      use <- bool.guard(list.contains(board.river_square, new_position), moves)
+      use <- bool.guard(list.contains(river_square, new_position), moves)
 
       let moves = case board.get(game.board, new_position) {
         board.Empty ->
@@ -480,8 +486,9 @@ fn sliding_moves_in_direction(
   direction: Direction,
   moves: List(Move),
 ) {
+  let river_square = board.river_square(game.board_variant)
   let new_position = direction.in_direction(position, direction)
-  use <- bool.guard(list.contains(board.river_square, new_position), moves)
+  use <- bool.guard(list.contains(river_square, new_position), moves)
   case board.get(game.board, new_position) {
     board.Empty ->
       sliding_moves_in_direction(
@@ -550,6 +557,7 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
     zobrist_hash: previous_hash,
     previous_positions:,
     last_move: _,
+    board_variant:,
   ) = game
 
   let castling = case to_move {
@@ -636,6 +644,7 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
     zobrist_hash:,
     previous_positions:,
     last_move:,
+    board_variant:,
   )
 }
 
@@ -663,6 +672,7 @@ fn do_apply(
     zobrist_hash: previous_hash,
     previous_positions:,
     last_move: _,
+    board_variant:,
   ) = game
 
   let #(
@@ -812,6 +822,7 @@ fn do_apply(
     zobrist_hash:,
     previous_positions:,
     last_move:,
+    board_variant:,
   )
 }
 
