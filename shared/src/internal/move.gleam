@@ -86,13 +86,22 @@ pub fn moves_for_piece(
   let river_square = board.river_square(game.board_variant)
 
   case piece {
-    board.Pawn -> pawn_moves(game, position, moves)
+    board.Pawn -> {
+      list.filter(pawn_moves(game, position, moves), fn(move) {
+        !list.contains(river_square, move.to)
+      })
+    }
     board.Knight ->
       list.filter(
         knight_moves(game, position, moves, direction.knight_directions),
         fn(move) { !list.contains(river_square, move.to) },
       )
-    board.King -> king_moves(game, position, moves, direction.queen_directions)
+    board.King -> {
+      list.filter(
+        king_moves(game, position, moves, direction.queen_directions),
+        fn(move) { !list.contains(river_square, move.to) },
+      )
+    }
     board.Bishop ->
       sliding_moves(game, piece, position, moves, direction.bishop_directions)
     board.Rook ->
@@ -103,8 +112,6 @@ pub fn moves_for_piece(
 }
 
 fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
-  let river_square = board.river_square(game.board_variant)
-
   let #(forward, left, right, promotion_rank) = case game.to_move {
     board.White -> #(direction.up, direction.up_left, direction.up_right, 8)
     board.Black -> #(
@@ -115,8 +122,6 @@ fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
     )
   }
   let forward_one = direction.in_direction(position, forward)
-
-  use <- bool.guard(list.contains(river_square, forward_one), moves)
 
   let is_promotion = forward_one / 8 == promotion_rank
   let rank = board.rank(position)
@@ -414,13 +419,10 @@ fn regular_king_moves(
   moves: List(Move),
   directions: List(Direction),
 ) {
-  let river_square = board.river_square(game.board_variant)
-
   case directions {
     [] -> moves
     [direction, ..directions] -> {
       let new_position = direction.in_direction(position, direction)
-      use <- bool.guard(list.contains(river_square, new_position), moves)
 
       let moves = case board.get(game.board, new_position) {
         board.Empty ->
