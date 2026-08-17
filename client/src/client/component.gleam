@@ -5,6 +5,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/set
+import gleam/string
 import icon
 import lustre/attribute
 import lustre/element.{type Element}
@@ -289,28 +290,8 @@ pub fn clock_view(
       |> result.replace_error(element.none()),
     )
 
-    let black_time = black_time / 1000
-    let white_time = white_time / 1000
-    let #(black_minutes, black_seconds) = #(
-      case black_time / 60 {
-        0 -> "00"
-        _ -> int.to_string(black_time / 60)
-      },
-      case black_time % 60 {
-        0 -> "00"
-        _ -> int.to_string(black_time % 60)
-      },
-    )
-    let #(white_minutes, white_seconds) = #(
-      case white_time / 60 {
-        0 -> "00"
-        _ -> int.to_string(white_time / 60)
-      },
-      case white_time % 60 {
-        0 -> "00"
-        _ -> int.to_string(white_time % 60)
-      },
-    )
+    let black_time = format_time(black_time)
+    let white_time = format_time(white_time)
 
     let state = case state {
       cheg.Continue -> element.none()
@@ -343,7 +324,7 @@ pub fn clock_view(
               attribute.class("px-4 py-3 rounded-md"),
             ],
             [
-              html.text(black_minutes <> ":" <> black_seconds),
+              html.text(black_time),
             ],
           ),
           state,
@@ -353,7 +334,7 @@ pub fn clock_view(
               attribute.class("px-4 py-3 rounded-md"),
             ],
             [
-              html.text(white_minutes <> ":" <> white_seconds),
+              html.text(white_time),
             ],
           ),
         ],
@@ -373,4 +354,14 @@ pub fn navbar() -> Element(_) {
       html.a([attribute.href("/")], [html.text("Chesshire")]),
     ]),
   ])
+}
+
+fn format_time(time: Int) {
+  let time = time / 1000
+  let minutes = time / 60
+  let seconds = time % 60
+
+  int.to_string(minutes)
+  <> ":"
+  <> string.pad_start(int.to_string(seconds), 2, "0")
 }
