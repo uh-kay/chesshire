@@ -351,7 +351,16 @@ pub fn clock_view(
 pub fn navbar() -> Element(_) {
   html.nav([attribute.class("p-4 border-b bg-blue-200 border-blue-500")], [
     html.div([attribute.class("flex justify-between max-w-4xl mx-auto")], [
-      html.a([attribute.href("/")], [html.text("Chesshire")]),
+      html.a(
+        [attribute.class("flex items-center text-2xl"), attribute.href("/")],
+        [
+          html.img([
+            attribute.class("w-8 mr-2"),
+            attribute.src("/static/chesshire_favicon.svg"),
+          ]),
+          html.text("Chesshire"),
+        ],
+      ),
     ]),
   ])
 }
