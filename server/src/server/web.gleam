@@ -28,6 +28,11 @@ pub fn serve_index() -> Response {
         "Free online chess server for various chess variants.",
       ),
       html.link([
+        attribute.rel("icon"),
+        attribute.href("/static/chesshire_favicon.svg"),
+        attribute.type_("image/svg+xml"),
+      ]),
+      html.link([
         attribute.rel("stylesheet"),
         attribute.href("/static/client.css"),
       ]),
