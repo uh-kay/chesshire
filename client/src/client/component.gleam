@@ -153,13 +153,15 @@ fn dot_cell(
         ]
         case cell_color {
           Blue ->
-            html.div([attribute.class("text-xl"), ..special_square_style], [
-              html.text("~"),
-            ])
+            html.div(
+              [attribute.class("text-xl select-none"), ..special_square_style],
+              [html.text("~")],
+            )
           Brown ->
-            html.div([attribute.class("text-base"), ..special_square_style], [
-              html.text("]["),
-            ])
+            html.div(
+              [attribute.class("text-base select-none"), ..special_square_style],
+              [html.text("][")],
+            )
           _ -> element.none()
         }
       },
@@ -218,13 +220,15 @@ fn cell(
         ]
         case cell_color {
           Blue ->
-            html.div([attribute.class("text-xl"), ..special_square_style], [
-              html.text("~"),
-            ])
+            html.div(
+              [attribute.class("text-xl select-none"), ..special_square_style],
+              [html.text("~")],
+            )
           Brown ->
-            html.div([attribute.class("text-base"), ..special_square_style], [
-              html.text("]["),
-            ])
+            html.div(
+              [attribute.class("text-base select-none"), ..special_square_style],
+              [html.text("][")],
+            )
           _ -> element.none()
         }
       },
