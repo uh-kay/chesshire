@@ -21,6 +21,10 @@ pub fn middleware(
 pub fn serve_index() -> Response {
   html.html([], [
     html.head([], [
+      html.meta([
+        attribute.name("viewport"),
+        attribute.content("width=device-width, initial-scale=1"),
+      ]),
       html.title([], "Chesshire"),
       meta_og("title", "Play new chess variants for free"),
       meta_og(

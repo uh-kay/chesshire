@@ -35,9 +35,8 @@ pub type CellColor {
 pub fn game_view(model: Model) -> Element(Message) {
   html.div(
     [
-      attribute.class(
-        "grid grid-cols-8 lg:max-w-[calc(88*8px)] max-w-[calc(64*8px)] outline-1",
-      ),
+      attribute.class("grid grid-cols-8 grid-rows-9 w-full min-h-108 "),
+      attribute.class("aspect-square outline-1"),
       case model.role {
         Some(role) ->
           case role {
@@ -193,7 +192,6 @@ fn cell(
 ) -> Element(Message) {
   html.div(
     [
-      attribute.class("w-12 h-12 md:w-16 md:h-16 lg:w-22 lg:h-22"),
       attribute.class("flex justify-center items-center relative"),
       attribute.class(case cell_color {
         White -> "bg-green-200/50"
