@@ -10,6 +10,8 @@ pub type Game {
   Game(
     board: board.Board,
     board_variant: board.Variant,
+    bridge_squares: List(Int),
+    river_squares: List(Int),
     to_move: board.Color,
     castling: Castling,
     en_passant_square: Option(Int),
@@ -141,6 +143,8 @@ pub fn new() {
     previous_positions: [],
     last_move: #(-1, -1),
     board_variant: board.TwoBridge,
+    river_squares: board.river_square(board.TwoBridge),
+    bridge_squares: board.bridge_square(board.TwoBridge),
   )
 }
 

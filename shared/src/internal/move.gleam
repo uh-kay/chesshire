@@ -86,22 +86,14 @@ pub fn moves_for_piece(
   let river_square = board.river_square(game.board_variant)
 
   case piece {
-    board.Pawn -> {
-      list.filter(pawn_moves(game, position, moves), fn(move) {
-        !list.contains(river_square, move.to)
-      })
-    }
+    board.Pawn -> pawn_moves(game, position, moves)
     board.Knight ->
-      list.filter(
-        knight_moves(game, position, moves, direction.knight_directions),
-        fn(move) { !list.contains(river_square, move.to) },
-      )
-    board.King -> {
+      knight_moves(game, position, moves, direction.knight_directions)
+    board.King ->
       list.filter(
         king_moves(game, position, moves, direction.queen_directions),
         fn(move) { !list.contains(river_square, move.to) },
       )
-    }
     board.Bishop ->
       sliding_moves(game, piece, position, moves, direction.bishop_directions)
     board.Rook ->
@@ -560,6 +552,8 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
     previous_positions:,
     last_move: _,
     board_variant:,
+    river_squares:,
+    bridge_squares:,
   ) = game
 
   let castling = case to_move {
@@ -647,6 +641,8 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
     previous_positions:,
     last_move:,
     board_variant:,
+    river_squares:,
+    bridge_squares:,
   )
 }
 
@@ -675,6 +671,8 @@ fn do_apply(
     previous_positions:,
     last_move: _,
     board_variant:,
+    river_squares:,
+    bridge_squares:,
   ) = game
 
   let #(
@@ -735,7 +733,22 @@ fn do_apply(
     None -> #(zobrist_hash, opposing_pawn_material, opposing_non_pawn_material)
   }
 
-  let board = board |> dict.delete(from) |> dict.insert(to, #(piece, our_color))
+  let #(board, river_squares, bridge_squares) = case
+    list.contains(game.river_squares, to)
+  {
+    True -> {
+      let board = board |> dict.delete(from)
+      let river_squares =
+        list.filter(river_squares, fn(square) { square != to })
+      let bridge_squares = list.prepend(bridge_squares, to)
+      #(board, river_squares, bridge_squares)
+    }
+    False -> {
+      let board =
+        board |> dict.delete(from) |> dict.insert(to, #(piece, our_color))
+      #(board, river_squares, bridge_squares)
+    }
+  }
 
   let #(board, zobrist_hash, opposing_pawn_material) = case
     en_passant,
@@ -825,6 +838,8 @@ fn do_apply(
     previous_positions:,
     last_move:,
     board_variant:,
+    river_squares:,
+    bridge_squares:,
   )
 }
 
