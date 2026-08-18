@@ -22,7 +22,7 @@ RUN cd /build/client && gleam deps download
 RUN cd /build/server && gleam deps download
 
 RUN cd /build/client \
-    && gleam run -m lustre/dev build --minify --outdir=../server/priv/static/
+    && gleam run -m lustre/dev build
 RUN cd /build/server \
     && gleam export erlang-shipment
 

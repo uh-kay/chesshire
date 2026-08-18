@@ -34,3 +34,5 @@ proxy = { from = "/v1", to = "http://localhost:8000/v1" }
 
 [tools.lustre.build]
 no_html = true
+outdir = "../server/priv/static"
+minify = true
