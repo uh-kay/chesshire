@@ -77,7 +77,7 @@ pub fn handle_ws(req: Request, invite_code: String, ctx: Context) -> Response {
                       |> json.to_string
                     let _ = websocket.send_text(connection, json)
 
-                    websocket.Stop
+                    websocket.Continue(state)
                   }
                 }
               websocket.Custom(game.StateUpdate(json)) -> {

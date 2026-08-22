@@ -2,10 +2,11 @@ import cheg.{Guest, Host}
 import gleam/dict.{type Dict}
 import gleam/erlang/process.{type Subject}
 import gleam/json
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor.{type Next, type StartError, type Started}
+import gleam/result
 import shared
-import wisp
 
 pub type Chesshire {
   Chesshire(
@@ -69,6 +70,13 @@ type GameActorStatus {
   Online(#(String, Subject(OutgoingMsg)))
   Disconnected(#(String, Subject(OutgoingMsg)))
   Empty
+}
+
+pub type GameError {
+  UnknownPlayer
+  OutOfTurn
+  InvalidMoveFormat
+  IllegalMove
 }
 
 fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
@@ -147,67 +155,84 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
         _, _ -> None
       }
 
-      case role {
-        None -> {
-          actor.send(reply_to, MoveRejected("Not a player"))
+      let result = {
+        use player_role <- result.try(case role {
+          Some(role) -> Ok(role)
+          None -> Error(UnknownPlayer)
+        })
+        let current_turn = cheg.role(state.model.game)
+        use _ <- result.try(case player_role == current_turn {
+          True -> Ok(Nil)
+          False -> Error(OutOfTurn)
+        })
+        use move <- result.try(
+          json.parse(move_json, cheg.move_decoder())
+          |> result.replace_error(InvalidMoveFormat),
+        )
+
+        let legal_moves = cheg.legal_moves(state.model.game)
+        use _ <- result.try(case list.contains(legal_moves, move) {
+          True -> Ok(Nil)
+          False -> Error(IllegalMove)
+        })
+
+        let game = cheg.apply_move(state.model.game, move)
+        let state = GameActor(..state, model: Chesshire(..state.model, game:))
+
+        let #(time, game_state) = get_time(game, state)
+
+        let host_payload =
+          cheg.game_view_to_json(cheg.GameView(
+            game:,
+            game_state:,
+            role: cheg.Host,
+            time:,
+            guest_joined: state.guest != Empty,
+          ))
+          |> json.to_string
+        let guest_payload =
+          cheg.game_view_to_json(cheg.GameView(
+            game:,
+            game_state:,
+            role: cheg.Guest,
+            time:,
+            guest_joined: state.guest != Empty,
+          ))
+          |> json.to_string
+
+        let state = GameActor(..state, model: Chesshire(..state.model, time:))
+
+        broadcast(state, host_payload, guest_payload)
+        Ok(state)
+      }
+
+      case result {
+        Ok(state) -> {
+          actor.send(reply_to, MoveOk)
           actor.continue(state)
         }
-        Some(player_role) -> {
-          let role = cheg.role(state.model.game)
-
-          case player_role == role {
-            False -> {
+        Error(err) ->
+          case err {
+            UnknownPlayer -> {
+              actor.send(reply_to, MoveRejected("Not a player"))
+              actor.continue(state)
+            }
+            OutOfTurn -> {
               actor.send(reply_to, MoveRejected("Not your turn"))
               actor.continue(state)
             }
-            True ->
-              case json.parse(move_json, cheg.move_decoder()) {
-                Error(_) -> {
-                  actor.send(reply_to, MoveRejected("Bad move format"))
-                  actor.continue(state)
-                }
-                Ok(move) -> {
-                  let game = cheg.apply_move(state.model.game, move)
-                  let model = Chesshire(..state.model, game:)
-                  let state = GameActor(..state, model:)
-
-                  let #(time, game_state) = get_time(game, state)
-
-                  let host_payload =
-                    cheg.game_view_to_json(cheg.GameView(
-                      game:,
-                      game_state:,
-                      role: cheg.Host,
-                      time:,
-                      guest_joined: state.guest != Empty,
-                    ))
-                    |> json.to_string
-                  let guest_payload =
-                    cheg.game_view_to_json(cheg.GameView(
-                      game:,
-                      game_state:,
-                      role: cheg.Guest,
-                      time:,
-                      guest_joined: state.guest != Empty,
-                    ))
-                    |> json.to_string
-
-                  let state =
-                    GameActor(..state, model: Chesshire(..state.model, time:))
-
-                  broadcast(state, host_payload, guest_payload)
-
-                  actor.send(reply_to, MoveOk)
-                  actor.continue(state)
-                }
-              }
+            InvalidMoveFormat -> {
+              actor.send(reply_to, MoveRejected("Bad move format"))
+              actor.continue(state)
+            }
+            IllegalMove -> {
+              actor.send(reply_to, MoveRejected("Illegal move"))
+              actor.continue(state)
+            }
           }
-        }
       }
     }
     Disconnect(session:) -> {
-      wisp.log_info(session)
-
       let new_state = case state.host, state.guest {
         Online(#(host_session, socket)), _ if host_session == session ->
           GameActor(..state, host: Disconnected(#(host_session, socket)))
