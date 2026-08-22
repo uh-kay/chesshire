@@ -238,11 +238,7 @@ fn cell(
             Guest -> "scale-x-[-1]"
           }),
         ],
-        [
-          html.div([attribute.class("w-10 md:w-14 lg:w-18")], [
-            piece_view(piece),
-          ]),
-        ],
+        [html.div([attribute.class("w-10 md:w-14")], [piece_view(piece)])],
       ),
       html.div(
         [
