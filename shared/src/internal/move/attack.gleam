@@ -49,8 +49,18 @@ pub fn attack_information_decoder() -> decode.Decoder(AttackInformation) {
   )
   use pin_lines <- decode.field(
     "pin_lines",
-    decode.dict(decode.int, decode.list(decode.int)),
+    decode.dict(decode.string, decode.list(decode.int)),
   )
+  let pin_lines =
+    dict.to_list(pin_lines)
+    |> list.fold(dict.new(), fn(acc, v) {
+      let #(pinned_piece, squares) = v
+
+      case int.parse(pinned_piece) {
+        Ok(pinned_piece) -> dict.insert(acc, pinned_piece, squares)
+        Error(_) -> acc
+      }
+    })
   decode.success(AttackInformation(
     in_check:,
     attacks:,
@@ -191,7 +201,7 @@ fn get_sliding_pin_lines_loop(
         direction,
         lines,
         line,
-        pinned_piece,
+        position,
       )
     _ -> lines
   }
@@ -353,9 +363,7 @@ fn sliding_check_block_line(
           position,
           king_position,
           direction,
-          [
-            position,
-          ],
+          [position],
         )
       {
         [] ->
