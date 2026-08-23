@@ -25,7 +25,7 @@ pub type Model {
   Model(game: cheg.Game, moves: List(cheg.Move), role: Option(cheg.Role))
 }
 
-pub type CellColor {
+pub type SquareColor {
   White
   Black
   Brown
@@ -107,7 +107,7 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
 
         case list.find(model.moves, fn(move) { cheg.move_to(move) == pos }) {
           Ok(move) ->
-            dot_cell(
+            target_square_view(
               color,
               role,
               piece,
@@ -115,7 +115,8 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
               last_move,
               list.contains(river_square, cheg.move_to(move)),
             )
-          Error(_) -> cell(pos, role, color, piece, last_move, checked_piece)
+          Error(_) ->
+            square_view(pos, role, color, piece, last_move, checked_piece)
         }
       }
       None -> element.none()
@@ -123,8 +124,8 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
   })
 }
 
-fn dot_cell(
-  cell_color: CellColor,
+fn target_square_view(
+  square_color: SquareColor,
   role: cheg.Role,
   piece: Option(#(cheg.PieceType, cheg.PieceColor)),
   move: cheg.Move,
@@ -136,7 +137,7 @@ fn dot_cell(
   html.div(
     [
       square_style(),
-      cell_color_style(cell_color),
+      square_color_style(square_color),
       attribute.class(case has_piece || is_river {
         True -> "border-2 border-red-500"
         False -> ""
@@ -144,7 +145,7 @@ fn dot_cell(
       event.on_click(UserClickedTargetSquare(move)),
     ],
     [
-      special_square_marker(cell_color, role),
+      special_square_marker(square_color, role),
       html.div(
         [
           attribute.class(case piece {
@@ -164,10 +165,10 @@ fn dot_cell(
   )
 }
 
-fn cell(
+fn square_view(
   pos: Int,
   role: cheg.Role,
-  cell_color: CellColor,
+  square_color: SquareColor,
   piece: Option(#(cheg.PieceType, cheg.PieceColor)),
   is_last_move: Bool,
   checked_king: option.Option(#(cheg.PieceType, cheg.PieceColor)),
@@ -175,7 +176,7 @@ fn cell(
   html.div(
     [
       square_style(),
-      cell_color_style(cell_color),
+      square_color_style(square_color),
       attribute.class(case checked_king, piece {
         Some(checked_king), Some(piece) if checked_king == piece ->
           "aspect-square bg-radial-[at_50%_50%] from-red-500 to-transparent"
@@ -185,7 +186,7 @@ fn cell(
       event.on_click(UserClickedSquare(piece, pos)),
     ],
     [
-      special_square_marker(cell_color, role),
+      special_square_marker(square_color, role),
       html.div(
         [
           attribute.class("w-18 z-40 flex justify-center"),
@@ -205,8 +206,8 @@ fn square_style() {
   attribute.class("flex justify-center items-center relative")
 }
 
-fn cell_color_style(cell_color: CellColor) {
-  attribute.class(case cell_color {
+fn square_color_style(square_color: SquareColor) {
+  attribute.class(case square_color {
     White -> "bg-green-200/50"
     Black -> "bg-green-700/70"
     Blue -> "bg-blue-700"
@@ -214,7 +215,10 @@ fn cell_color_style(cell_color: CellColor) {
   })
 }
 
-fn special_square_marker(cell_color: CellColor, role: cheg.Role) -> Element(a) {
+fn special_square_marker(
+  square_color: SquareColor,
+  role: cheg.Role,
+) -> Element(a) {
   let special_square_style = [
     attribute.class("absolute text-white"),
     attribute.class(case role {
@@ -222,7 +226,7 @@ fn special_square_marker(cell_color: CellColor, role: cheg.Role) -> Element(a) {
       Guest -> "top-0 right-2"
     }),
   ]
-  case cell_color {
+  case square_color {
     Blue ->
       html.div(
         [attribute.class("text-xl select-none"), ..special_square_style],
