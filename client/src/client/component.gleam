@@ -359,6 +359,7 @@ pub fn navbar() -> Element(_) {
           html.text("Chesshire"),
         ],
       ),
+      html.a([attribute.href("/about")], [html.text("about")]),
     ]),
   ])
 }

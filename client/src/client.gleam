@@ -57,6 +57,7 @@ pub type Message {
   AccordionProducedMessage(accordion.Message)
 
   UserNavigatedTo(Route)
+  UserNavigatedToExternalPage(uri: uri.Uri)
   UserClickedNewGame
   UserClickedCopyLink(lobby_url: String)
 
@@ -140,6 +141,7 @@ fn init(_) -> #(Model, Effect(Message)) {
 fn on_url_change(uri: uri.Uri) -> Message {
   case uri.path_segments(uri.path) {
     [] -> UserNavigatedTo(Home)
+    ["about"] -> UserNavigatedToExternalPage(uri)
     _ -> UserNavigatedTo(NotFound)
   }
 }
@@ -334,6 +336,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
+    UserNavigatedToExternalPage(uri:) -> #(model, modem.load(uri))
   }
 }
 
@@ -453,143 +456,131 @@ fn view(model: Model) -> Element(Message) {
   }
 
   case model.route {
-    Home -> {
-      let content =
-        html.div([attribute.class("p-8 mx-auto max-w-4xl flex flex-col")], [
-          html.div([attribute.class("flex gap-8")], [
+    Home ->
+      html.div([attribute.class("p-8 mx-auto max-w-4xl flex flex-col")], [
+        html.div([attribute.class("flex gap-8")], [
+          html.button(
+            [
+              attribute.class("p-2 bg-blue-500 text-white rounded-md h-fit"),
+              attribute.class(" hover:bg-blue-600 hover:cursor-pointer"),
+              event.on_click(UserClickedNewGame),
+            ],
+            [html.text("Create Lobby")],
+          ),
+          html.div([attribute.class("")], [
             html.button(
               [
-                attribute.class("p-2 bg-blue-500 text-white rounded-md h-fit"),
-                attribute.class(" hover:bg-blue-600 hover:cursor-pointer"),
-                event.on_click(UserClickedNewGame),
+                attribute.class("bg-gray-600 px-4 py-2 rounded-md w-fit"),
+                attribute.class(" opacity-50 text-white cursor-not-allowed"),
               ],
-              [html.text("Create Lobby")],
+              [html.text("Find Game")],
             ),
-            html.div([attribute.class("")], [
-              html.button(
-                [
-                  attribute.class("bg-gray-600 px-4 py-2 rounded-md w-fit"),
-                  attribute.class(" opacity-50 text-white cursor-not-allowed"),
-                ],
-                [html.text("Find Game")],
-              ),
-              html.p([attribute.class("mt-2")], [
-                html.text("⚠️ Coming soon!"),
-              ]),
+            html.p([attribute.class("mt-2")], [
+              html.text("⚠️ Coming soon!"),
             ]),
           ]),
-          // accordion.view(model.faq) |> element.map(AccordionProducedMessage),
-          html.p([attribute.class("mt-8 text-xl font-bold text-blue-500")], [
-            html.text("What is Chesshire?"),
+        ]),
+        // accordion.view(model.faq) |> element.map(AccordionProducedMessage),
+        html.p([attribute.class("mt-8 text-xl font-bold text-blue-500")], [
+          html.text("What is Chesshire?"),
+        ]),
+        html.div([attribute.class("text-justify")], [
+          html.p([attribute.class("mt-2")], [
+            html.text(
+              "Chesshire is a new chess variant with river and bridges!",
+            ),
           ]),
-          html.div([attribute.class("text-justify")], [
-            html.p([attribute.class("mt-2")], [
+          html.img([
+            attribute.class("w-lg mt-2"),
+            attribute.src("/static/chesshire_screenshot.webp"),
+          ]),
+          html.p([attribute.class("mt-2")], [
+            html.text("Normal chess rule applies but with these additions:"),
+          ]),
+          html.ul([attribute.class("list-disc list-inside")], [
+            html.li([], [html.text("Piece cannot move onto river tiles.")]),
+            html.li([], [
               html.text(
-                "Chesshire is a new chess variant with river and bridges!",
+                "Knight can jump across the river but cannot land on it.",
               ),
             ]),
             html.img([
-              attribute.class("w-lg mt-2"),
-              attribute.src("/static/chesshire_screenshot.webp"),
+              attribute.class("w-64"),
+              attribute.src("/static/knight_rule.png"),
             ]),
-            html.p([attribute.class("mt-2")], [
-              html.text("Normal chess rule applies but with these additions:"),
+            html.li([], [
+              html.text("Pieces cannot attack opponent piece across the river."),
             ]),
-            html.ul([attribute.class("list-disc list-inside")], [
-              html.li([], [html.text("Piece cannot move onto river tiles.")]),
-              html.li([], [
-                html.text(
-                  "Knight can jump across the river but cannot land on it.",
-                ),
-              ]),
-              html.img([
-                attribute.class("w-64"),
-                attribute.src("/static/knight_rule.png"),
-              ]),
-              html.li([], [
-                html.text(
-                  "Pieces cannot attack opponent piece across the river.",
-                ),
-              ]),
-              html.img([
-                attribute.class("w-64"),
-                attribute.src("/static/attack_rule.png"),
-              ]),
-              html.li([], [
-                html.text(
-                  "Pieces can only cross using bridges."
-                  <> " They can also attack opponent piece across the bridge.",
-                ),
-              ]),
+            html.img([
+              attribute.class("w-64"),
+              attribute.src("/static/attack_rule.png"),
+            ]),
+            html.li([], [
+              html.text(
+                "Pieces can only cross using bridges."
+                <> " They can also attack opponent piece across the bridge.",
+              ),
             ]),
           ]),
-        ])
-
-      layout(content)
-    }
+        ]),
+      ])
+      |> layout()
     NotFound -> element.none()
-    Game(id: _) -> {
+    Game(id: _) ->
       case model.guest_joined {
-        False -> {
-          let content =
-            html.div([attribute.class("mx-auto max-w-xl p-8")], [
-              html.p([], [
-                html.text("Send this link to invite someone to play:"),
-              ]),
-              html.div([attribute.class("mt-4 flex")], [
-                html.p(
-                  [
-                    attribute.class("p-2 border-y-2 border-l-2 w-fit rounded-l"),
-                    attribute.class("border-blue-500"),
-                  ],
-                  [html.text(lobby_url)],
-                ),
-                html.button(
-                  [
-                    attribute.class("rounded-r-md p-2 cursor-pointer"),
-                    attribute.class("bg-blue-500 text-white"),
-                    attribute.class("hover:bg-blue-600"),
-                    event.on_click(UserClickedCopyLink(lobby_url)),
-                  ],
-                  [
-                    case model.link_copied {
-                      True -> icon.check()
-                      False -> icon.clipboard()
-                    },
-                  ],
-                ),
-              ]),
-            ])
-
-          layout(content)
-        }
-        True -> {
-          let content =
-            html.div(
-              [
-                attribute.class("pt-8 px-3 md:p-8 max-w-fit mx-auto"),
-                attribute.class("flex flex-col md:flex-row"),
-              ],
-              [
-                component.game_view(component.Model(
-                  game: model.game,
-                  moves: model.current_piece_moves,
-                  role: model.role,
-                ))
-                  |> element.map(ComponentProducedMessage),
-                component.clock_view(
-                  model.time.black_time,
-                  model.time.white_time,
-                  model.role,
-                  model.game_state,
-                ),
-              ],
-            )
-
-          layout(content)
-        }
+        False ->
+          html.div([attribute.class("mx-auto max-w-xl p-8")], [
+            html.p([], [
+              html.text("Send this link to invite someone to play:"),
+            ]),
+            html.div([attribute.class("mt-4 flex")], [
+              html.p(
+                [
+                  attribute.class("p-2 border-y-2 border-l-2 w-fit rounded-l"),
+                  attribute.class("border-blue-500"),
+                ],
+                [html.text(lobby_url)],
+              ),
+              html.button(
+                [
+                  attribute.class("rounded-r-md p-2 cursor-pointer"),
+                  attribute.class("bg-blue-500 text-white"),
+                  attribute.class("hover:bg-blue-600"),
+                  event.on_click(UserClickedCopyLink(lobby_url)),
+                ],
+                [
+                  case model.link_copied {
+                    True -> icon.check()
+                    False -> icon.clipboard()
+                  },
+                ],
+              ),
+            ]),
+          ])
+          |> layout()
+        True ->
+          html.div(
+            [
+              attribute.class("pt-8 px-3 md:p-8 max-w-fit mx-auto"),
+              attribute.class("flex flex-col md:flex-row"),
+            ],
+            [
+              component.game_view(component.Model(
+                game: model.game,
+                moves: model.current_piece_moves,
+                role: model.role,
+              ))
+                |> element.map(ComponentProducedMessage),
+              component.clock_view(
+                model.time.black_time,
+                model.time.white_time,
+                model.role,
+                model.game_state,
+              ),
+            ],
+          )
+          |> layout()
       }
-    }
   }
 }
 

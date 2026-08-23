@@ -13,6 +13,7 @@ wisp_mist = { git = "https://github.com/uh-kay/wisp", ref = "main", path = "wisp
 gleam_crypto = ">= 1.6.0 and < 2.0.0"
 gleam_otp = ">= 1.2.0 and < 2.0.0"
 shared = { path = "../shared" }
+client = { path = "../client" }
 lustre = ">= 5.7.1 and < 6.0.0"
 
 [dev_dependencies]

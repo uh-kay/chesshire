@@ -1,3 +1,4 @@
+import client/page/about
 import gleam/http.{Get, Post}
 import gleam/int
 import gleam/json
@@ -18,6 +19,7 @@ pub fn handle_request(
   case req.method, wisp.path_segments(req) {
     Get, ["ws", invite_code] -> game.handle_ws(req, invite_code, ctx)
     _, ["v1", ..segments] -> api_routes(req, segments)
+    Get, ["about"] -> about.view() |> wisp.html_response(200)
     _, _ -> web.serve_index()
   }
 }
