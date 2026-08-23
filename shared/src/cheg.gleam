@@ -549,10 +549,10 @@ pub fn move_decoder() -> decode.Decoder(Move) {
   }
 }
 
-pub fn river_square(game: Game) {
+pub fn river_squares(game: Game) {
   game.game.river_squares
 }
 
-pub fn bridge_square(game: Game) {
+pub fn bridge_squares(game: Game) {
   game.game.bridge_squares
 }

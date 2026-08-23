@@ -82,8 +82,8 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
       0 -> Black
       _ -> White
     }
-    let river_square = cheg.river_square(model.game)
-    let bridge_square = cheg.bridge_square(model.game)
+    let river_square = cheg.river_squares(model.game)
+    let bridge_square = cheg.bridge_squares(model.game)
     let color = case list.contains(river_square, pos) {
       True -> Blue
       False ->
@@ -106,7 +106,15 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
         }
 
         case list.find(model.moves, fn(move) { cheg.move_to(move) == pos }) {
-          Ok(move) -> dot_cell(color, role, piece, move, last_move)
+          Ok(move) ->
+            dot_cell(
+              color,
+              role,
+              piece,
+              move,
+              last_move,
+              list.contains(river_square, cheg.move_to(move)),
+            )
           Error(_) -> cell(pos, role, color, piece, last_move, checked_piece)
         }
       }
@@ -120,50 +128,23 @@ fn dot_cell(
   role: cheg.Role,
   piece: Option(#(cheg.PieceType, cheg.PieceColor)),
   move: cheg.Move,
-  last_move: Bool,
+  is_last_move: Bool,
+  is_river: Bool,
 ) -> Element(Message) {
+  let has_piece = option.is_some(piece)
+
   html.div(
     [
-      attribute.class("flex items-center justify-center relative"),
-      attribute.class(case cell_color {
-        White -> "bg-green-200/50"
-        Black -> "bg-green-700/70"
-        Blue -> "bg-blue-700"
-        Brown -> "bg-amber-900/70"
-      }),
-      attribute.class(case piece {
-        Some(_) -> "border-2 border-red-500"
-        None -> ""
-      }),
-      attribute.class(case last_move {
-        True -> "bg-yellow-400/30"
+      square_style(),
+      cell_color_style(cell_color),
+      attribute.class(case has_piece || is_river {
+        True -> "border-2 border-red-500"
         False -> ""
       }),
       event.on_click(UserClickedTargetSquare(move)),
     ],
     [
-      {
-        let special_square_style = [
-          attribute.class("absolute text-white"),
-          attribute.class(case role {
-            Host -> "bottom-0 left-2"
-            Guest -> "top-0 right-2"
-          }),
-        ]
-        case cell_color {
-          Blue ->
-            html.div(
-              [attribute.class("text-xl select-none"), ..special_square_style],
-              [html.text("~")],
-            )
-          Brown ->
-            html.div(
-              [attribute.class("text-base select-none"), ..special_square_style],
-              [html.text("][")],
-            )
-          _ -> element.none()
-        }
-      },
+      special_square_marker(cell_color, role),
       html.div(
         [
           attribute.class(case piece {
@@ -178,6 +159,7 @@ fn dot_cell(
         ],
         [piece_view(piece)],
       ),
+      last_move_indicator(is_last_move),
     ],
   )
 }
@@ -187,18 +169,13 @@ fn cell(
   role: cheg.Role,
   cell_color: CellColor,
   piece: Option(#(cheg.PieceType, cheg.PieceColor)),
-  last_move: Bool,
+  is_last_move: Bool,
   checked_king: option.Option(#(cheg.PieceType, cheg.PieceColor)),
 ) -> Element(Message) {
   html.div(
     [
-      attribute.class("flex justify-center items-center relative"),
-      attribute.class(case cell_color {
-        White -> "bg-green-200/50"
-        Black -> "bg-green-700/70"
-        Blue -> "bg-blue-700"
-        Brown -> "bg-amber-900/70"
-      }),
+      square_style(),
+      cell_color_style(cell_color),
       attribute.class(case checked_king, piece {
         Some(checked_king), Some(piece) if checked_king == piece ->
           "aspect-square bg-radial-[at_50%_50%] from-red-500 to-transparent"
@@ -208,28 +185,7 @@ fn cell(
       event.on_click(UserClickedSquare(piece, pos)),
     ],
     [
-      {
-        let special_square_style = [
-          attribute.class("absolute text-white"),
-          attribute.class(case role {
-            Host -> "bottom-0 left-2"
-            Guest -> "top-0 right-2"
-          }),
-        ]
-        case cell_color {
-          Blue ->
-            html.div(
-              [attribute.class("text-xl select-none"), ..special_square_style],
-              [html.text("~")],
-            )
-          Brown ->
-            html.div(
-              [attribute.class("text-base select-none"), ..special_square_style],
-              [html.text("][")],
-            )
-          _ -> element.none()
-        }
-      },
+      special_square_marker(cell_color, role),
       html.div(
         [
           attribute.class("w-18 z-40 flex justify-center"),
@@ -240,16 +196,56 @@ fn cell(
         ],
         [html.div([attribute.class("w-10 md:w-14")], [piece_view(piece)])],
       ),
-      html.div(
-        [
-          attribute.class(case last_move {
-            True -> "absolute inset-0 bg-yellow-400/30"
-            False -> ""
-          }),
-        ],
-        [],
-      ),
+      last_move_indicator(is_last_move),
     ],
+  )
+}
+
+fn square_style() {
+  attribute.class("flex justify-center items-center relative")
+}
+
+fn cell_color_style(cell_color: CellColor) {
+  attribute.class(case cell_color {
+    White -> "bg-green-200/50"
+    Black -> "bg-green-700/70"
+    Blue -> "bg-blue-700"
+    Brown -> "bg-amber-900/70"
+  })
+}
+
+fn special_square_marker(cell_color: CellColor, role: cheg.Role) -> Element(a) {
+  let special_square_style = [
+    attribute.class("absolute text-white"),
+    attribute.class(case role {
+      Host -> "bottom-0 left-2"
+      Guest -> "top-0 right-2"
+    }),
+  ]
+  case cell_color {
+    Blue ->
+      html.div(
+        [attribute.class("text-xl select-none"), ..special_square_style],
+        [html.text("~")],
+      )
+    Brown ->
+      html.div(
+        [attribute.class("text-base select-none"), ..special_square_style],
+        [html.text("][")],
+      )
+    _ -> element.none()
+  }
+}
+
+fn last_move_indicator(is_last_move: Bool) -> Element(a) {
+  html.div(
+    [
+      attribute.class(case is_last_move {
+        True -> "absolute inset-0 bg-yellow-400/30"
+        False -> ""
+      }),
+    ],
+    [],
   )
 }
 
