@@ -143,8 +143,8 @@ pub fn new() {
     previous_positions: [],
     last_move: #(-1, -1),
     board_variant: board.TwoBridge,
-    river_squares: board.river_square(board.TwoBridge),
-    bridge_squares: board.bridge_square(board.TwoBridge),
+    river_squares: board.river_squares(board.TwoBridge),
+    bridge_squares: board.bridge_squares(board.TwoBridge),
   )
 }
 

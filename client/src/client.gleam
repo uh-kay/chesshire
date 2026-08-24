@@ -162,17 +162,11 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
           let to_move = cheg.to_move(model.game)
 
           case piece {
-            Some(#(piece_type, piece_color))
+            Some(#(_, piece_color))
               if player_color == to_move
               && player_color == piece_color
               && model.game_state == cheg.Continue
-            ->
-              cheg.legal_moves_for_piece(
-                model.game,
-                pos,
-                #(piece_type, piece_color),
-                [],
-              )
+            -> cheg.legal_moves_for_piece(model.game, pos)
             _ -> []
           }
         }

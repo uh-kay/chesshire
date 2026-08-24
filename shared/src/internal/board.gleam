@@ -135,14 +135,14 @@ pub const queen_value = 9
 
 pub const king_value = 9001
 
-pub fn river_square(variant: Variant) {
+pub fn river_squares(variant: Variant) {
   case variant {
     TwoBridge -> [32, 34, 35, 36, 37, 39]
     MiddleBridge -> [32, 33, 34, 37, 38, 39]
   }
 }
 
-pub fn bridge_square(variant: Variant) {
+pub fn bridge_squares(variant: Variant) {
   case variant {
     TwoBridge -> [33, 38]
     MiddleBridge -> [35, 36]

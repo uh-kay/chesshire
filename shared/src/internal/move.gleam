@@ -77,23 +77,24 @@ fn king_can_move(to: Int, attack_information: attack.AttackInformation) {
   }
 }
 
-pub fn moves_for_piece(
+fn moves_for_piece(
   game: Game,
   position: Int,
   piece: board.Piece,
   moves: List(Move),
 ) {
-  let river_square = board.river_square(game.board_variant)
+  let river_squares = game.river_squares
 
   case piece {
     board.Pawn -> pawn_moves(game, position, moves)
     board.Knight ->
       knight_moves(game, position, moves, direction.knight_directions)
-    board.King ->
-      list.filter(
-        king_moves(game, position, moves, direction.queen_directions),
-        fn(move) { !list.contains(river_square, move.to) },
-      )
+    board.King -> {
+      let king_moves =
+        king_moves(game, position, moves, direction.queen_directions)
+        |> list.filter(fn(move) { !list.contains(river_squares, move.to) })
+      list.append(moves, king_moves)
+    }
     board.Bishop ->
       sliding_moves(game, piece, position, moves, direction.bishop_directions)
     board.Rook ->
@@ -479,10 +480,13 @@ fn sliding_moves_in_direction(
   position: Int,
   direction: Direction,
   moves: List(Move),
-) {
-  let river_square = board.river_square(game.board_variant)
+) -> List(Move) {
   let new_position = direction.in_direction(position, direction)
-  use <- bool.guard(list.contains(river_square, new_position), moves)
+  let river_squares = game.river_squares
+  use <- bool.guard(list.contains(river_squares, new_position), [
+    Move(position, new_position, piece),
+    ..moves
+  ])
   case board.get(game.board, new_position) {
     board.Empty ->
       sliding_moves_in_direction(

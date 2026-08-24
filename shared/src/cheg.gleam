@@ -400,27 +400,7 @@ pub fn last_move(game: Game) -> #(Int, Int) {
   game.game.last_move
 }
 
-pub fn legal_moves_for_piece(
-  game: Game,
-  pos: Int,
-  piece: #(PieceType, Color),
-  moves: List(Move),
-) -> List(Move) {
-  let moves = list.map(moves, fn(move) { move.move })
-  let piece = case piece {
-    #(Pawn, Black) -> board.Pawn
-    #(Knight, Black) -> board.Knight
-    #(Bishop, Black) -> board.Bishop
-    #(Rook, Black) -> board.Rook
-    #(Queen, Black) -> board.Queen
-    #(King, Black) -> board.King
-    #(Pawn, White) -> board.Pawn
-    #(Knight, White) -> board.Knight
-    #(Bishop, White) -> board.Bishop
-    #(Rook, White) -> board.Rook
-    #(Queen, White) -> board.Queen
-    #(King, White) -> board.King
-  }
+pub fn legal_moves_for_piece(game: Game, pos: Int) -> List(Move) {
   let board = game.game.board
   let to_move = game.game.to_move
   let king_position = case to_move {
@@ -438,7 +418,7 @@ pub fn legal_moves_for_piece(
       ),
     )
 
-  list.map(move.moves_for_piece(game.game, pos, piece, moves), Move)
+  list.filter(legal_moves(game), fn(move) { move.move.from == pos })
 }
 
 pub type JoinModel {
