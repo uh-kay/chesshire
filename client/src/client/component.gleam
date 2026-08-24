@@ -1,4 +1,4 @@
-import cheg.{Guest, Host}
+import cheg.{Guest, Host, Spectator}
 import gleam/dict
 import gleam/int
 import gleam/list
@@ -13,10 +13,7 @@ import lustre/element/html
 import lustre/event
 
 pub type Message {
-  UserClickedSquare(
-    piece: Option(#(cheg.PieceType, cheg.PieceColor)),
-    position: Int,
-  )
+  UserClickedSquare(piece: Option(#(cheg.PieceType, cheg.Color)), position: Int)
   UserClickedTargetSquare(move: cheg.Move)
   UserClickedNewGame
 }
@@ -42,6 +39,7 @@ pub fn game_view(model: Model) -> Element(Message) {
           case role {
             Host -> attribute.class("scale-y-[-1]")
             Guest -> attribute.class("scale-x-[-1]")
+            Spectator -> attribute.class("scale-y-[-1]")
           }
         None -> attribute.none()
       },
@@ -127,7 +125,7 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
 fn target_square_view(
   square_color: SquareColor,
   role: cheg.Role,
-  piece: Option(#(cheg.PieceType, cheg.PieceColor)),
+  piece: Option(#(cheg.PieceType, cheg.Color)),
   move: cheg.Move,
   is_last_move: Bool,
   is_river: Bool,
@@ -152,8 +150,9 @@ fn target_square_view(
             Some(_) ->
               "w-18"
               <> case role {
-                Host -> " scale-y-[-1]"
-                Guest -> " scale-x-[-1]"
+                Host -> "scale-y-[-1]"
+                Guest -> "scale-x-[-1]"
+                Spectator -> "scale-y-[-1]"
               }
             None -> "w-3 h-3 lg:w-5 lg:h-5 rounded-full bg-black/30"
           }),
@@ -169,9 +168,9 @@ fn square_view(
   pos: Int,
   role: cheg.Role,
   square_color: SquareColor,
-  piece: Option(#(cheg.PieceType, cheg.PieceColor)),
+  piece: Option(#(cheg.PieceType, cheg.Color)),
   is_last_move: Bool,
-  checked_king: option.Option(#(cheg.PieceType, cheg.PieceColor)),
+  checked_king: option.Option(#(cheg.PieceType, cheg.Color)),
 ) -> Element(Message) {
   html.div(
     [
@@ -193,6 +192,7 @@ fn square_view(
           attribute.class(case role {
             Host -> "scale-y-[-1]"
             Guest -> "scale-x-[-1]"
+            Spectator -> "scale-y-[-1]"
           }),
         ],
         [html.div([attribute.class("w-10 md:w-14")], [piece_view(piece)])],
@@ -224,6 +224,7 @@ fn special_square_marker(
     attribute.class(case role {
       Host -> "bottom-0 left-2"
       Guest -> "top-0 right-2"
+      Spectator -> "bottom-0 left-2"
     }),
   ]
   case square_color {
@@ -254,7 +255,7 @@ fn last_move_indicator(is_last_move: Bool) -> Element(a) {
 }
 
 fn piece_view(
-  piece: Option(#(cheg.PieceType, cheg.PieceColor)),
+  piece: Option(#(cheg.PieceType, cheg.Color)),
 ) -> Element(Message) {
   case piece {
     Some(#(cheg.Pawn, cheg.White)) -> icon.white_pawn()
@@ -313,6 +314,7 @@ pub fn clock_view(
           attribute.class(case player_role {
             Host -> "mt-4 flex-row md:flex-col"
             Guest -> "mt-4 flex-row-reverse md:flex-col-reverse"
+            Spectator -> "mt-4 flex-row md:flex-col"
           }),
         ],
         [

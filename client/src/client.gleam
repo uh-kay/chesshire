@@ -39,10 +39,11 @@ pub type Model {
     route: Route,
     lobby_code: String,
     error: Option(String),
-    current_piece: Option(#(Int, Option(#(cheg.PieceType, cheg.PieceColor)))),
+    current_piece: Option(#(Int, Option(#(cheg.PieceType, cheg.Color)))),
     current_piece_moves: List(cheg.Move),
     websocket: Option(Websocket),
     role: Option(cheg.Role),
+    player_color: Option(cheg.Color),
     guest_joined: Bool,
     offset: Int,
     link_copied: Bool,
@@ -125,6 +126,7 @@ fn init(_) -> #(Model, Effect(Message)) {
       faq: accordion.init(accordion_items),
       uri:,
       game_state: cheg.Continue,
+      player_color: None,
     )
   let effect =
     effect.batch([
@@ -155,10 +157,9 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       #(model, effect)
     }
     ComponentProducedMessage(component.UserClickedSquare(piece, pos)) -> {
-      let current_piece_moves = case model.role {
-        Some(role) -> {
-          let player_color = cheg.role_to_color(role)
-          let to_move = cheg.role(model.game) |> cheg.role_to_color
+      let current_piece_moves = case model.player_color {
+        Some(player_color) -> {
+          let to_move = cheg.to_move(model.game)
 
           case piece {
             Some(#(piece_type, piece_color))
@@ -256,6 +257,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
               guest_joined: game_view.guest_joined,
               role: Some(game_view.role),
               game_state: game_view.game_state,
+              player_color: game_view.player_color,
             )
 
           #(model, effect)

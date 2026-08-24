@@ -63,6 +63,7 @@ type GameActor {
     invite_code: String,
     host: GameActorStatus,
     guest: GameActorStatus,
+    spectator: GameActorStatus,
   )
 }
 
@@ -82,12 +83,6 @@ pub type GameError {
 fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
   case message {
     Join(session:, reply_to:, socket:) -> {
-      let role = case state.host, state.guest {
-        Online(#(s, _)), _ if s == session -> Host
-        _, Online(#(s, _)) if s == session -> Guest
-        _, _ -> Host
-      }
-
       let #(time, game_state) = get_time(state.model.game, state)
 
       let state =
@@ -97,7 +92,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
         // New game, first to join becomes host
         Empty, Empty -> {
           let new_state = GameActor(..state, host: Online(#(session, socket)))
-          broadcast_payload(state, role, new_state)
+          broadcast_payload(state, new_state)
 
           actor.send(
             reply_to,
@@ -109,7 +104,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
         // Host session matches but no guest, rejoin as host
         Disconnected(#(host_session, _)), _ if host_session == session -> {
           let new_state = GameActor(..state, host: Online(#(session, socket)))
-          broadcast_payload(state, role, new_state)
+          broadcast_payload(state, new_state)
 
           actor.send(
             reply_to,
@@ -121,7 +116,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
         // There's already a host, join as guest
         Online(_), Empty -> {
           let new_state = GameActor(..state, guest: Online(#(session, socket)))
-          broadcast_payload(state, role, new_state)
+          broadcast_payload(state, new_state)
 
           actor.send(
             reply_to,
@@ -133,7 +128,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
         // Both slots filled but guest session matches, rejoin as guest
         _, Disconnected(#(guest_session, _)) if guest_session == session -> {
           let new_state = GameActor(..state, guest: Online(#(session, socket)))
-          broadcast_payload(state, role, new_state)
+          broadcast_payload(state, new_state)
 
           actor.send(
             reply_to,
@@ -142,8 +137,15 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
           actor.continue(new_state)
         }
 
+        // Both host and guest has joined, join as spectator
+        Online(_), Online(_) -> {
+          let state = GameActor(..state, spectator: Online(#(session, socket)))
+          actor.send(reply_to, JoinOk(cheg.Spectator, state.model, True))
+          actor.continue(state)
+        }
+
         _, _ -> {
-          actor.send(reply_to, JoinRejected("Game is full"))
+          actor.send(reply_to, JoinRejected("Game is over"))
           actor.continue(state)
         }
       }
@@ -157,6 +159,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
 
       let result = {
         use player_role <- result.try(case role {
+          Some(cheg.Spectator) -> Error(UnknownPlayer)
           Some(role) -> Ok(role)
           None -> Error(UnknownPlayer)
         })
@@ -188,6 +191,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
             role: cheg.Host,
             time:,
             guest_joined: state.guest != Empty,
+            player_color: Some(cheg.White),
           ))
           |> json.to_string
         let guest_payload =
@@ -197,12 +201,23 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
             role: cheg.Guest,
             time:,
             guest_joined: state.guest != Empty,
+            player_color: Some(cheg.Black),
+          ))
+          |> json.to_string
+        let spectator_payload =
+          cheg.game_view_to_json(cheg.GameView(
+            game:,
+            game_state:,
+            role: cheg.Spectator,
+            time:,
+            guest_joined: state.guest != Empty,
+            player_color: None,
           ))
           |> json.to_string
 
         let state = GameActor(..state, model: Chesshire(..state.model, time:))
 
-        broadcast(state, host_payload, guest_payload)
+        broadcast(state, host_payload, guest_payload, spectator_payload)
         Ok(state)
       }
 
@@ -249,11 +264,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
   }
 }
 
-fn broadcast_payload(
-  state: GameActor,
-  _role: cheg.Role,
-  new_state: GameActor,
-) -> Nil {
+fn broadcast_payload(state: GameActor, new_state: GameActor) -> Nil {
   let host_payload =
     cheg.game_view_to_json(cheg.GameView(
       game: state.model.game,
@@ -261,6 +272,7 @@ fn broadcast_payload(
       game_state: cheg.state(state.model.game),
       time: state.model.time,
       guest_joined: new_state.guest != Empty,
+      player_color: Some(cheg.White),
     ))
     |> json.to_string
   let guest_payload =
@@ -270,19 +282,39 @@ fn broadcast_payload(
       game_state: cheg.state(state.model.game),
       time: state.model.time,
       guest_joined: new_state.guest != Empty,
+      player_color: Some(cheg.Black),
+    ))
+    |> json.to_string
+  let spectator_payload =
+    cheg.game_view_to_json(cheg.GameView(
+      game: state.model.game,
+      role: cheg.Spectator,
+      game_state: cheg.state(state.model.game),
+      time: state.model.time,
+      guest_joined: new_state.guest != Empty,
+      player_color: None,
     ))
     |> json.to_string
 
-  broadcast(new_state, host_payload, guest_payload)
+  broadcast(new_state, host_payload, guest_payload, spectator_payload)
 }
 
-fn broadcast(state: GameActor, host_json: String, guest_json: String) -> Nil {
+fn broadcast(
+  state: GameActor,
+  host_json: String,
+  guest_json: String,
+  spectator_json: String,
+) -> Nil {
   case state.host {
     Online(#(_, socket)) -> process.send(socket, StateUpdate(host_json))
     _ -> Nil
   }
   case state.guest {
     Online(#(_, socket)) -> process.send(socket, StateUpdate(guest_json))
+    _ -> Nil
+  }
+  case state.spectator {
+    Online(#(_, socket)) -> process.send(socket, StateUpdate(spectator_json))
     _ -> Nil
   }
 }
@@ -330,6 +362,7 @@ fn new(invite_code) -> GameActor {
     invite_code:,
     host: Empty,
     guest: Empty,
+    spectator: Empty,
   )
 }
 

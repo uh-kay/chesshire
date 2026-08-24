@@ -4,7 +4,7 @@ import gleam/dynamic/decode.{type Decoder}
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import internal/board.{type Piece}
 import internal/game
 import internal/move
@@ -302,12 +302,28 @@ pub type PieceType {
   King
 }
 
-pub type PieceColor {
+pub type Color {
   Black
   White
 }
 
-pub fn board(game: Game) -> Dict(Int, #(PieceType, PieceColor)) {
+fn color_to_json(color: Color) -> Json {
+  case color {
+    Black -> json.string("black")
+    White -> json.string("white")
+  }
+}
+
+fn color_decoder() -> Decoder(Color) {
+  use variant <- decode.then(decode.string)
+  case variant {
+    "black" -> decode.success(Black)
+    "white" -> decode.success(White)
+    _ -> decode.failure(Black, "Color")
+  }
+}
+
+pub fn board(game: Game) -> Dict(Int, #(PieceType, Color)) {
   dict.map_values(game.game.board, fn(_, v) {
     let #(piece, color) = v
     let piece = piece_to_piece_type(piece)
@@ -327,7 +343,7 @@ pub fn piece_to_piece_type(piece: Piece) -> PieceType {
   }
 }
 
-pub fn color_to_piece_color(color: board.Color) -> PieceColor {
+pub fn color_to_piece_color(color: board.Color) -> Color {
   case color {
     board.White -> White
     board.Black -> Black
@@ -341,6 +357,7 @@ pub fn move_to(move: Move) -> Int {
 pub type Role {
   Host
   Guest
+  Spectator
 }
 
 pub fn role_decoder() -> Decoder(Role) {
@@ -348,6 +365,7 @@ pub fn role_decoder() -> Decoder(Role) {
   case variant {
     "host" -> decode.success(Host)
     "guest" -> decode.success(Guest)
+    "spectator" -> decode.success(Spectator)
     _ -> decode.failure(Host, "Role")
   }
 }
@@ -356,6 +374,7 @@ pub fn role_to_json(role: Role) -> Json {
   case role {
     Host -> json.string("host")
     Guest -> json.string("guest")
+    Spectator -> json.string("spectator")
   }
 }
 
@@ -366,17 +385,10 @@ pub fn role(game: Game) -> Role {
   }
 }
 
-pub fn to_move(game: Game) -> PieceColor {
+pub fn to_move(game: Game) -> Color {
   case game.game.to_move {
     board.White -> White
     board.Black -> Black
-  }
-}
-
-pub fn role_to_color(role: Role) -> PieceColor {
-  case role {
-    Host -> White
-    Guest -> Black
   }
 }
 
@@ -391,7 +403,7 @@ pub fn last_move(game: Game) -> #(Int, Int) {
 pub fn legal_moves_for_piece(
   game: Game,
   pos: Int,
-  piece: #(PieceType, PieceColor),
+  piece: #(PieceType, Color),
   moves: List(Move),
 ) -> List(Move) {
   let moves = list.map(moves, fn(move) { move.move })
@@ -430,7 +442,7 @@ pub fn legal_moves_for_piece(
 }
 
 pub type JoinModel {
-  JoinModel(board: Dict(Int, #(PieceType, PieceColor)), role: Role)
+  JoinModel(board: Dict(Int, #(PieceType, Color)), role: Role)
 }
 
 pub type GameView {
@@ -440,17 +452,20 @@ pub type GameView {
     game_state: GameState,
     time: shared.Time,
     guest_joined: Bool,
+    player_color: Option(Color),
   )
 }
 
 pub fn game_view_to_json(game_view: GameView) -> Json {
-  let GameView(game:, role:, game_state:, time:, guest_joined:) = game_view
+  let GameView(game:, role:, game_state:, time:, guest_joined:, player_color:) =
+    game_view
   json.object([
     #("game", game_to_json(game)),
     #("role", role_to_json(role)),
     #("game_state", game_state_to_json(game_state)),
     #("time", shared.time_to_json(time)),
     #("guest_joined", json.bool(guest_joined)),
+    #("player_color", json.nullable(player_color, color_to_json)),
   ])
 }
 
@@ -460,7 +475,18 @@ pub fn game_view_decoder() -> Decoder(GameView) {
   use game_state <- decode.field("game_state", game_state_decoder())
   use time <- decode.field("time", shared.time_decoder())
   use guest_joined <- decode.field("guest_joined", decode.bool)
-  decode.success(GameView(game:, role:, game_state:, time:, guest_joined:))
+  use player_color <- decode.field(
+    "player_color",
+    decode.optional(color_decoder()),
+  )
+  decode.success(GameView(
+    game:,
+    role:,
+    game_state:,
+    time:,
+    guest_joined:,
+    player_color:,
+  ))
 }
 
 pub fn move_to_json(move: Move) -> Json {

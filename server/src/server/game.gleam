@@ -35,6 +35,11 @@ pub fn handle_ws(req: Request, invite_code: String, ctx: Context) -> Response {
         case join_result {
           game.JoinOk(role:, model:, guest_joined:) -> {
             let selector = process.new_selector() |> process.select(outgoing)
+            let player_color = case role {
+              cheg.Host -> Some(cheg.White)
+              cheg.Guest -> Some(cheg.Black)
+              cheg.Spectator -> None
+            }
             let payload =
               cheg.game_view_to_json(cheg.GameView(
                 game: model.game,
@@ -42,6 +47,7 @@ pub fn handle_ws(req: Request, invite_code: String, ctx: Context) -> Response {
                 game_state: model.game_state,
                 time: model.time,
                 guest_joined:,
+                player_color:,
               ))
               |> json.to_string
 
