@@ -119,10 +119,6 @@ pub fn rank(position: Int) {
 
 pub const pawn_promotions = [Queen, Knight, Bishop, Rook]
 
-// pub const river_square = [32, 34, 35, 36, 37, 39]
-
-// pub const bridge_square = [33, 38]
-
 pub const pawn_value = 1
 
 pub const knight_value = 3

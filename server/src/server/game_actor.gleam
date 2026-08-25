@@ -181,7 +181,6 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
 
         let game = cheg.apply_move(state.model.game, move)
         let state = GameActor(..state, model: Chesshire(..state.model, game:))
-
         let #(time, game_state) = get_time(game, state)
 
         let host_payload =
@@ -381,17 +380,27 @@ fn get_time(
     False -> 0
     True -> now - last_tick
   }
-  let #(black_time, black_tick) = case to_move {
-    cheg.Black -> #(state.model.time.black_time - elapsed, now)
-    cheg.White -> #(state.model.time.black_time, now)
+
+  // Because the move has been applied, the current to_move is switched to the
+  // opponent. That's why the time being reduced is not the to_move's time.
+  let black_time = case to_move {
+    cheg.Black -> state.model.time.black_time
+    cheg.White -> state.model.time.black_time - elapsed
   }
-  let #(white_time, white_tick) = case to_move {
-    cheg.Black -> #(state.model.time.white_time, now)
-    cheg.White -> #(state.model.time.white_time - elapsed, now)
+  let white_time = case to_move {
+    cheg.Black -> state.model.time.white_time - elapsed
+    cheg.White -> state.model.time.white_time
   }
+
   let state = cheg.state(game)
   let time =
-    shared.Time(black_time:, white_time:, black_tick:, white_tick:, started:)
+    shared.Time(
+      black_time:,
+      white_time:,
+      black_tick: now,
+      white_tick: now,
+      started:,
+    )
 
   case black_time, white_time, state {
     black_time, _, cheg.Continue if black_time == 0 -> #(time, cheg.WhiteWin)
