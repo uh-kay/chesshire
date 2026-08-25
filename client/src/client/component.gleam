@@ -106,6 +106,7 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
         case list.find(model.moves, fn(move) { cheg.move_to(move) == pos }) {
           Ok(move) ->
             target_square_view(
+              pos,
               color,
               role,
               piece,
@@ -123,6 +124,7 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
 }
 
 fn target_square_view(
+  position: Int,
   square_color: SquareColor,
   role: cheg.Role,
   piece: Option(#(cheg.PieceType, cheg.Color)),
@@ -137,9 +139,10 @@ fn target_square_view(
       square_style(),
       square_color_style(square_color),
       attribute.class(case has_piece || is_river {
-        True -> "border-2 border-red-500"
+        True -> "inset-ring-2 inset-ring-red-500"
         False -> ""
       }),
+      attribute.data("pos", int.to_string(position)),
       event.on_click(UserClickedTargetSquare(move)),
     ],
     [
@@ -147,25 +150,33 @@ fn target_square_view(
       html.div(
         [
           attribute.class(case piece {
-            Some(_) ->
-              "w-18"
-              <> case role {
-                Host -> "scale-y-[-1]"
-                Guest -> "scale-x-[-1]"
-                Spectator -> "scale-y-[-1]"
-              }
+            Some(_) -> "w-18 z-40 flex justify-center"
             None -> "w-3 h-3 lg:w-5 lg:h-5 rounded-full bg-black/30"
           }),
+          attribute.class(case piece, role {
+            Some(_), Host -> "scale-y-[-1]"
+            Some(_), Guest -> "scale-x-[-1]"
+            Some(_), Spectator -> "scale-y-[-1]"
+            None, _ -> ""
+          }),
         ],
-        [piece_view(piece)],
+        [html.div([attribute.class("w-10 md:w-14")], [piece_view(piece)])],
       ),
-      last_move_indicator(is_last_move),
+      html.div(
+        [
+          attribute.class(case is_last_move {
+            True -> "absolute inset-0 bg-yellow-400/30"
+            False -> ""
+          }),
+        ],
+        [],
+      ),
     ],
   )
 }
 
 fn square_view(
-  pos: Int,
+  position: Int,
   role: cheg.Role,
   square_color: SquareColor,
   piece: Option(#(cheg.PieceType, cheg.Color)),
@@ -181,8 +192,8 @@ fn square_view(
           "aspect-square bg-radial-[at_50%_50%] from-red-500 to-transparent"
         _, _ -> ""
       }),
-      attribute.data("pos", int.to_string(pos)),
-      event.on_click(UserClickedSquare(piece, pos)),
+      attribute.data("pos", int.to_string(position)),
+      event.on_click(UserClickedSquare(piece, position)),
     ],
     [
       special_square_marker(square_color, role),
