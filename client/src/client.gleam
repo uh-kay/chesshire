@@ -315,6 +315,11 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         int.clamp(model.time.black_time, shared.min_time, shared.max_time)
       let white_time =
         int.clamp(model.time.white_time, shared.min_time, shared.max_time)
+      let game_state = case black_time <= 0 {
+        True -> cheg.WhiteWin
+        False -> cheg.BlackWin
+      }
+
       let model =
         Model(
           ..model,
@@ -324,7 +329,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
             white_time:,
             started: False,
           ),
-          // guest_joined: True,
+          game_state:,
         )
       let effect = effect.none()
 

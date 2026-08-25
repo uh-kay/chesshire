@@ -403,8 +403,8 @@ fn get_time(
     )
 
   case black_time, white_time, state {
-    black_time, _, cheg.Continue if black_time == 0 -> #(time, cheg.WhiteWin)
-    _, white_time, cheg.Continue if white_time == 0 -> #(time, cheg.BlackWin)
+    black_time, _, cheg.Continue if black_time <= 0 -> #(time, cheg.WhiteWin)
+    _, white_time, cheg.Continue if white_time <= 0 -> #(time, cheg.BlackWin)
     _, _, state -> #(time, state)
   }
 }
