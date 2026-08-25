@@ -482,9 +482,8 @@ fn sliding_moves_in_direction(
   moves: List(Move),
 ) -> List(Move) {
   let new_position = direction.in_direction(position, direction)
-  let river_squares = game.river_squares
-  use <- bool.guard(list.contains(river_squares, new_position), [
-    Move(position, new_position, piece),
+  use <- bool.guard(list.contains(game.river_squares, new_position), [
+    Move(piece, from: start_position, to: new_position),
     ..moves
   ])
   case board.get(game.board, new_position) {
