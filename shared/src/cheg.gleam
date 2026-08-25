@@ -414,7 +414,12 @@ pub fn legal_moves_for_piece(game: Game, pos: Int) -> List(Move) {
     Game(
       game: game.Game(
         ..game.game,
-        attack_information: attack.calculate(board, king_position, to_move),
+        attack_information: attack.calculate(
+          board,
+          king_position,
+          to_move,
+          game.game.river_squares,
+        ),
       ),
     )
 

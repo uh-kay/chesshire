@@ -70,12 +70,17 @@ pub fn attack_information_decoder() -> decode.Decoder(AttackInformation) {
   ))
 }
 
-pub fn calculate(board: Board, king_position: Int, to_move: Color) {
+pub fn calculate(
+  board: Board,
+  king_position: Int,
+  to_move: Color,
+  river_squares: List(Int),
+) {
   let attacking = case to_move {
     board.White -> board.Black
     board.Black -> board.White
   }
-  let attacks = get_attacks(board, attacking)
+  let attacks = get_attacks(board, attacking, river_squares)
 
   let in_check = list.contains(attacks, king_position)
 
@@ -490,10 +495,18 @@ fn get_sliding_check_attack_squares_loop(
   }
 }
 
-fn get_attacks(board: Board, attacking: Color) {
+fn get_attacks(board: Board, attacking: Color, river_squares: List(Int)) {
   use attacks, position, #(piece, color) <- dict.fold(board, [])
   case color == attacking {
-    True -> get_attacks_for_piece(board, piece, position, attacking, attacks)
+    True ->
+      get_attacks_for_piece(
+        board,
+        piece,
+        position,
+        attacking,
+        attacks,
+        river_squares,
+      )
     False -> attacks
   }
 }
@@ -504,6 +517,7 @@ fn get_attacks_for_piece(
   position: Int,
   color: Color,
   positions: List(Int),
+  river_squares: List(Int),
 ) {
   case piece {
     board.Bishop ->
@@ -512,15 +526,23 @@ fn get_attacks_for_piece(
         position,
         direction.bishop_directions,
         positions,
+        river_squares,
       )
     board.Rook ->
-      get_sliding_attacks(board, position, direction.rook_directions, positions)
+      get_sliding_attacks(
+        board,
+        position,
+        direction.rook_directions,
+        positions,
+        river_squares,
+      )
     board.Queen ->
       get_sliding_attacks(
         board,
         position,
         direction.queen_directions,
         positions,
+        river_squares,
       )
     board.Pawn if color == board.Black ->
       get_single_move_attacks(
@@ -546,6 +568,7 @@ fn get_sliding_attacks(
   position: Int,
   directions: List(Direction),
   positions: List(Int),
+  river_squares: List(Int),
 ) {
   case directions {
     [] -> positions
@@ -554,7 +577,14 @@ fn get_sliding_attacks(
         board,
         position,
         directions,
-        get_sliding_attacks_loop(board, position, direction, positions),
+        get_sliding_attacks_loop(
+          board,
+          position,
+          direction,
+          positions,
+          river_squares,
+        ),
+        river_squares,
       )
   }
 }
@@ -564,16 +594,21 @@ fn get_sliding_attacks_loop(
   position: Int,
   direction: Direction,
   positions: List(Int),
-) {
+  river_squares: List(Int),
+) -> List(Int) {
   let new_position = direction.in_direction(position, direction)
+  use <- bool.guard(list.contains(river_squares, new_position), positions)
 
   case board.get(board, new_position) {
     board.OffBoard -> positions
     board.Empty ->
-      get_sliding_attacks_loop(board, new_position, direction, [
+      get_sliding_attacks_loop(
+        board,
         new_position,
-        ..positions
-      ])
+        direction,
+        [new_position, ..positions],
+        river_squares,
+      )
     _ -> [new_position, ..positions]
   }
 }

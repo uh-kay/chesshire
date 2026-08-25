@@ -618,7 +618,8 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
   let last_move = #(from, to)
 
   // TODO: calculate incrementally
-  let attack_information = attack.calculate(board, king_position, to_move)
+  let attack_information =
+    attack.calculate(board, king_position, to_move, river_squares)
 
   Game(
     board:,
@@ -823,7 +824,7 @@ fn do_apply(
 
   // TODO: update incrementally
   let attack_information =
-    attack.calculate(board, opposing_king_position, to_move)
+    attack.calculate(board, opposing_king_position, to_move, river_squares)
 
   Game(
     board:,

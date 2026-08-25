@@ -112,8 +112,9 @@ pub fn new() {
   // let board = board.testing_board()
   let white_king_position = 4
   let black_king_position = 68
+  let river_squares = board.river_squares(board.TwoBridge)
   let attack_information =
-    attack.calculate(board, white_king_position, board.White)
+    attack.calculate(board, white_king_position, board.White, river_squares)
   let pawn_material = board.pawn_value * 8
   let non_pawn_material =
     board.bishop_value * 4 + board.rook_value * 2 + board.queen_value
@@ -143,7 +144,7 @@ pub fn new() {
     previous_positions: [],
     last_move: #(-1, -1),
     board_variant: board.TwoBridge,
-    river_squares: board.river_squares(board.TwoBridge),
+    river_squares:,
     bridge_squares: board.bridge_squares(board.TwoBridge),
   )
 }
