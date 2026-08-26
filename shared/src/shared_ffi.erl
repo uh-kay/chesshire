@@ -1,4 +1,4 @@
--module(server_ffi).
+-module(shared_ffi).
 
 -export([monotonic_time/0]).
 

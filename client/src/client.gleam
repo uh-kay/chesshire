@@ -103,7 +103,7 @@ fn init(_) -> #(Model, Effect(Message)) {
     }
     _ -> #(None, None)
   }
-  let time = shared.new_time(monotonic_time())
+  let time = shared.new_time(shared.monotonic_time())
   let accordion_items = [
     accordion.Item(id: 1, title: "What is Chesshire?", body: element.none()),
   ]
@@ -231,12 +231,12 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       case json.parse(body, cheg.game_view_decoder()) {
         Ok(game_view) -> {
           let black_tick = case cheg.to_move(game_view.game) {
-            cheg.Black -> monotonic_time()
+            cheg.Black -> shared.monotonic_time()
             cheg.White -> model.time.black_tick
           }
           let white_tick = case cheg.to_move(game_view.game) {
             cheg.Black -> model.time.white_tick
-            cheg.White -> monotonic_time()
+            cheg.White -> shared.monotonic_time()
           }
 
           let effect = case game_view.game_state != cheg.Continue {
@@ -265,7 +265,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       let #(time, effect) = case cheg.to_move(model.game), model.time.started {
         cheg.Black, True -> {
-          let black_tick = monotonic_time()
+          let black_tick = shared.monotonic_time()
           let black_time =
             current_time(model.time.black_time, model.time.black_tick, offset)
 
@@ -276,7 +276,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
           #(shared.Time(..model.time, black_time:, black_tick:), effect)
         }
         cheg.White, True -> {
-          let white_tick = monotonic_time()
+          let white_tick = shared.monotonic_time()
           let white_time =
             current_time(model.time.white_time, model.time.white_tick, offset)
           let effect = case white_time <= 0 {
@@ -339,7 +339,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 }
 
 fn current_time(remaining: Int, tick: Int, offset: Int) -> Int {
-  let elapsed = monotonic_time() + offset - tick
+  let elapsed = shared.monotonic_time() + offset - tick
   remaining - elapsed
 }
 
@@ -435,9 +435,6 @@ fn send_message(ws: Websocket, message: String) -> Nil
 
 @external(javascript, "./client.ffi.mjs", "receive_message")
 fn receive_message(ws: Websocket) -> Promise(String)
-
-@external(javascript, "./client.ffi.mjs", "monotonic_time")
-fn monotonic_time() -> Int
 
 @external(javascript, "./client.ffi.mjs", "set_timeout")
 fn set_timeout(delay: Int, cb: fn() -> a) -> Nil

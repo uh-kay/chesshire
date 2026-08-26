@@ -50,3 +50,7 @@ pub fn time_decoder() -> decode.Decoder(Time) {
     started:,
   ))
 }
+
+@external(erlang, "shared_ffi", "monotonic_time")
+@external(javascript, "./shared.ffi.mjs", "monotonic_time")
+pub fn monotonic_time() -> Int

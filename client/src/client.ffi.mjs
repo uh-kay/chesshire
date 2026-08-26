@@ -28,10 +28,6 @@ export function receive_message(ws) {
   });
 }
 
-export function monotonic_time() {
-  return performance.now();
-}
-
 export function set_timeout(delay, cb) {
   window.setTimeout(cb, delay);
 }

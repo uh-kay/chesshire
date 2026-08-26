@@ -348,7 +348,7 @@ fn registry_loop(
 fn new(invite_code) -> GameActor {
   let game = cheg.new()
   let game_state = cheg.state(game)
-  let time = shared.new_time(monotonic_time())
+  let time = shared.new_time(shared.monotonic_time())
 
   GameActor(
     model: Chesshire(
@@ -369,7 +369,7 @@ fn get_time(
   game: cheg.Game,
   state: GameActor,
 ) -> #(shared.Time, cheg.GameState) {
-  let now = monotonic_time()
+  let now = shared.monotonic_time()
   let started = cheg.get_full_moves(game) >= 2
   let to_move = cheg.to_move(game)
   let last_tick = case to_move {
@@ -408,8 +408,3 @@ fn get_time(
     _, _, state -> #(time, state)
   }
 }
-
-// EXTERNALS -----------------------------------------------------------------
-
-@external(erlang, "server_ffi", "monotonic_time")
-pub fn monotonic_time() -> Int
