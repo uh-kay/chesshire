@@ -27,10 +27,10 @@ plinth = ">= 0.10.2 and < 1.0.0"
 
 [dev_dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
-lustre_dev_tools = ">= 2.3.6 and < 3.0.0"
+lustre_dev_tools = { git = "https://github.com/uh-kay/dev-tools", ref = "main" }
 
 [tools.lustre.dev]
-# host = "0.0.0.0"
+host = "0.0.0.0"
 proxy = { from = "/v1", to = "http://localhost:8000/v1" }
 
 [tools.lustre.build]

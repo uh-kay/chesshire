@@ -6,10 +6,32 @@ import internal/board
 import internal/hash
 import internal/move/attack
 
+pub type GameVariant {
+  RiverSacrifice
+  BuildBridge
+}
+
+pub fn game_variant_to_json(game_variant: GameVariant) -> json.Json {
+  case game_variant {
+    RiverSacrifice -> json.string("river_sacrifice")
+    BuildBridge -> json.string("build_bridge")
+  }
+}
+
+pub fn game_variant_decoder() -> decode.Decoder(GameVariant) {
+  use variant <- decode.then(decode.string)
+  case variant {
+    "river_sacrifice" -> decode.success(RiverSacrifice)
+    "build_bridge" -> decode.success(BuildBridge)
+    _ -> decode.failure(RiverSacrifice, "GameVariant")
+  }
+}
+
 pub type Game {
   Game(
     board: board.Board,
     board_variant: board.Variant,
+    game_variant: GameVariant,
     bridge_squares: List(Int),
     river_squares: List(Int),
     to_move: board.Color,
@@ -146,6 +168,7 @@ pub fn new() {
     board_variant: board.TwoBridge,
     river_squares:,
     bridge_squares: board.bridge_squares(board.TwoBridge),
+    game_variant: BuildBridge,
   )
 }
 

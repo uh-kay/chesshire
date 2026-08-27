@@ -30,6 +30,7 @@ fn game_to_json(game: Game) -> json.Json {
     board_variant:,
     river_squares:,
     bridge_squares:,
+    game_variant:,
   ) = game.game
   json.object([
     #(
@@ -80,6 +81,7 @@ fn game_to_json(game: Game) -> json.Json {
     #("board_variant", board.variant_to_json(board_variant)),
     #("river_squares", json.array(river_squares, json.int)),
     #("bridge_squares", json.array(bridge_squares, json.int)),
+    #("game_variant", game.game_variant_to_json(game_variant)),
   ])
 }
 
@@ -151,6 +153,7 @@ fn game_decoder() -> decode.Decoder(Game) {
   use board_variant <- decode.field("board_variant", board.variant_decoder())
   use river_squares <- decode.field("river_squares", decode.list(decode.int))
   use bridge_squares <- decode.field("bridge_squares", decode.list(decode.int))
+  use game_variant <- decode.field("game_variant", game.game_variant_decoder())
   decode.success(
     Game(game.Game(
       board:,
@@ -170,6 +173,7 @@ fn game_decoder() -> decode.Decoder(Game) {
       board_variant:,
       river_squares:,
       bridge_squares:,
+      game_variant:,
     )),
   )
 }

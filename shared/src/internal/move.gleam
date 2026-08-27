@@ -557,6 +557,7 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
     board_variant:,
     river_squares:,
     bridge_squares:,
+    game_variant:,
   ) = game
 
   let castling = case to_move {
@@ -647,6 +648,7 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
     board_variant:,
     river_squares:,
     bridge_squares:,
+    game_variant:,
   )
 }
 
@@ -677,6 +679,7 @@ fn do_apply(
     board_variant:,
     river_squares:,
     bridge_squares:,
+    game_variant:,
   ) = game
 
   let #(
@@ -741,7 +744,11 @@ fn do_apply(
     list.contains(game.river_squares, to)
   {
     True -> {
-      let board = board |> dict.delete(from)
+      let board = case game.game_variant {
+        game.RiverSacrifice -> board |> dict.delete(from)
+        game.BuildBridge ->
+          board |> dict.delete(from) |> dict.insert(to, #(piece, our_color))
+      }
       let river_squares =
         list.filter(river_squares, fn(square) { square != to })
       let bridge_squares = list.prepend(bridge_squares, to)
@@ -844,6 +851,7 @@ fn do_apply(
     board_variant:,
     river_squares:,
     bridge_squares:,
+    game_variant:,
   )
 }
 
