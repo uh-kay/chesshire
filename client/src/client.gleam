@@ -2,7 +2,7 @@ import cheg
 import client/accordion
 import client/component
 import gleam/dynamic/decode
-import gleam/http/response
+import gleam/http/response.{type Response}
 import gleam/int
 import gleam/javascript/promise.{type Promise}
 import gleam/json
@@ -60,9 +60,10 @@ pub type Message {
   UserNavigatedTo(Route)
   UserClickedNewGame
   UserClickedCopyLink(lobby_url: String)
+  UserClickedFindGame
 
   ServerCreatedGame(Result(String, rsvp.Error(String)))
-  ServerCreatedSession(Result(response.Response(String), rsvp.Error(String)))
+  ServerCreatedSession(Result(Response(String), rsvp.Error(String)))
   ServerReturnedRole(cheg.Role)
   ServerUpdatedGame(body: String)
 
@@ -74,6 +75,7 @@ pub type Message {
 pub type Route {
   Home
   Game(id: String)
+  WaitingRoom
   NotFound
 }
 
@@ -83,6 +85,7 @@ fn init(_) -> #(Model, Effect(Message)) {
       #(
         case uri.path_segments(uri.path) {
           [] -> Home
+          ["game"] -> WaitingRoom
           ["game", id] -> Game(id)
           _ -> NotFound
         },
@@ -101,8 +104,17 @@ fn init(_) -> #(Model, Effect(Message)) {
 
       #(Some(msg), Some(ws))
     }
-    _ -> #(None, None)
+    WaitingRoom -> {
+      let ws = create_websocket(ws_url <> "")
+      let msg = receive_message(ws)
+
+      #(Some(msg), Some(ws))
+    }
+    _ -> {
+      #(None, None)
+    }
   }
+
   let time = shared.new_time(shared.monotonic_time())
   let accordion_items = [
     accordion.Item(id: 1, title: "What is Chesshire?", body: element.none()),
@@ -142,6 +154,7 @@ fn init(_) -> #(Model, Effect(Message)) {
 fn on_url_change(uri: uri.Uri) -> Message {
   case uri.path_segments(uri.path) {
     [] -> UserNavigatedTo(Home)
+    ["game", id] -> UserNavigatedTo(Game(id))
     _ -> UserNavigatedTo(NotFound)
   }
 }
@@ -239,10 +252,19 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
             cheg.White -> shared.monotonic_time()
           }
 
-          let effect = case game_view.game_state != cheg.Continue {
-            True -> stop_clock()
-            False -> listen(model.websocket)
-          }
+          let effect =
+            effect.batch([
+              case game_view.game_state != cheg.Continue {
+                True -> stop_clock()
+                False -> listen(model.websocket)
+              },
+              case model.route, game_view.guest_joined {
+                WaitingRoom, True -> {
+                  modem.push("/game/" <> game_view.lobby_id, None, None)
+                }
+                _, _ -> effect.none()
+              },
+            ])
           let model =
             Model(
               ..model,
@@ -332,6 +354,14 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
           game_state:,
         )
       let effect = effect.none()
+
+      #(model, effect)
+    }
+    UserClickedFindGame -> {
+      let effect = case uri.parse("/game/") {
+        Ok(uri) -> modem.load(uri)
+        Error(_) -> effect.none()
+      }
 
       #(model, effect)
     }
@@ -458,7 +488,7 @@ fn view(model: Model) -> Element(Message) {
             html.button(
               [
                 attribute.class("p-2 bg-blue-500 text-white rounded-md h-fit"),
-                attribute.class(" hover:bg-blue-600 hover:cursor-pointer"),
+                attribute.class("hover:bg-blue-600 hover:cursor-pointer"),
                 event.on_click(UserClickedNewGame),
               ],
               [html.text("Create Lobby")],
@@ -466,8 +496,10 @@ fn view(model: Model) -> Element(Message) {
             html.div([attribute.class("")], [
               html.button(
                 [
-                  attribute.class("bg-gray-600 px-4 py-2 rounded-md w-fit"),
-                  attribute.class(" opacity-50 text-white cursor-not-allowed"),
+                  attribute.class("bg-green-600 p-2 rounded-md w-fit"),
+                  attribute.class("text-white hover:cursor-pointer"),
+                  attribute.class("hover:bg-green-700"),
+                  event.on_click(UserClickedFindGame),
                 ],
                 [html.text("Find Game")],
               ),
@@ -588,6 +620,51 @@ fn view(model: Model) -> Element(Message) {
         }
       }
     }
+    WaitingRoom ->
+      case model.guest_joined {
+        False -> {
+          let content =
+            html.p(
+              [
+                attribute.class("pt-8 px-3 md:p-8 max-w-fit mx-auto"),
+                attribute.class("flex flex-col md:flex-row text-xl"),
+              ],
+              [
+                html.text("Waiting for someone to join"),
+                html.span([attribute.class("ellipsis")], [
+                  html.text("..."),
+                ]),
+              ],
+            )
+
+          layout(content)
+        }
+        True -> {
+          let content =
+            html.div(
+              [
+                attribute.class("pt-8 px-3 md:p-8 max-w-fit mx-auto"),
+                attribute.class("flex flex-col md:flex-row"),
+              ],
+              [
+                component.game_view(component.Model(
+                  game: model.game,
+                  moves: model.current_piece_moves,
+                  role: model.role,
+                ))
+                  |> element.map(ComponentProducedMessage),
+                component.clock_view(
+                  model.time.black_time,
+                  model.time.white_time,
+                  model.role,
+                  model.game_state,
+                ),
+              ],
+            )
+
+          layout(content)
+        }
+      }
   }
 }
 

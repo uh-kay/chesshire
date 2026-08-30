@@ -1,11 +1,13 @@
 import cheg.{Guest, Host}
 import gleam/dict.{type Dict}
 import gleam/erlang/process.{type Subject}
+import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor.{type Next, type StartError, type Started}
 import gleam/result
+import gleam/string
 import shared
 
 pub type Chesshire {
@@ -23,7 +25,8 @@ pub type Auth {
 }
 
 pub fn start_registry() -> Result(Started(Subject(RegistryMsg)), StartError) {
-  actor.new(dict.new())
+  let state = RegistryState(waiting: [], games: dict.new())
+  actor.new(state)
   |> actor.on_message(registry_loop)
   |> actor.start
 }
@@ -191,6 +194,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
             time:,
             guest_joined: state.guest != Empty,
             player_color: Some(cheg.White),
+            lobby_id: state.invite_code,
           ))
           |> json.to_string
         let guest_payload =
@@ -201,6 +205,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
             time:,
             guest_joined: state.guest != Empty,
             player_color: Some(cheg.Black),
+            lobby_id: state.invite_code,
           ))
           |> json.to_string
         let spectator_payload =
@@ -211,6 +216,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
             time:,
             guest_joined: state.guest != Empty,
             player_color: None,
+            lobby_id: state.invite_code,
           ))
           |> json.to_string
 
@@ -264,34 +270,43 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
 }
 
 fn broadcast_payload(state: GameActor, new_state: GameActor) -> Nil {
+  let game = state.model.game
+  let game_state = cheg.state(game)
+  let time = state.model.time
+  let guest_joined = new_state.guest != Empty
+  let lobby_id = state.invite_code
+
   let host_payload =
     cheg.game_view_to_json(cheg.GameView(
-      game: state.model.game,
+      game:,
       role: cheg.Host,
-      game_state: cheg.state(state.model.game),
-      time: state.model.time,
-      guest_joined: new_state.guest != Empty,
+      game_state:,
+      time:,
+      guest_joined:,
       player_color: Some(cheg.White),
+      lobby_id:,
     ))
     |> json.to_string
   let guest_payload =
     cheg.game_view_to_json(cheg.GameView(
-      game: state.model.game,
+      game:,
       role: cheg.Guest,
-      game_state: cheg.state(state.model.game),
-      time: state.model.time,
-      guest_joined: new_state.guest != Empty,
+      game_state:,
+      time:,
+      guest_joined:,
       player_color: Some(cheg.Black),
+      lobby_id:,
     ))
     |> json.to_string
   let spectator_payload =
     cheg.game_view_to_json(cheg.GameView(
-      game: state.model.game,
+      game:,
       role: cheg.Spectator,
-      game_state: cheg.state(state.model.game),
-      time: state.model.time,
-      guest_joined: new_state.guest != Empty,
+      game_state:,
+      time:,
+      guest_joined:,
       player_color: None,
+      lobby_id:,
     ))
     |> json.to_string
 
@@ -319,16 +334,17 @@ fn broadcast(
 }
 
 pub type RegistryMsg {
-  GetOrStart(invite_code: String, reply_to: Subject(Subject(GameMsg)))
+  JoinPrivateLobby(invite_code: String, reply_to: Subject(Subject(GameMsg)))
+  JoinPublicLobby(reply_to: Subject(Subject(GameMsg)))
 }
 
 fn registry_loop(
-  state: Dict(String, Subject(GameMsg)),
+  state: RegistryState,
   msg: RegistryMsg,
-) -> Next(Dict(String, Subject(GameMsg)), _) {
+) -> Next(RegistryState, _) {
   case msg {
-    GetOrStart(invite_code:, reply_to:) ->
-      case dict.get(state, invite_code) {
+    JoinPrivateLobby(invite_code:, reply_to:) ->
+      case dict.get(state.games, invite_code) {
         Ok(subject) -> {
           actor.send(reply_to, subject)
           actor.continue(state)
@@ -338,14 +354,42 @@ fn registry_loop(
             actor.new(new(invite_code))
             |> actor.on_message(handle_message)
             |> actor.start
+          let state =
+            RegistryState(
+              ..state,
+              games: dict.insert(state.games, invite_code, started.data),
+            )
           actor.send(reply_to, started.data)
-          actor.continue(dict.insert(state, invite_code, started.data))
+          actor.continue(state)
         }
       }
+    JoinPublicLobby(reply_to:) -> {
+      case state.waiting {
+        [id, ..rest] -> {
+          let assert Ok(subject) = dict.get(state.games, id)
+          actor.send(reply_to, subject)
+          actor.continue(RegistryState(..state, waiting: rest))
+        }
+        [] -> {
+          let id = create_invite_code(8)
+          let assert Ok(started) =
+            actor.new(new(id))
+            |> actor.on_message(handle_message)
+            |> actor.start
+          let state =
+            RegistryState(
+              waiting: [id, ..state.waiting],
+              games: dict.insert(state.games, id, started.data),
+            )
+          actor.send(reply_to, started.data)
+          actor.continue(state)
+        }
+      }
+    }
   }
 }
 
-fn new(invite_code) -> GameActor {
+fn new(invite_code: String) -> GameActor {
   let game = cheg.new()
   let game_state = cheg.state(game)
   let time = shared.new_time(shared.monotonic_time())
@@ -406,5 +450,26 @@ fn get_time(
     black_time, _, cheg.Continue if black_time <= 0 -> #(time, cheg.WhiteWin)
     _, white_time, cheg.Continue if white_time <= 0 -> #(time, cheg.BlackWin)
     _, _, state -> #(time, state)
+  }
+}
+
+pub type RegistryState {
+  RegistryState(waiting: List(String), games: Dict(String, Subject(GameMsg)))
+}
+
+pub fn create_invite_code(length: Int) -> String {
+  create_invite_code_loop(length, "")
+}
+
+fn create_invite_code_loop(remaining: Int, invite_code: String) -> String {
+  case remaining {
+    0 -> invite_code
+    _ -> {
+      let alphabet =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+      let index = int.random(62)
+      let char = string.slice(alphabet, index, 1)
+      create_invite_code_loop(remaining - 1, invite_code <> char)
+    }
   }
 }

@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+.ellipsis {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: bottom;
+    width: 0;
+    animation: ellipsis-dots 3s steps(4, end) infinite;
+}
+
+@keyframes ellipsis-dots {
+    to {
+        width: 1.25em;
+    }
+}

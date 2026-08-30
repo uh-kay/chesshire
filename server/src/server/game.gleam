@@ -13,7 +13,7 @@ type ConnState {
   Rejected(reason: String)
 }
 
-pub fn handle_ws(req: Request, invite_code: String, ctx: Context) -> Response {
+pub fn handle_ws(ctx: Context, req: Request, id: String) -> Response {
   let #(session, new_token) = case wisp.get_cookie(req, "session_id", Signed) {
     Ok(session) -> #(session, None)
     Error(_) -> {
@@ -26,8 +26,10 @@ pub fn handle_ws(req: Request, invite_code: String, ctx: Context) -> Response {
     wisp.websocket(
       req,
       on_init: fn(connection) {
-        let game_subject =
-          actor.call(ctx.registry, 1000, game.GetOrStart(invite_code, _))
+        let game_subject = case id {
+          "" -> actor.call(ctx.registry, 1000, game.JoinPublicLobby)
+          id -> actor.call(ctx.registry, 1000, game.JoinPrivateLobby(id, _))
+        }
         let outgoing = process.new_subject()
         let join_result =
           actor.call(game_subject, 1000, Join(session, _, outgoing))
@@ -48,6 +50,7 @@ pub fn handle_ws(req: Request, invite_code: String, ctx: Context) -> Response {
                 time: model.time,
                 guest_joined:,
                 player_color:,
+                lobby_id: model.invite_code,
               ))
               |> json.to_string
 
