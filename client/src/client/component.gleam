@@ -221,7 +221,7 @@ fn square_color_style(square_color: SquareColor) {
   attribute.class(case square_color {
     White -> "bg-green-200/50"
     Black -> "bg-green-700/70"
-    Blue -> "bg-blue-700"
+    Blue -> "bg-[#1861eb]"
     Brown -> "bg-amber-900/70"
   })
 }

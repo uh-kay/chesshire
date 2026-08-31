@@ -168,7 +168,7 @@ pub fn new() {
     board_variant: board.TwoBridge,
     river_squares:,
     bridge_squares: board.bridge_squares(board.TwoBridge),
-    game_variant: BuildBridge,
+    game_variant: RiverSacrifice,
   )
 }
 
