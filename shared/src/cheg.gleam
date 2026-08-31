@@ -405,28 +405,6 @@ pub fn last_move(game: Game) -> #(Int, Int) {
 }
 
 pub fn legal_moves_for_piece(game: Game, pos: Int) -> List(Move) {
-  let board = game.game.board
-  let to_move = game.game.to_move
-  let king_position = case to_move {
-    board.White -> game.game.white_pieces.king_position
-    board.Black -> game.game.black_pieces.king_position
-  }
-
-  // Update attack information first before getting moves to make sure the moves
-  // are correct.
-  let game =
-    Game(
-      game: game.Game(
-        ..game.game,
-        attack_information: attack.calculate(
-          board,
-          king_position,
-          to_move,
-          game.game.river_squares,
-        ),
-      ),
-    )
-
   list.filter(legal_moves(game), fn(move) { move.move.from == pos })
 }
 

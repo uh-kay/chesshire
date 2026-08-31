@@ -378,28 +378,28 @@ fn king_moves(
   }
 
   let moves = case game.to_move {
-    board.White if game.castling.white_kingside ->
-      case can_move_through(5) && can_move_through(6) {
-        True -> [Castle(from: position, to: 6), ..moves]
-        False -> moves
-      }
     board.Black if game.castling.black_kingside ->
       case can_move_through(69) && can_move_through(70) {
         True -> [Castle(from: position, to: 70), ..moves]
+        False -> moves
+      }
+    board.White if game.castling.white_kingside ->
+      case can_move_through(5) && can_move_through(6) {
+        True -> [Castle(from: position, to: 6), ..moves]
         False -> moves
       }
     _ -> moves
   }
 
   case game.to_move {
+    board.Black if game.castling.black_queenside ->
+      case can_move_through(67) && can_move_through(66) && is_empty(65) {
+        True -> [Castle(from: position, to: 66), ..moves]
+        False -> moves
+      }
     board.White if game.castling.white_queenside ->
       case can_move_through(3) && can_move_through(2) && is_empty(1) {
         True -> [Castle(from: position, to: 2), ..moves]
-        False -> moves
-      }
-    board.Black if game.castling.black_queenside ->
-      case can_move_through(68) && can_move_through(67) && is_empty(66) {
-        True -> [Castle(from: position, to: 67), ..moves]
         False -> moves
       }
     _ -> moves
@@ -567,7 +567,7 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
       game.Castling(..castling, black_kingside: False, black_queenside: False)
   }
 
-  let rook_rank = from / 9
+  let rook_rank = from / 8
   let #(rook_file_from, rook_file_to) = case long {
     True -> #(0, 3)
     False -> #(7, 5)
@@ -704,7 +704,10 @@ fn do_apply(
     board.Black -> board.White
   }
 
-  let castling = castling |> remove_castling(from) |> remove_castling(to)
+  let castling =
+    castling
+    |> remove_castling(from)
+    |> remove_castling(to)
 
   let one_way_move = captured_piece != None || piece == board.Pawn
 
@@ -859,12 +862,12 @@ fn remove_castling(castling: game.Castling, position: Int) -> game.Castling {
   case position {
     4 ->
       game.Castling(..castling, white_kingside: False, white_queenside: False)
-    60 ->
+    68 ->
       game.Castling(..castling, black_kingside: False, black_queenside: False)
     7 -> game.Castling(..castling, white_kingside: False)
-    63 -> game.Castling(..castling, black_kingside: False)
+    71 -> game.Castling(..castling, black_kingside: False)
     0 -> game.Castling(..castling, white_queenside: False)
-    56 -> game.Castling(..castling, black_queenside: False)
+    64 -> game.Castling(..castling, black_queenside: False)
     _ -> castling
   }
 }
