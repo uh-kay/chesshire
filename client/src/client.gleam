@@ -503,9 +503,6 @@ fn view(model: Model) -> Element(Message) {
                 ],
                 [html.text("Find Game")],
               ),
-              html.p([attribute.class("mt-2")], [
-                html.text("⚠️ Coming soon!"),
-              ]),
             ]),
           ]),
           // accordion.view(model.faq) |> element.map(AccordionProducedMessage),
