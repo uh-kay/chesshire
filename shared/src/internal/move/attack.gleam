@@ -17,59 +17,6 @@ pub type AttackInformation {
   )
 }
 
-pub fn attack_information_to_json(
-  attack_information: AttackInformation,
-) -> json.Json {
-  let AttackInformation(
-    in_check:,
-    attacks:,
-    check_attack_squares:,
-    check_block_lines:,
-    pin_lines:,
-  ) = attack_information
-  json.object([
-    #("in_check", json.bool(in_check)),
-    #("attacks", json.array(attacks, json.int)),
-    #("check_attack_squares", json.array(check_attack_squares, json.int)),
-    #("check_block_lines", json.array(check_block_lines, json.int)),
-    #("pin_lines", json.dict(pin_lines, int.to_string, json.array(_, json.int))),
-  ])
-}
-
-pub fn attack_information_decoder() -> decode.Decoder(AttackInformation) {
-  use in_check <- decode.field("in_check", decode.bool)
-  use attacks <- decode.field("attacks", decode.list(decode.int))
-  use check_attack_squares <- decode.field(
-    "check_attack_squares",
-    decode.list(decode.int),
-  )
-  use check_block_lines <- decode.field(
-    "check_block_lines",
-    decode.list(decode.int),
-  )
-  use pin_lines <- decode.field(
-    "pin_lines",
-    decode.dict(decode.string, decode.list(decode.int)),
-  )
-  let pin_lines =
-    dict.to_list(pin_lines)
-    |> list.fold(dict.new(), fn(acc, v) {
-      let #(pinned_piece, squares) = v
-
-      case int.parse(pinned_piece) {
-        Ok(pinned_piece) -> dict.insert(acc, pinned_piece, squares)
-        Error(_) -> acc
-      }
-    })
-  decode.success(AttackInformation(
-    in_check:,
-    attacks:,
-    check_attack_squares:,
-    check_block_lines:,
-    pin_lines:,
-  ))
-}
-
 pub fn calculate(
   board: Board,
   king_position: Int,
@@ -628,4 +575,58 @@ fn get_single_move_attacks(
       get_single_move_attacks(position, positions, directions)
     }
   }
+}
+
+// (DE)SERIALIZATION ----------------------------------------------------------
+pub fn attack_information_to_json(
+  attack_information: AttackInformation,
+) -> json.Json {
+  let AttackInformation(
+    in_check:,
+    attacks:,
+    check_attack_squares:,
+    check_block_lines:,
+    pin_lines:,
+  ) = attack_information
+  json.object([
+    #("in_check", json.bool(in_check)),
+    #("attacks", json.array(attacks, json.int)),
+    #("check_attack_squares", json.array(check_attack_squares, json.int)),
+    #("check_block_lines", json.array(check_block_lines, json.int)),
+    #("pin_lines", json.dict(pin_lines, int.to_string, json.array(_, json.int))),
+  ])
+}
+
+pub fn attack_information_decoder() -> decode.Decoder(AttackInformation) {
+  use in_check <- decode.field("in_check", decode.bool)
+  use attacks <- decode.field("attacks", decode.list(decode.int))
+  use check_attack_squares <- decode.field(
+    "check_attack_squares",
+    decode.list(decode.int),
+  )
+  use check_block_lines <- decode.field(
+    "check_block_lines",
+    decode.list(decode.int),
+  )
+  use pin_lines <- decode.field(
+    "pin_lines",
+    decode.dict(decode.string, decode.list(decode.int)),
+  )
+  let pin_lines =
+    dict.to_list(pin_lines)
+    |> list.fold(dict.new(), fn(acc, v) {
+      let #(pinned_piece, squares) = v
+
+      case int.parse(pinned_piece) {
+        Ok(pinned_piece) -> dict.insert(acc, pinned_piece, squares)
+        Error(_) -> acc
+      }
+    })
+  decode.success(AttackInformation(
+    in_check:,
+    attacks:,
+    check_attack_squares:,
+    check_block_lines:,
+    pin_lines:,
+  ))
 }

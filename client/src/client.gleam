@@ -251,6 +251,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
             cheg.Black -> model.time.white_tick
             cheg.White -> shared.monotonic_time()
           }
+          echo game_view.game_state
 
           let effect =
             effect.batch([
@@ -337,9 +338,11 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         int.clamp(model.time.black_time, shared.min_time, shared.max_time)
       let white_time =
         int.clamp(model.time.white_time, shared.min_time, shared.max_time)
-      let game_state = case black_time <= 0 {
-        True -> cheg.WhiteWin
-        False -> cheg.BlackWin
+
+      let game_state = case model.game_state == cheg.Continue, black_time <= 0 {
+        True, True -> cheg.WhiteWin
+        True, False -> cheg.BlackWin
+        _, _ -> model.game_state
       }
 
       let model =

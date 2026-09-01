@@ -321,18 +321,18 @@ pub fn clock_view(
     Ok(
       html.div(
         [
-          attribute.class("md:ml-8 flex justify-between"),
+          attribute.class("md:ml-8 flex justify-between items-start"),
           attribute.class(case player_role {
-            Host -> "mt-4 flex-row md:flex-col"
-            Guest -> "mt-4 flex-row-reverse md:flex-col-reverse"
-            Spectator -> "mt-4 flex-row md:flex-col"
+            Host -> "flex-row md:flex-col"
+            Guest -> "flex-row-reverse md:flex-col-reverse"
+            Spectator -> "flex-row md:flex-col"
           }),
         ],
         [
           html.p(
             [
-              attribute.class("text-3xl min-w-28 text-center bg-blue-300"),
-              attribute.class("px-4 py-3 rounded-md"),
+              attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
+              attribute.class("text-center text-3xl"),
             ],
             [
               html.text(black_time),
@@ -341,8 +341,8 @@ pub fn clock_view(
           state,
           html.p(
             [
-              attribute.class("text-3xl min-w-28 text-center bg-blue-300"),
-              attribute.class("px-4 py-3 rounded-md"),
+              attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
+              attribute.class("text-center text-3xl"),
             ],
             [
               html.text(white_time),

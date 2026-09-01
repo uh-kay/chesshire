@@ -11,6 +11,176 @@ import internal/move
 import internal/move/attack
 import shared
 
+@internal
+pub fn get_move(move: Move) -> move.Move {
+  move.move
+}
+
+pub opaque type Game {
+  Game(game: game.Game)
+}
+
+pub opaque type Move {
+  Move(move: move.Move)
+}
+
+pub type GameState {
+  Continue
+  Draw(reason: DrawReason)
+  WhiteWin
+  BlackWin
+}
+
+pub fn get_full_moves(game: Game) {
+  game.game.full_moves
+}
+
+pub type DrawReason {
+  ThreefoldRepetition
+  InsufficientMaterial
+  Stalemate
+  FiftyMoves
+}
+
+pub fn state(game: Game) -> GameState {
+  let game = game.game
+
+  // echo game.black_pieces.non_pawn_material
+  // echo game.white_pieces.non_pawn_material
+  // echo game.is_insufficient_material(game)
+
+  use <- bool.guard(game.half_moves >= 50, Draw(FiftyMoves))
+  use <- bool.guard(
+    game.is_insufficient_material(game),
+    echo Draw(InsufficientMaterial),
+  )
+  use <- bool.guard(
+    game.is_threefold_repetition(game),
+    Draw(ThreefoldRepetition),
+  )
+  use <- bool.guard(move.any_legal(game), Continue)
+  use <- bool.guard(!game.attack_information.in_check, Draw(Stalemate))
+  case game.to_move {
+    board.White -> BlackWin
+    board.Black -> WhiteWin
+  }
+}
+
+pub fn new() -> Game {
+  Game(game.new())
+}
+
+pub fn apply_move(game: Game, move: Move) -> Game {
+  Game(move.apply(game.game, move.move))
+}
+
+pub fn in_check(game: Game) -> Bool {
+  game.game.attack_information.in_check
+}
+
+pub type PieceType {
+  Pawn
+  Knight
+  Bishop
+  Rook
+  Queen
+  King
+}
+
+pub type Color {
+  Black
+  White
+}
+
+pub fn board(game: Game) -> Dict(Int, #(PieceType, Color)) {
+  dict.map_values(game.game.board, fn(_, v) {
+    let #(piece, color) = v
+    let piece = piece_to_piece_type(piece)
+    let color = color_to_piece_color(color)
+    #(piece, color)
+  })
+}
+
+pub fn piece_to_piece_type(piece: Piece) -> PieceType {
+  case piece {
+    board.Pawn -> Pawn
+    board.Knight -> Knight
+    board.Bishop -> Bishop
+    board.Rook -> Rook
+    board.Queen -> Queen
+    board.King -> King
+  }
+}
+
+pub fn color_to_piece_color(color: board.Color) -> Color {
+  case color {
+    board.White -> White
+    board.Black -> Black
+  }
+}
+
+pub fn move_to(move: Move) -> Int {
+  move.move.to
+}
+
+pub type Role {
+  Host
+  Guest
+  Spectator
+}
+
+pub fn role(game: Game) -> Role {
+  case game.game.to_move {
+    board.White -> Host
+    board.Black -> Guest
+  }
+}
+
+pub fn to_move(game: Game) -> Color {
+  case game.game.to_move {
+    board.White -> White
+    board.Black -> Black
+  }
+}
+
+pub fn legal_moves(game: Game) -> List(Move) {
+  list.map(move.legal(game.game), Move)
+}
+
+pub fn last_move(game: Game) -> #(Int, Int) {
+  game.game.last_move
+}
+
+pub fn legal_moves_for_piece(game: Game, pos: Int) -> List(Move) {
+  list.filter(legal_moves(game), fn(move) { move.move.from == pos })
+}
+
+pub type JoinModel {
+  JoinModel(board: Dict(Int, #(PieceType, Color)), role: Role)
+}
+
+pub type GameView {
+  GameView(
+    game: Game,
+    role: Role,
+    game_state: GameState,
+    time: shared.Time,
+    guest_joined: Bool,
+    player_color: Option(Color),
+    lobby_id: String,
+  )
+}
+
+pub fn river_squares(game: Game) {
+  game.game.river_squares
+}
+
+pub fn bridge_squares(game: Game) {
+  game.game.bridge_squares
+}
+
+// (DE)SERIALIZATION ----------------------------------------------------------
+
 fn game_to_json(game: Game) -> json.Json {
   let game.Game(
     board:,
@@ -178,30 +348,6 @@ fn game_decoder() -> decode.Decoder(Game) {
   )
 }
 
-pub opaque type Game {
-  Game(game: game.Game)
-}
-
-pub opaque type Move {
-  Move(move: move.Move)
-}
-
-@internal
-pub fn get_move(move: Move) -> move.Move {
-  move.move
-}
-
-pub type GameState {
-  Continue
-  Draw(reason: DrawReason)
-  WhiteWin
-  BlackWin
-}
-
-pub fn get_full_moves(game: Game) {
-  game.game.full_moves
-}
-
 pub fn game_state_to_json(game_state: GameState) -> Json {
   case game_state {
     Continue ->
@@ -238,13 +384,6 @@ pub fn game_state_decoder() -> Decoder(GameState) {
   }
 }
 
-pub type DrawReason {
-  ThreefoldRepetition
-  InsufficientMaterial
-  Stalemate
-  FiftyMoves
-}
-
 fn draw_reason_to_json(draw_reason: DrawReason) -> Json {
   case draw_reason {
     ThreefoldRepetition -> json.string("threefold_repetition")
@@ -265,52 +404,6 @@ fn draw_reason_decoder() -> Decoder(DrawReason) {
   }
 }
 
-pub fn state(game: Game) -> GameState {
-  let game = game.game
-
-  use <- bool.guard(game.half_moves >= 50, Draw(FiftyMoves))
-  use <- bool.guard(
-    game.is_insufficient_material(game),
-    Draw(InsufficientMaterial),
-  )
-  use <- bool.guard(
-    game.is_threefold_repetition(game),
-    Draw(ThreefoldRepetition),
-  )
-  use <- bool.guard(move.any_legal(game), Continue)
-  use <- bool.guard(!game.attack_information.in_check, Draw(Stalemate))
-  case game.to_move {
-    board.White -> BlackWin
-    board.Black -> WhiteWin
-  }
-}
-
-pub fn new() -> Game {
-  Game(game.new())
-}
-
-pub fn apply_move(game: Game, move: Move) -> Game {
-  Game(move.apply(game.game, move.move))
-}
-
-pub fn in_check(game: Game) {
-  game.game.attack_information.in_check
-}
-
-pub type PieceType {
-  Pawn
-  Knight
-  Bishop
-  Rook
-  Queen
-  King
-}
-
-pub type Color {
-  Black
-  White
-}
-
 fn color_to_json(color: Color) -> Json {
   case color {
     Black -> json.string("black")
@@ -325,43 +418,6 @@ fn color_decoder() -> Decoder(Color) {
     "white" -> decode.success(White)
     _ -> decode.failure(Black, "Color")
   }
-}
-
-pub fn board(game: Game) -> Dict(Int, #(PieceType, Color)) {
-  dict.map_values(game.game.board, fn(_, v) {
-    let #(piece, color) = v
-    let piece = piece_to_piece_type(piece)
-    let color = color_to_piece_color(color)
-    #(piece, color)
-  })
-}
-
-pub fn piece_to_piece_type(piece: Piece) -> PieceType {
-  case piece {
-    board.Pawn -> Pawn
-    board.Knight -> Knight
-    board.Bishop -> Bishop
-    board.Rook -> Rook
-    board.Queen -> Queen
-    board.King -> King
-  }
-}
-
-pub fn color_to_piece_color(color: board.Color) -> Color {
-  case color {
-    board.White -> White
-    board.Black -> Black
-  }
-}
-
-pub fn move_to(move: Move) -> Int {
-  move.move.to
-}
-
-pub type Role {
-  Host
-  Guest
-  Spectator
 }
 
 pub fn role_decoder() -> Decoder(Role) {
@@ -380,48 +436,6 @@ pub fn role_to_json(role: Role) -> Json {
     Guest -> json.string("guest")
     Spectator -> json.string("spectator")
   }
-}
-
-pub fn role(game: Game) -> Role {
-  case game.game.to_move {
-    board.White -> Host
-    board.Black -> Guest
-  }
-}
-
-pub fn to_move(game: Game) -> Color {
-  case game.game.to_move {
-    board.White -> White
-    board.Black -> Black
-  }
-}
-
-pub fn legal_moves(game: Game) -> List(Move) {
-  list.map(move.legal(game.game), Move)
-}
-
-pub fn last_move(game: Game) -> #(Int, Int) {
-  game.game.last_move
-}
-
-pub fn legal_moves_for_piece(game: Game, pos: Int) -> List(Move) {
-  list.filter(legal_moves(game), fn(move) { move.move.from == pos })
-}
-
-pub type JoinModel {
-  JoinModel(board: Dict(Int, #(PieceType, Color)), role: Role)
-}
-
-pub type GameView {
-  GameView(
-    game: Game,
-    role: Role,
-    game_state: GameState,
-    time: shared.Time,
-    guest_joined: Bool,
-    player_color: Option(Color),
-    lobby_id: String,
-  )
 }
 
 pub fn game_view_to_json(game_view: GameView) -> Json {
@@ -551,12 +565,4 @@ pub fn move_decoder() -> decode.Decoder(Move) {
     }
     _ -> decode.failure(Move(move.Castle(from: 0, to: 0)), "Move")
   }
-}
-
-pub fn river_squares(game: Game) {
-  game.game.river_squares
-}
-
-pub fn bridge_squares(game: Game) {
-  game.game.bridge_squares
 }

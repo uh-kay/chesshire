@@ -11,22 +11,6 @@ pub type GameVariant {
   BuildBridge
 }
 
-pub fn game_variant_to_json(game_variant: GameVariant) -> json.Json {
-  case game_variant {
-    RiverSacrifice -> json.string("river_sacrifice")
-    BuildBridge -> json.string("build_bridge")
-  }
-}
-
-pub fn game_variant_decoder() -> decode.Decoder(GameVariant) {
-  use variant <- decode.then(decode.string)
-  case variant {
-    "river_sacrifice" -> decode.success(RiverSacrifice)
-    "build_bridge" -> decode.success(BuildBridge)
-    _ -> decode.failure(RiverSacrifice, "GameVariant")
-  }
-}
-
 pub type Game {
   Game(
     board: board.Board,
@@ -50,26 +34,6 @@ pub type Game {
   )
 }
 
-pub fn board_to_json(board: board.Board) {
-  json.dict(board, int.to_string, fn(value) {
-    let #(piece, color) = value
-    json.preprocessed_array([
-      board.piece_to_json(piece),
-      board.color_to_json(color),
-    ])
-  })
-}
-
-pub fn board_decoder() -> decode.Decoder(board.Board) {
-  let decoder = {
-    use piece <- decode.field(1, board.piece_decoder())
-    use color <- decode.field(0, board.color_decoder())
-    decode.success(#(piece, color))
-  }
-
-  decode.dict(decode.int, decoder)
-}
-
 pub type Castling {
   Castling(
     white_kingside: Bool,
@@ -79,67 +43,29 @@ pub type Castling {
   )
 }
 
-pub fn castling_decoder() -> decode.Decoder(Castling) {
-  use white_kingside <- decode.field("white_kingside", decode.bool)
-  use white_queenside <- decode.field("white_queenside", decode.bool)
-  use black_kingside <- decode.field("black_kingside", decode.bool)
-  use black_queenside <- decode.field("black_queenside", decode.bool)
-  decode.success(Castling(
-    white_kingside:,
-    white_queenside:,
-    black_kingside:,
-    black_queenside:,
-  ))
-}
-
-pub fn castling_to_json(castling: Castling) -> json.Json {
-  let Castling(
-    white_kingside:,
-    white_queenside:,
-    black_kingside:,
-    black_queenside:,
-  ) = castling
-  json.object([
-    #("white_kingside", json.bool(white_kingside)),
-    #("white_queenside", json.bool(white_queenside)),
-    #("black_kingside", json.bool(black_kingside)),
-    #("black_queenside", json.bool(black_queenside)),
-  ])
-}
-
 pub type PieceInfo {
   PieceInfo(king_position: Int, non_pawn_material: Int, pawn_material: Int)
-}
-
-pub fn piece_info_to_json(piece_info: PieceInfo) -> json.Json {
-  let PieceInfo(king_position:, non_pawn_material:, pawn_material:) = piece_info
-  json.object([
-    #("king_position", json.int(king_position)),
-    #("non_pawn_material", json.int(non_pawn_material)),
-    #("pawn_material", json.int(pawn_material)),
-  ])
-}
-
-pub fn piece_info_decoder() -> decode.Decoder(PieceInfo) {
-  use king_position <- decode.field("king_position", decode.int)
-  use non_pawn_material <- decode.field("non_pawn_material", decode.int)
-  use pawn_material <- decode.field("pawn_material", decode.int)
-  decode.success(PieceInfo(king_position:, non_pawn_material:, pawn_material:))
 }
 
 pub const all_castling = Castling(True, True, True, True)
 
 pub fn new() {
   let board = board.initial_position()
-  // let board = board.testing_board()
   let white_king_position = 4
   let black_king_position = 68
   let river_squares = board.river_squares(board.TwoBridge)
   let attack_information =
     attack.calculate(board, white_king_position, board.White, river_squares)
+
   let pawn_material = board.pawn_value * 8
   let non_pawn_material =
-    board.bishop_value * 4 + board.rook_value * 2 + board.queen_value
+    board.queen_value
+    + board.rook_value
+    * 2
+    + board.bishop_value
+    * 2
+    + board.knight_value
+    * 2
   let zobrist_hash = hash.hash(board, board.White)
 
   Game(
@@ -201,4 +127,85 @@ fn is_threefold_repetition_loop(
       }
     [_, ..rest] -> is_threefold_repetition_loop(rest, position, found)
   }
+}
+
+// (DE)SERIALIZATION ----------------------------------------------------------
+pub fn game_variant_to_json(game_variant: GameVariant) -> json.Json {
+  case game_variant {
+    RiverSacrifice -> json.string("river_sacrifice")
+    BuildBridge -> json.string("build_bridge")
+  }
+}
+
+pub fn game_variant_decoder() -> decode.Decoder(GameVariant) {
+  use variant <- decode.then(decode.string)
+  case variant {
+    "river_sacrifice" -> decode.success(RiverSacrifice)
+    "build_bridge" -> decode.success(BuildBridge)
+    _ -> decode.failure(RiverSacrifice, "GameVariant")
+  }
+}
+
+pub fn board_to_json(board: board.Board) {
+  json.dict(board, int.to_string, fn(value) {
+    let #(piece, color) = value
+    json.preprocessed_array([
+      board.piece_to_json(piece),
+      board.color_to_json(color),
+    ])
+  })
+}
+
+pub fn board_decoder() -> decode.Decoder(board.Board) {
+  let decoder = {
+    use piece <- decode.field(1, board.piece_decoder())
+    use color <- decode.field(0, board.color_decoder())
+    decode.success(#(piece, color))
+  }
+
+  decode.dict(decode.int, decoder)
+}
+
+pub fn castling_decoder() -> decode.Decoder(Castling) {
+  use white_kingside <- decode.field("white_kingside", decode.bool)
+  use white_queenside <- decode.field("white_queenside", decode.bool)
+  use black_kingside <- decode.field("black_kingside", decode.bool)
+  use black_queenside <- decode.field("black_queenside", decode.bool)
+  decode.success(Castling(
+    white_kingside:,
+    white_queenside:,
+    black_kingside:,
+    black_queenside:,
+  ))
+}
+
+pub fn castling_to_json(castling: Castling) -> json.Json {
+  let Castling(
+    white_kingside:,
+    white_queenside:,
+    black_kingside:,
+    black_queenside:,
+  ) = castling
+  json.object([
+    #("white_kingside", json.bool(white_kingside)),
+    #("white_queenside", json.bool(white_queenside)),
+    #("black_kingside", json.bool(black_kingside)),
+    #("black_queenside", json.bool(black_queenside)),
+  ])
+}
+
+pub fn piece_info_to_json(piece_info: PieceInfo) -> json.Json {
+  let PieceInfo(king_position:, non_pawn_material:, pawn_material:) = piece_info
+  json.object([
+    #("king_position", json.int(king_position)),
+    #("non_pawn_material", json.int(non_pawn_material)),
+    #("pawn_material", json.int(pawn_material)),
+  ])
+}
+
+pub fn piece_info_decoder() -> decode.Decoder(PieceInfo) {
+  use king_position <- decode.field("king_position", decode.int)
+  use non_pawn_material <- decode.field("non_pawn_material", decode.int)
+  use pawn_material <- decode.field("pawn_material", decode.int)
+  decode.success(PieceInfo(king_position:, non_pawn_material:, pawn_material:))
 }
