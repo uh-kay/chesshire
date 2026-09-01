@@ -428,8 +428,6 @@ fn get_time(
     True -> now - last_tick
   }
 
-  // Because the move has been applied, the current to_move is switched to the
-  // opponent. That's why the time being reduced is not the to_move's time.
   let black_time = case to_move {
     cheg.Black -> state.model.time.black_time
     cheg.White -> state.model.time.black_time - elapsed
@@ -438,16 +436,18 @@ fn get_time(
     cheg.Black -> state.model.time.white_time - elapsed
     cheg.White -> state.model.time.white_time
   }
+  let black_tick = case to_move {
+    cheg.White -> now
+    cheg.Black -> state.model.time.black_tick
+  }
+  let white_tick = case to_move {
+    cheg.White -> state.model.time.white_tick
+    cheg.Black -> now
+  }
 
   let state = cheg.state(game)
   let time =
-    shared.Time(
-      black_time:,
-      white_time:,
-      black_tick: now,
-      white_tick: now,
-      started:,
-    )
+    shared.Time(black_time:, white_time:, black_tick:, white_tick:, started:)
 
   case black_time, white_time, state {
     black_time, _, cheg.Continue if black_time <= 0 -> #(time, cheg.WhiteWin)
