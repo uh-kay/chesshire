@@ -3,6 +3,7 @@ import gleam/dict.{type Dict}
 import gleam/dynamic/decode.{type Decoder}
 import gleam/int
 import gleam/json.{type Json}
+import gleam/list
 import gleam/option.{Some}
 import gleam/result
 
@@ -87,13 +88,15 @@ pub fn color_to_json(color: Color) -> Json {
 pub type Square {
   Empty
   OffBoard
+  River
   Occupied(piece: Piece, color: Color)
 }
 
 pub const size = 72
 
-pub fn get(board: Board, position: Int) {
+pub fn get(board: Board, river_squares: List(Int), position: Int) {
   use <- bool.guard(position == -1, OffBoard)
+  use <- bool.guard(list.contains(river_squares, position), River)
 
   case dict.get(board, position) {
     Ok(#(piece, color)) -> Occupied(piece:, color:)
@@ -583,51 +586,65 @@ fn from_fen_loop(
       )
   }
 }
+// pub fn to_fen(board: Board, river_squares: List(Int)) -> String {
+//   do_to_fen(board, river_squares, 0, 9 - 1, 0, "")
+// }
 
-pub fn to_fen(board: Board) -> String {
-  do_to_fen(board, 0, 9 - 1, 0, "")
-}
+// fn do_to_fen(
+//   board: Board,
+//   river_squares: List(Int),
+//   file: Int,
+//   rank: Int,
+//   empty: Int,
+//   fen: String,
+// ) -> String {
+//   use <- bool.lazy_guard(file >= 9, fn() {
+//     case rank == 0 {
+//       True -> maybe_add_empty(fen, empty)
+//       False ->
+//         do_to_fen(
+//           board,
+//           river_squares,
+//           0,
+//           rank - 1,
+//           0,
+//           maybe_add_empty(fen, empty) <> "/",
+//         )
+//     }
+//   })
 
-fn do_to_fen(board: Board, file: Int, rank: Int, empty: Int, fen: String) {
-  use <- bool.lazy_guard(file >= 9, fn() {
-    case rank == 0 {
-      True -> maybe_add_empty(fen, empty)
-      False ->
-        do_to_fen(board, 0, rank - 1, 0, maybe_add_empty(fen, empty) <> "/")
-    }
-  })
+//   let position = position(file:, rank:)
 
-  let position = position(file:, rank:)
+//   case get(board, river_squares, position) {
+//     Empty -> do_to_fen(board, river_squares, file + 1, rank, empty + 1, fen)
+//     Occupied(piece:, color:) -> {
+//       let fen = maybe_add_empty(fen, empty)
 
-  case get(board, position) {
-    Empty -> do_to_fen(board, file + 1, rank, empty + 1, fen)
-    Occupied(piece:, color:) -> {
-      let fen = maybe_add_empty(fen, empty)
+//       let fen = case piece, color {
+//         Pawn, White -> fen <> "P"
+//         Knight, White -> fen <> "N"
+//         Bishop, White -> fen <> "B"
+//         Rook, White -> fen <> "R"
+//         Queen, White -> fen <> "Q"
+//         King, White -> fen <> "K"
+//         Pawn, Black -> fen <> "p"
+//         Knight, Black -> fen <> "n"
+//         Bishop, Black -> fen <> "b"
+//         Rook, Black -> fen <> "r"
+//         Queen, Black -> fen <> "q"
+//         King, Black -> fen <> "k"
+//       }
 
-      let fen = case piece, color {
-        Pawn, White -> fen <> "P"
-        Knight, White -> fen <> "N"
-        Bishop, White -> fen <> "B"
-        Rook, White -> fen <> "R"
-        Queen, White -> fen <> "Q"
-        King, White -> fen <> "K"
-        Pawn, Black -> fen <> "p"
-        Knight, Black -> fen <> "n"
-        Bishop, Black -> fen <> "b"
-        Rook, Black -> fen <> "r"
-        Queen, Black -> fen <> "q"
-        King, Black -> fen <> "k"
-      }
+//       do_to_fen(board, river_squares, file + 1, rank, 0, fen)
+//     }
+//     OffBoard -> maybe_add_empty(fen, empty)
+//     River -> todo
+//   }
+// }
 
-      do_to_fen(board, file + 1, rank, 0, fen)
-    }
-    OffBoard -> maybe_add_empty(fen, empty)
-  }
-}
-
-fn maybe_add_empty(fen: String, empty: Int) {
-  case empty {
-    0 -> fen
-    _ -> fen <> int.to_string(empty)
-  }
-}
+// fn maybe_add_empty(fen: String, empty: Int) {
+//   case empty {
+//     0 -> fen
+//     _ -> fen <> int.to_string(empty)
+//   }
+// }

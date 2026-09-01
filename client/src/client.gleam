@@ -251,7 +251,6 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
             cheg.Black -> model.time.white_tick
             cheg.White -> shared.monotonic_time()
           }
-          echo game_view.game_state
 
           let effect =
             effect.batch([

@@ -19,26 +19,26 @@ pub type AttackInformation {
 
 pub fn calculate(
   board: Board,
+  river_squares: List(Int),
   king_position: Int,
   to_move: Color,
-  river_squares: List(Int),
 ) {
   let attacking = case to_move {
     board.White -> board.Black
     board.Black -> board.White
   }
-  let attacks = get_attacks(board, attacking, river_squares)
+  let attacks = get_attacks(board, river_squares, attacking)
 
   let in_check = list.contains(attacks, king_position)
 
   let #(check_attack_squares, check_block_lines) = case in_check {
     False -> #([], [])
     True -> #(
-      get_check_attack_squares(board, attacking, king_position),
-      get_check_block_line(board, attacking, king_position),
+      get_check_attack_squares(board, river_squares, attacking, king_position),
+      get_check_block_line(board, river_squares, attacking, king_position),
     )
   }
-  let pin_lines = get_pin_lines(board, attacking, king_position)
+  let pin_lines = get_pin_lines(board, river_squares, attacking, king_position)
 
   AttackInformation(
     in_check:,
@@ -49,7 +49,12 @@ pub fn calculate(
   )
 }
 
-fn get_pin_lines(board: Board, attacking: Color, king_position: Int) {
+fn get_pin_lines(
+  board: Board,
+  river_squares,
+  attacking: Color,
+  king_position: Int,
+) {
   use lines, position, #(piece, color) <- dict.fold(board, dict.new())
   use <- bool.guard(color != attacking, lines)
 
@@ -57,6 +62,7 @@ fn get_pin_lines(board: Board, attacking: Color, king_position: Int) {
     board.Bishop ->
       get_sliding_pin_lines(
         board,
+        river_squares,
         attacking,
         position,
         king_position,
@@ -66,6 +72,7 @@ fn get_pin_lines(board: Board, attacking: Color, king_position: Int) {
     board.Rook ->
       get_sliding_pin_lines(
         board,
+        river_squares,
         attacking,
         position,
         king_position,
@@ -75,6 +82,7 @@ fn get_pin_lines(board: Board, attacking: Color, king_position: Int) {
     board.Queen ->
       get_sliding_pin_lines(
         board,
+        river_squares,
         attacking,
         position,
         king_position,
@@ -87,6 +95,7 @@ fn get_pin_lines(board: Board, attacking: Color, king_position: Int) {
 
 fn get_sliding_pin_lines(
   board: Board,
+  river_squares,
   attacking: Color,
   position: Int,
   king_position: Int,
@@ -98,12 +107,14 @@ fn get_sliding_pin_lines(
     [direction, ..directions] ->
       get_sliding_pin_lines(
         board,
+        river_squares,
         attacking,
         position,
         king_position,
         directions,
         get_sliding_pin_lines_loop(
           board,
+          river_squares,
           attacking,
           position,
           king_position,
@@ -118,6 +129,7 @@ fn get_sliding_pin_lines(
 
 fn get_sliding_pin_lines_loop(
   board: Board,
+  river_squares,
   attacking: Color,
   position: Int,
   king_position: Int,
@@ -132,10 +144,11 @@ fn get_sliding_pin_lines_loop(
     dict.insert(lines, pinned_piece, line)
   })
 
-  case board.get(board, position) {
+  case board.get(board, river_squares, position) {
     board.Empty ->
       get_sliding_pin_lines_loop(
         board,
+        river_squares,
         attacking,
         position,
         king_position,
@@ -147,6 +160,7 @@ fn get_sliding_pin_lines_loop(
     board.Occupied(color:, ..) if color != attacking && pinned_piece == -1 ->
       get_sliding_pin_lines_loop(
         board,
+        river_squares,
         attacking,
         position,
         king_position,
@@ -154,6 +168,18 @@ fn get_sliding_pin_lines_loop(
         lines,
         line,
         position,
+      )
+    board.River ->
+      get_sliding_pin_lines_loop(
+        board,
+        river_squares,
+        attacking,
+        position,
+        king_position,
+        direction,
+        lines,
+        [position, ..line],
+        pinned_piece,
       )
     _ -> lines
   }
@@ -170,7 +196,12 @@ type Line {
 // queen = 8 dir calculation
 // 2 rook + 2 bishop + 1 queen = worst case 160 calculation
 // K = 8 dir = worst case 64 calculation
-fn get_check_block_line(board: Board, attacking: Color, king_position: Int) {
+fn get_check_block_line(
+  board: Board,
+  river_squares,
+  attacking: Color,
+  king_position: Int,
+) {
   // This cursed piece of code just lets us map the final value after all the
   // `use` statements. Because of function inlining, this is equivalent to using
   // a block, then mapping at the end.
@@ -192,6 +223,7 @@ fn get_check_block_line(board: Board, attacking: Color, king_position: Int) {
       case
         sliding_check_block_line(
           board,
+          river_squares,
           position,
           king_position,
           direction.queen_directions,
@@ -206,6 +238,7 @@ fn get_check_block_line(board: Board, attacking: Color, king_position: Int) {
       case
         sliding_check_block_line(
           board,
+          river_squares,
           position,
           king_position,
           direction.bishop_directions,
@@ -220,6 +253,7 @@ fn get_check_block_line(board: Board, attacking: Color, king_position: Int) {
       case
         sliding_check_block_line(
           board,
+          river_squares,
           position,
           king_position,
           direction.rook_directions,
@@ -302,6 +336,7 @@ fn piece_attacks_square(
 
 fn sliding_check_block_line(
   board: Board,
+  river_squares,
   position: Int,
   king_position: Int,
   directions: List(Direction),
@@ -312,6 +347,7 @@ fn sliding_check_block_line(
       case
         sliding_check_block_line_loop(
           board,
+          river_squares,
           position,
           king_position,
           direction,
@@ -319,7 +355,13 @@ fn sliding_check_block_line(
         )
       {
         [] ->
-          sliding_check_block_line(board, position, king_position, directions)
+          sliding_check_block_line(
+            board,
+            river_squares,
+            position,
+            king_position,
+            directions,
+          )
         line -> line
       }
   }
@@ -327,6 +369,7 @@ fn sliding_check_block_line(
 
 fn sliding_check_block_line_loop(
   board: Board,
+  river_squares,
   position: Int,
   king_position: Int,
   direction: Direction,
@@ -335,10 +378,11 @@ fn sliding_check_block_line_loop(
   let new_position = direction.in_direction(position, direction)
   use <- bool.guard(new_position == king_position, line)
 
-  case board.get(board, new_position) {
+  case board.get(board, river_squares, new_position) {
     board.Empty ->
       sliding_check_block_line_loop(
         board,
+        river_squares,
         new_position,
         king_position,
         direction,
@@ -350,6 +394,7 @@ fn sliding_check_block_line_loop(
 
 fn get_check_attack_squares(
   board: Board,
+  river_squares,
   attacking: board.Color,
   king_position: Int,
 ) -> List(Int) {
@@ -360,6 +405,7 @@ fn get_check_attack_squares(
     board.Bishop ->
       get_sliding_check_attack_squares(
         board,
+        river_squares,
         position,
         king_position,
         direction.bishop_directions,
@@ -368,6 +414,7 @@ fn get_check_attack_squares(
     board.Queen ->
       get_sliding_check_attack_squares(
         board,
+        river_squares,
         position,
         king_position,
         direction.queen_directions,
@@ -376,6 +423,7 @@ fn get_check_attack_squares(
     board.Rook ->
       get_sliding_check_attack_squares(
         board,
+        river_squares,
         position,
         king_position,
         direction.rook_directions,
@@ -387,6 +435,7 @@ fn get_check_attack_squares(
 
 fn get_sliding_check_attack_squares(
   board: Board,
+  river_squares,
   position: Int,
   king_position: Int,
   directions: List(Direction),
@@ -397,11 +446,13 @@ fn get_sliding_check_attack_squares(
     [direction, ..directions] ->
       get_sliding_check_attack_squares(
         board,
+        river_squares,
         position,
         king_position,
         directions,
         get_sliding_check_attack_squares_loop(
           board,
+          river_squares,
           position,
           king_position,
           direction,
@@ -413,6 +464,7 @@ fn get_sliding_check_attack_squares(
 
 fn get_sliding_check_attack_squares_loop(
   board: Board,
+  river_squares,
   position: Int,
   king_position: Int,
   direction: Direction,
@@ -427,10 +479,11 @@ fn get_sliding_check_attack_squares_loop(
         position -> [position, ..squares]
       }
     False ->
-      case board.get(board, new_position) {
+      case board.get(board, river_squares, new_position) {
         board.Empty ->
           get_sliding_check_attack_squares_loop(
             board,
+            river_squares,
             new_position,
             king_position,
             direction,
@@ -442,7 +495,7 @@ fn get_sliding_check_attack_squares_loop(
   }
 }
 
-fn get_attacks(board: Board, attacking: Color, river_squares: List(Int)) {
+fn get_attacks(board: Board, river_squares: List(Int), attacking: Color) {
   use attacks, position, #(piece, color) <- dict.fold(board, [])
   case color == attacking {
     True ->
@@ -470,26 +523,26 @@ fn get_attacks_for_piece(
     board.Bishop ->
       get_sliding_attacks(
         board,
+        river_squares,
         position,
         direction.bishop_directions,
         positions,
-        river_squares,
       )
     board.Rook ->
       get_sliding_attacks(
         board,
+        river_squares,
         position,
         direction.rook_directions,
         positions,
-        river_squares,
       )
     board.Queen ->
       get_sliding_attacks(
         board,
+        river_squares,
         position,
         direction.queen_directions,
         positions,
-        river_squares,
       )
     board.Pawn if color == board.Black ->
       get_single_move_attacks(
@@ -512,50 +565,46 @@ fn get_attacks_for_piece(
 
 fn get_sliding_attacks(
   board: Board,
+  river_squares: List(Int),
   position: Int,
   directions: List(Direction),
   positions: List(Int),
-  river_squares: List(Int),
 ) {
   case directions {
     [] -> positions
     [direction, ..directions] ->
       get_sliding_attacks(
         board,
+        river_squares,
         position,
         directions,
         get_sliding_attacks_loop(
           board,
+          river_squares,
           position,
           direction,
           positions,
-          river_squares,
         ),
-        river_squares,
       )
   }
 }
 
 fn get_sliding_attacks_loop(
   board: Board,
+  river_squares: List(Int),
   position: Int,
   direction: Direction,
   positions: List(Int),
-  river_squares: List(Int),
 ) -> List(Int) {
   let new_position = direction.in_direction(position, direction)
-  use <- bool.guard(list.contains(river_squares, new_position), positions)
 
-  case board.get(board, new_position) {
+  case board.get(board, river_squares, new_position) {
     board.OffBoard -> positions
     board.Empty ->
-      get_sliding_attacks_loop(
-        board,
+      get_sliding_attacks_loop(board, river_squares, new_position, direction, [
         new_position,
-        direction,
-        [new_position, ..positions],
-        river_squares,
-      )
+        ..positions
+      ])
     _ -> [new_position, ..positions]
   }
 }

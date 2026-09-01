@@ -55,7 +55,7 @@ pub fn new() {
   let black_king_position = 68
   let river_squares = board.river_squares(board.TwoBridge)
   let attack_information =
-    attack.calculate(board, white_king_position, board.White, river_squares)
+    attack.calculate(board, river_squares, white_king_position, board.White)
 
   let pawn_material = board.pawn_value * 8
   let non_pawn_material =

@@ -19,11 +19,14 @@ pub type Move {
     piece: board.Piece,
     captured_piece: Option(board.Piece),
   )
+  Sacrifice(from: Int, to: Int, sacrificed_piece: board.Piece)
 }
 
 pub fn moving_piece(move: Move) {
   case move {
-    Capture(piece:, ..) | Move(piece:, ..) -> piece
+    Capture(piece:, ..)
+    | Move(piece:, ..)
+    | Sacrifice(sacrificed_piece: piece, ..) -> piece
     Castle(..) -> board.King
     EnPassant(..) | Promotion(..) -> board.Pawn
   }
@@ -49,22 +52,33 @@ pub fn any_legal(game: Game) {
 }
 
 fn move_is_valid_with_pins(
+  river_squares: List(Int),
   from: Int,
   to: Int,
   attack_information: attack.AttackInformation,
 ) {
   case dict.get(attack_information.pin_lines, from) {
     Error(_) -> True
-    Ok(line) -> list.contains(line, to)
+    Ok(line) ->
+      case list.contains(river_squares, to) {
+        True -> False
+        False -> list.contains(line, to)
+      }
   }
 }
 
-fn can_move(from: Int, to: Int, attack_information: attack.AttackInformation) {
+fn can_move(
+  river_squares,
+  from: Int,
+  to: Int,
+  attack_information: attack.AttackInformation,
+) {
   case attack_information.in_check {
-    False -> move_is_valid_with_pins(from, to, attack_information)
+    False ->
+      move_is_valid_with_pins(river_squares, from, to, attack_information)
     True ->
       list.contains(attack_information.check_block_lines, to)
-      && move_is_valid_with_pins(from, to, attack_information)
+      && move_is_valid_with_pins(river_squares, from, to, attack_information)
   }
 }
 
@@ -83,18 +97,11 @@ fn moves_for_piece(
   piece: board.Piece,
   moves: List(Move),
 ) {
-  let river_squares = game.river_squares
-
   case piece {
     board.Pawn -> pawn_moves(game, position, moves)
     board.Knight ->
       knight_moves(game, position, moves, direction.knight_directions)
-    board.King -> {
-      let king_moves =
-        king_moves(game, position, moves, direction.queen_directions)
-        |> list.filter(fn(move) { !list.contains(river_squares, move.to) })
-      list.append(moves, king_moves)
-    }
+    board.King -> king_moves(game, position, moves, direction.queen_directions)
     board.Bishop ->
       sliding_moves(game, piece, position, moves, direction.bishop_directions)
     board.Rook ->
@@ -119,10 +126,15 @@ fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
   let is_promotion = forward_one / 8 == promotion_rank
   let rank = board.rank(position)
 
-  let moves = case board.get(game.board, forward_one) {
+  let moves = case board.get(game.board, game.river_squares, forward_one) {
     board.Empty -> {
       let moves = case
-        can_move(position, forward_one, game.attack_information)
+        can_move(
+          game.river_squares,
+          position,
+          forward_one,
+          game.attack_information,
+        )
       {
         False -> moves
         True if is_promotion ->
@@ -144,22 +156,56 @@ fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
       use <- bool.guard(!can_double_move, moves)
 
       let forward_two = direction.in_direction(forward_one, forward)
-      case board.get(game.board, forward_two) {
+      case board.get(game.board, game.river_squares, forward_two) {
         board.Empty ->
-          case can_move(position, forward_two, game.attack_information) {
+          case
+            can_move(
+              game.river_squares,
+              position,
+              forward_two,
+              game.attack_information,
+            )
+          {
             False -> moves
             True -> [Move(board.Pawn, from: position, to: forward_two), ..moves]
           }
-        board.Occupied(_, _) | board.OffBoard -> moves
+        board.Occupied(_, _) | board.OffBoard | board.River -> moves
       }
     }
     board.Occupied(_, _) | board.OffBoard -> moves
+    board.River -> {
+      case
+        can_move(
+          game.river_squares,
+          position,
+          forward_one,
+          game.attack_information,
+        )
+      {
+        False -> moves
+        True -> [
+          Sacrifice(
+            from: position,
+            to: forward_one,
+            sacrificed_piece: board.Pawn,
+          ),
+          ..moves
+        ]
+      }
+    }
   }
 
   let new_position = direction.in_direction(position, left)
-  let moves = case board.get(game.board, new_position) {
+  let moves = case board.get(game.board, game.river_squares, new_position) {
     board.Occupied(piece: captured_piece, color:) if color != game.to_move ->
-      case can_move(position, new_position, game.attack_information) {
+      case
+        can_move(
+          game.river_squares,
+          position,
+          new_position,
+          game.attack_information,
+        )
+      {
         False -> moves
         True if is_promotion ->
           add_promotions(
@@ -179,13 +225,20 @@ fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
         False -> moves
         True -> [EnPassant(position, new_position), ..moves]
       }
-    board.Empty | board.OffBoard | board.Occupied(_, _) -> moves
+    board.Empty | board.OffBoard | board.Occupied(_, _) | board.River -> moves
   }
 
   let new_position = direction.in_direction(position, right)
-  case board.get(game.board, new_position) {
+  case board.get(game.board, game.river_squares, new_position) {
     board.Occupied(piece: captured_piece, color:) if color != game.to_move ->
-      case can_move(position, new_position, game.attack_information) {
+      case
+        can_move(
+          game.river_squares,
+          position,
+          new_position,
+          game.attack_information,
+        )
+      {
         False -> moves
         True if is_promotion ->
           add_promotions(
@@ -205,7 +258,7 @@ fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
         False -> moves
         True -> [EnPassant(position, new_position), ..moves]
       }
-    board.Empty | board.OffBoard | board.Occupied(_, _) -> moves
+    board.Empty | board.OffBoard | board.Occupied(_, _) | board.River -> moves
   }
 }
 
@@ -214,7 +267,12 @@ fn en_passant_is_valid(game: Game, position: Int, new_position: Int) -> Bool {
 
   case game.attack_information.in_check {
     False ->
-      move_is_valid_with_pins(position, new_position, game.attack_information)
+      move_is_valid_with_pins(
+        game.river_squares,
+        position,
+        new_position,
+        game.attack_information,
+      )
     True ->
       {
         list.contains(
@@ -227,6 +285,7 @@ fn en_passant_is_valid(game: Game, position: Int, new_position: Int) -> Bool {
         )
       }
       && move_is_valid_with_pins(
+        game.river_squares,
         position,
         new_position,
         game.attack_information,
@@ -278,7 +337,7 @@ fn in_check_after_en_passant_loop(
   found_piece: FoundPiece,
 ) -> FoundPiece {
   let new_position = direction.in_direction(position, direction)
-  case board.get(game.board, new_position), found_piece {
+  case board.get(game.board, game.river_squares, new_position), found_piece {
     board.Empty, _ ->
       in_check_after_en_passant_loop(game, new_position, direction, found_piece)
     board.Occupied(piece: board.King, color:), NoPiece
@@ -295,7 +354,7 @@ fn in_check_after_en_passant_loop(
     | board.Occupied(piece: board.Queen, color:), KingPiece
       if color != game.to_move
     -> Both
-    board.Occupied(_, _), _ | board.OffBoard, _ -> found_piece
+    board.Occupied(_, _), _ | board.OffBoard, _ | board.River, _ -> found_piece
   }
 }
 
@@ -331,9 +390,16 @@ fn knight_moves(
     [direction, ..directions] -> {
       let new_position = direction.in_direction(position, direction)
 
-      let moves = case board.get(game.board, new_position) {
+      let moves = case board.get(game.board, game.river_squares, new_position) {
         board.Empty ->
-          case can_move(position, new_position, game.attack_information) {
+          case
+            can_move(
+              game.river_squares,
+              position,
+              new_position,
+              game.attack_information,
+            )
+          {
             False -> moves
             True -> [
               Move(board.Knight, from: position, to: new_position),
@@ -341,7 +407,14 @@ fn knight_moves(
             ]
           }
         board.Occupied(piece: captured_piece, color:) if color != game.to_move ->
-          case can_move(position, new_position, game.attack_information) {
+          case
+            can_move(
+              game.river_squares,
+              position,
+              new_position,
+              game.attack_information,
+            )
+          {
             False -> moves
             True -> [
               Capture(
@@ -349,6 +422,25 @@ fn knight_moves(
                 from: position,
                 to: new_position,
                 captured_piece:,
+              ),
+              ..moves
+            ]
+          }
+        board.River ->
+          case
+            can_move(
+              game.river_squares,
+              position,
+              new_position,
+              game.attack_information,
+            )
+          {
+            False -> moves
+            True -> [
+              Sacrifice(
+                from: position,
+                to: new_position,
+                sacrificed_piece: board.Knight,
               ),
               ..moves
             ]
@@ -371,9 +463,11 @@ fn king_moves(
 
   use <- bool.guard(game.attack_information.in_check, moves)
 
-  let is_empty = fn(position) { board.get(game.board, position) == board.Empty }
+  let is_empty = fn(position) {
+    board.get(game.board, game.river_squares, position) == board.Empty
+  }
   let can_move_through = fn(position) {
-    board.get(game.board, position) == board.Empty
+    board.get(game.board, game.river_squares, position) == board.Empty
     && !list.contains(game.attack_information.attacks, position)
   }
 
@@ -417,7 +511,7 @@ fn regular_king_moves(
     [direction, ..directions] -> {
       let new_position = direction.in_direction(position, direction)
 
-      let moves = case board.get(game.board, new_position) {
+      let moves = case board.get(game.board, game.river_squares, new_position) {
         board.Empty ->
           case king_can_move(new_position, game.attack_information) {
             False -> moves
@@ -439,7 +533,7 @@ fn regular_king_moves(
             ]
             False -> moves
           }
-        board.Occupied(_, _) | board.OffBoard -> moves
+        board.Occupied(_, _) | board.OffBoard | board.River -> moves
       }
       regular_king_moves(game, position, moves, directions)
     }
@@ -486,7 +580,7 @@ fn sliding_moves_in_direction(
     Move(piece, from: start_position, to: new_position),
     ..moves
   ])
-  case board.get(game.board, new_position) {
+  case board.get(game.board, game.river_squares, new_position) {
     board.Empty ->
       sliding_moves_in_direction(
         game,
@@ -494,13 +588,27 @@ fn sliding_moves_in_direction(
         start_position,
         new_position,
         direction,
-        case can_move(start_position, new_position, game.attack_information) {
+        case
+          can_move(
+            game.river_squares,
+            start_position,
+            new_position,
+            game.attack_information,
+          )
+        {
           False -> moves
           True -> [Move(piece, from: start_position, to: new_position), ..moves]
         },
       )
     board.Occupied(color:, piece: captured_piece) if color != game.to_move ->
-      case can_move(start_position, new_position, game.attack_information) {
+      case
+        can_move(
+          game.river_squares,
+          start_position,
+          new_position,
+          game.attack_information,
+        )
+      {
         False -> moves
         True -> [
           Capture(
@@ -508,6 +616,25 @@ fn sliding_moves_in_direction(
             from: start_position,
             to: new_position,
             captured_piece:,
+          ),
+          ..moves
+        ]
+      }
+    board.River ->
+      case
+        can_move(
+          game.river_squares,
+          start_position,
+          new_position,
+          game.attack_information,
+        )
+      {
+        False -> moves
+        True -> [
+          Sacrifice(
+            from: start_position,
+            to: new_position,
+            sacrificed_piece: piece,
           ),
           ..moves
         ]
@@ -520,13 +647,33 @@ pub fn apply(game: Game, move: Move) {
   case move {
     Castle(from:, to:) -> apply_castle(game, from, to, to % 8 == 2)
     Move(from:, to:, piece:) ->
-      do_apply(game, piece, from, to, False, None, None)
+      do_apply(game, piece, from, to, False, None, None, None)
     Capture(from:, to:, piece:, captured_piece:) ->
-      do_apply(game, piece, from, to, False, None, Some(captured_piece))
+      do_apply(game, piece, from, to, False, None, Some(captured_piece), None)
     EnPassant(from:, to:) ->
-      do_apply(game, board.Pawn, from, to, True, None, None)
+      do_apply(game, board.Pawn, from, to, True, None, None, None)
     Promotion(from:, to:, piece:, captured_piece:) ->
-      do_apply(game, board.Pawn, from, to, False, Some(piece), captured_piece)
+      do_apply(
+        game,
+        board.Pawn,
+        from,
+        to,
+        False,
+        Some(piece),
+        captured_piece,
+        None,
+      )
+    Sacrifice(from:, to:, sacrificed_piece:) ->
+      do_apply(
+        game,
+        sacrificed_piece,
+        from,
+        to,
+        False,
+        None,
+        None,
+        Some(sacrificed_piece),
+      )
   }
 }
 
@@ -620,7 +767,7 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
 
   // TODO: calculate incrementally
   let attack_information =
-    attack.calculate(board, king_position, to_move, river_squares)
+    attack.calculate(board, river_squares, king_position, to_move)
 
   Game(
     board:,
@@ -660,6 +807,7 @@ fn do_apply(
   en_passant: Bool,
   promotion: Option(board.Piece),
   captured_piece: Option(board.Piece),
+  sacrificed_piece: Option(board.Piece),
 ) -> Game {
   let Game(
     board:,
@@ -764,6 +912,21 @@ fn do_apply(
     }
   }
 
+  let #(our_pawn_material, our_non_pawn_material) = case sacrificed_piece {
+    Some(piece) ->
+      case piece {
+        board.Pawn -> #(
+          our_pawn_material - board.pawn_value,
+          our_non_pawn_material,
+        )
+        _ -> #(
+          our_pawn_material,
+          our_non_pawn_material - board.piece_value(piece),
+        )
+      }
+    None -> #(our_pawn_material, our_non_pawn_material)
+  }
+
   let #(board, zobrist_hash, opposing_pawn_material) = case
     en_passant,
     en_passant_square,
@@ -834,7 +997,7 @@ fn do_apply(
 
   // TODO: update incrementally
   let attack_information =
-    attack.calculate(board, opposing_king_position, to_move, river_squares)
+    attack.calculate(board, river_squares, opposing_king_position, to_move)
 
   Game(
     board:,

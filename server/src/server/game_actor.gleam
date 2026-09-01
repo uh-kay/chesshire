@@ -177,6 +177,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
         )
 
         let legal_moves = cheg.legal_moves(state.model.game)
+
         use _ <- result.try(case list.contains(legal_moves, move) {
           True -> Ok(Nil)
           False -> Error(IllegalMove)

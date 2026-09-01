@@ -45,14 +45,10 @@ pub type DrawReason {
 pub fn state(game: Game) -> GameState {
   let game = game.game
 
-  // echo game.black_pieces.non_pawn_material
-  // echo game.white_pieces.non_pawn_material
-  // echo game.is_insufficient_material(game)
-
   use <- bool.guard(game.half_moves >= 50, Draw(FiftyMoves))
   use <- bool.guard(
     game.is_insufficient_material(game),
-    echo Draw(InsufficientMaterial),
+    Draw(InsufficientMaterial),
   )
   use <- bool.guard(
     game.is_threefold_repetition(game),
@@ -521,6 +517,13 @@ pub fn move_to_json(move: Move) -> Json {
           Some(value) -> board.piece_to_json(value)
         }),
       ])
+    move.Sacrifice(from:, to:, sacrificed_piece:) ->
+      json.object([
+        #("type", json.string("sacrifice")),
+        #("from", json.int(from)),
+        #("to", json.int(to)),
+        #("sacrificed_piece", board.piece_to_json(sacrificed_piece)),
+      ])
   }
 }
 
@@ -562,6 +565,15 @@ pub fn move_decoder() -> decode.Decoder(Move) {
         decode.optional(board.piece_decoder()),
       )
       decode.success(Move(move.Promotion(from:, to:, piece:, captured_piece:)))
+    }
+    "sacrifice" -> {
+      use from <- decode.field("from", decode.int)
+      use to <- decode.field("to", decode.int)
+      use sacrificed_piece <- decode.field(
+        "sacrificed_piece",
+        board.piece_decoder(),
+      )
+      decode.success(Move(move.Sacrifice(from:, to:, sacrificed_piece:)))
     }
     _ -> decode.failure(Move(move.Castle(from: 0, to: 0)), "Move")
   }
