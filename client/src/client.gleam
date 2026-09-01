@@ -70,6 +70,7 @@ pub type Message {
   ClockTickedForward
   ClockStoppedTicking
   TimerExpired
+  ClientPingedServer
 }
 
 pub type Route {
@@ -146,6 +147,7 @@ fn init(_) -> #(Model, Effect(Message)) {
       create_session(),
       get_game_view(init_msg),
       tick(),
+      ping_server(60_000, model.websocket),
     ])
 
   #(model, effect)
@@ -367,6 +369,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
+    ClientPingedServer -> #(model, ping_server(60_000, model.websocket))
   }
 }
 
@@ -454,6 +457,17 @@ fn reset_timer(duration: Int) -> Effect(Message) {
   use <- set_timeout(duration)
 
   dispatch(TimerExpired)
+}
+
+fn ping_server(duration: Int, websocket: Option(Websocket)) {
+  case websocket {
+    Some(websocket) -> send_message(websocket, "ping")
+    None -> Nil
+  }
+
+  use dispatch <- effect.from
+  use <- set_timeout(duration)
+  dispatch(ClientPingedServer)
 }
 
 // EXTERNALS ------------------------------------------------------------------
