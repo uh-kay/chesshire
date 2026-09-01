@@ -263,7 +263,9 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
       }
 
       case new_state.host, new_state.guest {
-        Disconnected(_), Disconnected(_) -> actor.stop()
+        Disconnected(_), Disconnected(_)
+          if state.model.game_state != cheg.Continue
+        -> actor.stop()
         _, _ -> actor.continue(new_state)
       }
     }
