@@ -460,13 +460,14 @@ fn reset_timer(duration: Int) -> Effect(Message) {
 }
 
 fn ping_server(duration: Int, websocket: Option(Websocket)) {
+  use dispatch <- effect.from
+  use <- set_timeout(duration)
+
   case websocket {
     Some(websocket) -> send_message(websocket, "ping")
     None -> Nil
   }
 
-  use dispatch <- effect.from
-  use <- set_timeout(duration)
   dispatch(ClientPingedServer)
 }
 
