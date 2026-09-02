@@ -77,6 +77,7 @@ pub type Route {
   Home
   Game(id: String)
   WaitingRoom
+  Learn
   NotFound
 }
 
@@ -88,6 +89,7 @@ fn init(_) -> #(Model, Effect(Message)) {
           [] -> Home
           ["game"] -> WaitingRoom
           ["game", id] -> Game(id)
+          ["learn"] -> Learn
           _ -> NotFound
         },
         Some(uri),
@@ -157,6 +159,7 @@ fn on_url_change(uri: uri.Uri) -> Message {
   case uri.path_segments(uri.path) {
     [] -> UserNavigatedTo(Home)
     ["game", id] -> UserNavigatedTo(Game(id))
+    ["learn"] -> UserNavigatedTo(Learn)
     _ -> UserNavigatedTo(NotFound)
   }
 }
@@ -523,50 +526,6 @@ fn view(model: Model) -> Element(Message) {
             ]),
           ]),
           // accordion.view(model.faq) |> element.map(AccordionProducedMessage),
-          html.p([attribute.class("mt-8 text-xl font-bold text-blue-500")], [
-            html.text("What is Chesshire?"),
-          ]),
-          html.div([attribute.class("text-justify")], [
-            html.p([attribute.class("mt-2")], [
-              html.text(
-                "Chesshire is a new chess variant with river and bridges!",
-              ),
-            ]),
-            html.img([
-              attribute.class("w-lg mt-2"),
-              attribute.src("/static/chesshire_screenshot.webp"),
-            ]),
-            html.p([attribute.class("mt-2")], [
-              html.text("Normal chess rule applies but with these additions:"),
-            ]),
-            html.ul([attribute.class("list-disc list-inside")], [
-              html.li([], [html.text("Piece cannot move onto river tiles.")]),
-              html.li([], [
-                html.text(
-                  "Knight can jump across the river but cannot land on it.",
-                ),
-              ]),
-              html.img([
-                attribute.class("w-64"),
-                attribute.src("/static/knight_rule.png"),
-              ]),
-              html.li([], [
-                html.text(
-                  "Pieces cannot attack opponent piece across the river.",
-                ),
-              ]),
-              html.img([
-                attribute.class("w-64"),
-                attribute.src("/static/attack_rule.png"),
-              ]),
-              html.li([], [
-                html.text(
-                  "Pieces can only cross using bridges."
-                  <> " They can also attack opponent piece across the bridge.",
-                ),
-              ]),
-            ]),
-          ]),
         ])
 
       layout(content)
@@ -679,6 +638,56 @@ fn view(model: Model) -> Element(Message) {
           layout(content)
         }
       }
+    Learn -> {
+      let content =
+        html.main([attribute.class("max-w-fit mx-auto")], [
+          html.p([attribute.class("pt-8 text-xl font-bold text-blue-500")], [
+            html.text("What is Chesshire?"),
+          ]),
+          html.div([attribute.class("text-justify")], [
+            html.p([attribute.class("mt-2")], [
+              html.text(
+                "Chesshire is a new chess variant with river and bridges!",
+              ),
+            ]),
+            html.img([
+              attribute.class("w-lg mt-2"),
+              attribute.src("/static/chesshire_screenshot.webp"),
+            ]),
+            html.p([attribute.class("mt-2")], [
+              html.text("Normal chess rule applies but with these additions:"),
+            ]),
+            html.ul([attribute.class("list-disc list-inside")], [
+              html.li([], [html.text("Piece cannot move onto river tiles.")]),
+              html.li([], [
+                html.text(
+                  "Knight can jump across the river but cannot land on it.",
+                ),
+              ]),
+              html.img([
+                attribute.class("w-64"),
+                attribute.src("/static/knight_rule.png"),
+              ]),
+              html.li([], [
+                html.text(
+                  "Pieces cannot attack opponent piece across the river.",
+                ),
+              ]),
+              html.img([
+                attribute.class("w-64"),
+                attribute.src("/static/attack_rule.png"),
+              ]),
+              html.li([], [
+                html.text(
+                  "Pieces can only cross using bridges."
+                  <> " They can also attack opponent piece across the bridge.",
+                ),
+              ]),
+            ]),
+          ]),
+        ])
+      layout(content)
+    }
   }
 }
 
