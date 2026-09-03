@@ -1,4 +1,5 @@
 import cheg.{Guest, Host, Spectator}
+import client/icon
 import gleam/dict
 import gleam/int
 import gleam/list
@@ -6,7 +7,6 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/set
 import gleam/string
-import icon
 import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html

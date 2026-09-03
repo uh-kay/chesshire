@@ -37,7 +37,7 @@ pub type GameMsg {
     reply_to: Subject(JoinReply),
     socket: Subject(OutgoingMsg),
   )
-  Move(session: String, move_json: String, reply_to: Subject(MoveReply))
+  Move(session: String, move: cheg.Move, reply_to: Subject(MoveReply))
   Disconnect(session: String)
 }
 
@@ -153,7 +153,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
         }
       }
     }
-    Move(session:, move_json:, reply_to:) -> {
+    Move(session:, move:, reply_to:) -> {
       let role = case state.host, state.guest {
         Online(#(s, _)), _ if s == session -> Some(Host)
         _, Online(#(s, _)) if s == session -> Some(Guest)
@@ -171,10 +171,6 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
           True -> Ok(Nil)
           False -> Error(OutOfTurn)
         })
-        use move <- result.try(
-          json.parse(move_json, cheg.move_decoder())
-          |> result.replace_error(InvalidMoveFormat),
-        )
 
         let legal_moves = cheg.legal_moves(state.model.game)
 
@@ -253,6 +249,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
           }
       }
     }
+
     Disconnect(session:) -> {
       let new_state = case state.host, state.guest {
         Online(#(host_session, socket)), _ if host_session == session ->
@@ -337,7 +334,17 @@ fn broadcast(
 }
 
 pub type RegistryMsg {
+  CreatePrivateLobby(
+    invite_code: String,
+    create_game: shared.CreateGame,
+    reply_to: Subject(Subject(GameMsg)),
+  )
   JoinPrivateLobby(invite_code: String, reply_to: Subject(Subject(GameMsg)))
+  CreatePublicLobby(
+    id: String,
+    create_game: shared.CreateGame,
+    reply_to: Subject(Subject(GameMsg)),
+  )
   JoinPublicLobby(reply_to: Subject(Subject(GameMsg)))
 }
 
@@ -354,7 +361,14 @@ fn registry_loop(
         }
         Error(_) -> {
           let assert Ok(started) =
-            actor.new(new(invite_code))
+            actor.new(new(
+              invite_code,
+              shared.CreateGame(
+                True,
+                board_variant: shared.TwoBridge,
+                game_variant: shared.RiverSacrifice,
+              ),
+            ))
             |> actor.on_message(handle_message)
             |> actor.start
           let state =
@@ -376,7 +390,14 @@ fn registry_loop(
         [] -> {
           let id = create_invite_code(8)
           let assert Ok(started) =
-            actor.new(new(id))
+            actor.new(new(
+              id,
+              shared.CreateGame(
+                True,
+                board_variant: shared.TwoBridge,
+                game_variant: shared.RiverSacrifice,
+              ),
+            ))
             |> actor.on_message(handle_message)
             |> actor.start
           let state =
@@ -389,11 +410,41 @@ fn registry_loop(
         }
       }
     }
+    CreatePrivateLobby(invite_code:, create_game:, reply_to:) -> {
+      let assert Ok(started) =
+        actor.new(new(invite_code, create_game))
+        |> actor.on_message(handle_message)
+        |> actor.start
+      let state =
+        RegistryState(
+          ..state,
+          games: dict.insert(state.games, invite_code, started.data),
+        )
+      actor.send(reply_to, started.data)
+      actor.continue(state)
+    }
+    CreatePublicLobby(create_game:, reply_to:, id:) -> {
+      let assert Ok(started) =
+        actor.new(new(id, create_game))
+        |> actor.on_message(handle_message)
+        |> actor.start
+
+      // Push the ID twice because host will join, pop the ID, then we'll have
+      // one more ID for the guest.
+      let state =
+        RegistryState(
+          waiting: [id, id, ..state.waiting],
+          games: dict.insert(state.games, id, started.data),
+        )
+
+      actor.send(reply_to, started.data)
+      actor.continue(state)
+    }
   }
 }
 
-fn new(invite_code: String) -> GameActor {
-  let game = cheg.new()
+fn new(invite_code: String, create_game: shared.CreateGame) -> GameActor {
+  let game = cheg.new(create_game.board_variant, create_game.game_variant)
   let game_state = cheg.state(game)
   let time = shared.new_time(shared.monotonic_time())
 

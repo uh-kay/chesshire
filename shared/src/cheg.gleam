@@ -62,8 +62,42 @@ pub fn state(game: Game) -> GameState {
   }
 }
 
-pub fn new() -> Game {
-  Game(game.new())
+pub fn new(
+  board_variant: shared.BoardVariant,
+  game_variant: shared.GameVariant,
+) -> Game {
+  let board_variant = case board_variant {
+    shared.TwoBridge -> board.TwoBridge
+    shared.MiddleBridge -> board.MiddleBridge
+  }
+  let game_variant = case game_variant {
+    shared.RiverSacrifice -> game.RiverSacrifice
+    shared.FlemishGiant -> game.FlemishGiant
+  }
+
+  Game(game.new(board_variant, game_variant))
+}
+
+pub fn apply_board_variant(
+  game: Game,
+  board_variant: shared.BoardVariant,
+) -> Game {
+  let board_variant = case board_variant {
+    shared.TwoBridge -> board.TwoBridge
+    shared.MiddleBridge -> board.MiddleBridge
+  }
+  Game(game.Game(..game.game, board_variant:))
+}
+
+pub fn apply_game_variant(
+  game: Game,
+  game_variant: shared.GameVariant,
+) -> Game {
+  let game_variant = case game_variant {
+    shared.RiverSacrifice -> game.RiverSacrifice
+    shared.FlemishGiant -> game.FlemishGiant
+  }
+  Game(game.Game(..game.game, game_variant:))
 }
 
 pub fn apply_move(game: Game, move: Move) -> Game {

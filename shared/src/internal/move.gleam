@@ -897,7 +897,7 @@ fn do_apply(
     True -> {
       let board = case game.game_variant {
         game.RiverSacrifice -> board |> dict.delete(from)
-        game.BuildBridge ->
+        game.BuildBridge | game.FlemishGiant ->
           board |> dict.delete(from) |> dict.insert(to, #(piece, our_color))
       }
       let river_squares =

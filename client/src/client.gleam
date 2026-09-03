@@ -1,6 +1,8 @@
 import cheg
 import client/accordion
 import client/component
+import client/create_game
+import client/icon
 import gleam/dynamic/decode
 import gleam/http/response.{type Response}
 import gleam/int
@@ -8,7 +10,6 @@ import gleam/javascript/promise.{type Promise}
 import gleam/json
 import gleam/option.{type Option, None, Some}
 import gleam/uri
-import icon
 import lustre
 import lustre/attribute
 import lustre/effect.{type Effect}
@@ -32,7 +33,7 @@ pub fn main() -> Nil {
 
 // MODEL ----------------------------------------------------------------------
 
-pub type Model {
+type Model {
   Model(
     game: cheg.Game,
     time: shared.Time,
@@ -50,17 +51,33 @@ pub type Model {
     faq: accordion.Model,
     uri: option.Option(uri.Uri),
     game_state: cheg.GameState,
+    page_model: PageModel,
   )
+}
+
+type PageModel {
+  CreateModel(create_game.Model)
+  HomeModel
+  GameModel
+  WaitingRoomModel(
+    board_variant: shared.BoardVariant,
+    game_variant: shared.GameVariant,
+  )
+  LearnModel
+  NotFoundModel
 }
 
 pub type Message {
   ComponentProducedMessage(component.Message)
   AccordionProducedMessage(accordion.Message)
 
+  CreatePageMessage(create_game.Message)
+
   UserNavigatedTo(Route)
-  UserClickedNewGame
-  UserClickedCopyLink(lobby_url: String)
+  UserClickedCreatePublicGame
   UserClickedFindGame
+  UserClickedCreatePrivateGame
+  UserClickedCopyLink(lobby_url: String)
 
   ServerCreatedGame(Result(String, rsvp.Error(String)))
   ServerCreatedSession(Result(Response(String), rsvp.Error(String)))
@@ -77,6 +94,7 @@ pub type Route {
   Home
   Game(id: String)
   WaitingRoom
+  Create
   Learn
   NotFound
 }
@@ -90,6 +108,7 @@ fn init(_) -> #(Model, Effect(Message)) {
           ["game"] -> WaitingRoom
           ["game", id] -> Game(id)
           ["learn"] -> Learn
+          ["create"] -> Create
           _ -> NotFound
         },
         Some(uri),
@@ -98,7 +117,7 @@ fn init(_) -> #(Model, Effect(Message)) {
     Error(_) -> #(NotFound, None)
   }
   let ws_url = websocket_url("/ws/")
-  let game = cheg.new()
+  let game = cheg.new(shared.TwoBridge, shared.RiverSacrifice)
 
   let #(init_msg, websocket) = case route {
     Game(id:) -> {
@@ -123,6 +142,8 @@ fn init(_) -> #(Model, Effect(Message)) {
     accordion.Item(id: 1, title: "What is Chesshire?", body: element.none()),
   ]
 
+  let page_model = init_page_model(route)
+
   let model =
     Model(
       route:,
@@ -142,6 +163,7 @@ fn init(_) -> #(Model, Effect(Message)) {
       uri:,
       game_state: cheg.Continue,
       player_color: None,
+      page_model:,
     )
   let effect =
     effect.batch([
@@ -155,11 +177,27 @@ fn init(_) -> #(Model, Effect(Message)) {
   #(model, effect)
 }
 
+fn init_page_model(route: Route) {
+  case route {
+    Create -> CreateModel(create_game.init())
+    Home -> HomeModel
+    Game(id: _) -> GameModel
+    WaitingRoom ->
+      WaitingRoomModel(
+        board_variant: shared.TwoBridge,
+        game_variant: shared.RiverSacrifice,
+      )
+    Learn -> LearnModel
+    NotFound -> NotFoundModel
+  }
+}
+
 fn on_url_change(uri: uri.Uri) -> Message {
   case uri.path_segments(uri.path) {
     [] -> UserNavigatedTo(Home)
     ["game", id] -> UserNavigatedTo(Game(id))
     ["learn"] -> UserNavigatedTo(Learn)
+    ["create"] -> UserNavigatedTo(Create)
     _ -> UserNavigatedTo(NotFound)
   }
 }
@@ -216,7 +254,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
-    UserClickedNewGame -> {
+    UserClickedCreatePrivateGame -> {
       let effect = create_game()
 
       #(model, effect)
@@ -373,6 +411,38 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       #(model, effect)
     }
     ClientPingedServer -> #(model, ping_server(60_000, model.websocket))
+    CreatePageMessage(message) -> {
+      case model.page_model {
+        CreateModel(create_model) -> {
+          let #(create_model, effect) =
+            create_game.update(create_model, message)
+
+          let model = case message {
+            create_game.UserClickedCreateGame ->
+              Model(
+                ..model,
+                page_model: WaitingRoomModel(
+                  board_variant: create_model.board_variant,
+                  game_variant: create_model.game_variant,
+                ),
+              )
+            _ -> Model(..model, page_model: CreateModel(create_model))
+          }
+          let effect = effect.map(effect, CreatePageMessage)
+
+          #(model, effect)
+        }
+        _ -> #(model, effect.none())
+      }
+    }
+    UserClickedCreatePublicGame -> {
+      let effect = case uri.parse("/create") {
+        Ok(uri) -> modem.load(uri)
+        Error(_) -> effect.none()
+      }
+
+      #(model, effect)
+    }
   }
 }
 
@@ -385,7 +455,13 @@ fn current_time(remaining: Int, tick: Int, offset: Int) -> Int {
 
 fn create_game() -> Effect(Message) {
   let url = "/v1/game"
-  let body = json.null()
+  let body =
+    shared.CreateGame(
+      is_public: False,
+      board_variant: shared.MiddleBridge,
+      game_variant: shared.RiverSacrifice,
+    )
+    |> shared.create_game_to_json
   let decoder = {
     use invite_code <- decode.field("invite_code", decode.string)
     decode.success(invite_code)
@@ -505,25 +581,33 @@ fn view(model: Model) -> Element(Message) {
       let content =
         html.div([attribute.class("p-8 mx-auto max-w-4xl flex flex-col")], [
           html.div([attribute.class("flex gap-8")], [
-            html.button(
+            html.a(
               [
                 attribute.class("p-2 bg-blue-500 text-white rounded-md h-fit"),
                 attribute.class("hover:bg-blue-600 hover:cursor-pointer"),
-                event.on_click(UserClickedNewGame),
+                event.on_click(UserClickedCreatePublicGame),
               ],
-              [html.text("Create Lobby")],
+              [html.text("Create Game")],
             ),
             html.div([attribute.class("")], [
               html.button(
                 [
-                  attribute.class("bg-green-600 p-2 rounded-md w-fit"),
+                  attribute.class("bg-blue-500 p-2 rounded-md w-fit"),
                   attribute.class("text-white hover:cursor-pointer"),
-                  attribute.class("hover:bg-green-700"),
+                  attribute.class("hover:bg-blue-600"),
                   event.on_click(UserClickedFindGame),
                 ],
-                [html.text("Find Game")],
+                [html.text("Join Game")],
               ),
             ]),
+            html.button(
+              [
+                attribute.class("p-2 bg-blue-500 text-white rounded-md h-fit"),
+                attribute.class("hover:bg-blue-600 hover:cursor-pointer"),
+                event.on_click(UserClickedCreatePrivateGame),
+              ],
+              [html.text("Create Private Game")],
+            ),
           ]),
           // accordion.view(model.faq) |> element.map(AccordionProducedMessage),
         ])
@@ -688,6 +772,12 @@ fn view(model: Model) -> Element(Message) {
         ])
       layout(content)
     }
+    Create ->
+      case model.page_model {
+        CreateModel(model) ->
+          create_game.view(model) |> element.map(CreatePageMessage)
+        _ -> element.none()
+      }
   }
 }
 

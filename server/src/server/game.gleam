@@ -76,23 +76,31 @@ pub fn handle_ws(ctx: Context, req: Request, id: String) -> Response {
           }
           Ready(session:, game:, role: _) ->
             case message {
-              websocket.Text(text) ->
-                case text == "ping" {
-                  True -> websocket.Continue(state)
-                  False ->
-                    case actor.call(game, 1000, game.Move(session, text, _)) {
-                      game.MoveOk -> websocket.Continue(state)
-                      game.MoveRejected(reason:) -> {
-                        wisp.log_info(reason)
-                        let json =
-                          json.object([#("error", json.string(reason))])
-                          |> json.to_string
-                        let _ = websocket.send_text(connection, json)
+              websocket.Text(text) -> {
+                case text {
+                  "ping" -> websocket.Continue(state)
+                  _ ->
+                    case json.parse(text, cheg.move_decoder()) {
+                      Ok(move) ->
+                        case
+                          actor.call(game, 1000, game.Move(session, move, _))
+                        {
+                          game.MoveOk -> websocket.Continue(state)
+                          game.MoveRejected(reason:) -> {
+                            wisp.log_info(reason)
+                            let json =
+                              json.object([#("error", json.string(reason))])
+                              |> json.to_string
+                            let _ = websocket.send_text(connection, json)
 
-                        websocket.Continue(state)
-                      }
+                            websocket.Continue(state)
+                          }
+                        }
+
+                      Error(_) -> websocket.Continue(state)
                     }
                 }
+              }
 
               websocket.Custom(game.StateUpdate(json)) -> {
                 case websocket.send_text(connection, json) {

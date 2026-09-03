@@ -9,6 +9,7 @@ import internal/move/attack
 pub type GameVariant {
   RiverSacrifice
   BuildBridge
+  FlemishGiant
 }
 
 pub type Game {
@@ -49,11 +50,14 @@ pub type PieceInfo {
 
 pub const all_castling = Castling(True, True, True, True)
 
-pub fn new() {
+pub fn new(board_variant: board.Variant, game_variant: GameVariant) -> Game {
   let board = board.initial_position()
   let white_king_position = 4
   let black_king_position = 68
-  let river_squares = board.river_squares(board.TwoBridge)
+
+  let river_squares = board.river_squares(board_variant)
+  let bridge_squares = board.bridge_squares(board_variant)
+
   let attack_information =
     attack.calculate(board, river_squares, white_king_position, board.White)
 
@@ -91,10 +95,10 @@ pub fn new() {
     zobrist_hash:,
     previous_positions: [],
     last_move: #(-1, -1),
-    board_variant: board.TwoBridge,
+    board_variant:,
     river_squares:,
-    bridge_squares: board.bridge_squares(board.TwoBridge),
-    game_variant: RiverSacrifice,
+    bridge_squares:,
+    game_variant:,
   )
 }
 
@@ -134,6 +138,7 @@ pub fn game_variant_to_json(game_variant: GameVariant) -> json.Json {
   case game_variant {
     RiverSacrifice -> json.string("river_sacrifice")
     BuildBridge -> json.string("build_bridge")
+    FlemishGiant -> json.string("flemish_giant")
   }
 }
 
@@ -142,6 +147,7 @@ pub fn game_variant_decoder() -> decode.Decoder(GameVariant) {
   case variant {
     "river_sacrifice" -> decode.success(RiverSacrifice)
     "build_bridge" -> decode.success(BuildBridge)
+    "flemish_giant" -> decode.success(FlemishGiant)
     _ -> decode.failure(RiverSacrifice, "GameVariant")
   }
 }

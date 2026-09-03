@@ -1,6 +1,10 @@
 import gleam/dynamic/decode
 import gleam/json
 
+pub const min_time = 0
+
+pub const max_time = 600_000
+
 pub type Time {
   Time(
     black_time: Int,
@@ -10,10 +14,6 @@ pub type Time {
     started: Bool,
   )
 }
-
-pub const min_time = 0
-
-pub const max_time = 600_000
 
 pub fn new_time(now: Int) {
   Time(
@@ -25,6 +25,29 @@ pub fn new_time(now: Int) {
   )
 }
 
+pub type CreateGame {
+  CreateGame(
+    is_public: Bool,
+    board_variant: BoardVariant,
+    game_variant: GameVariant,
+  )
+}
+
+pub type BoardVariant {
+  TwoBridge
+  MiddleBridge
+}
+
+pub type GameVariant {
+  RiverSacrifice
+  FlemishGiant
+}
+
+@external(erlang, "shared_ffi", "monotonic_time")
+@external(javascript, "./shared.ffi.mjs", "monotonic_time")
+pub fn monotonic_time() -> Int
+
+// (DE)SERIALIZATION ----------------------------------------------------------
 pub fn time_to_json(time: Time) -> json.Json {
   let Time(black_time:, white_time:, black_tick:, white_tick:, started:) = time
   json.object([
@@ -51,6 +74,50 @@ pub fn time_decoder() -> decode.Decoder(Time) {
   ))
 }
 
-@external(erlang, "shared_ffi", "monotonic_time")
-@external(javascript, "./shared.ffi.mjs", "monotonic_time")
-pub fn monotonic_time() -> Int
+pub fn create_game_to_json(create_game: CreateGame) -> json.Json {
+  let CreateGame(is_public:, board_variant:, game_variant:) = create_game
+  json.object([
+    #("is_public", json.bool(is_public)),
+    #("board_variant", board_variant_to_json(board_variant)),
+    #("game_variant", game_variant_to_json(game_variant)),
+  ])
+}
+
+pub fn create_game_decoder() -> decode.Decoder(CreateGame) {
+  use is_public <- decode.field("is_public", decode.bool)
+  use board_variant <- decode.field("board_variant", board_variant_decoder())
+  use game_variant <- decode.field("game_variant", game_variant_decoder())
+  decode.success(CreateGame(is_public, board_variant:, game_variant:))
+}
+
+fn board_variant_to_json(board_variant: BoardVariant) -> json.Json {
+  case board_variant {
+    TwoBridge -> json.string("two_bridge")
+    MiddleBridge -> json.string("middle_bridge")
+  }
+}
+
+fn board_variant_decoder() -> decode.Decoder(BoardVariant) {
+  use variant <- decode.then(decode.string)
+  case variant {
+    "two_bridge" -> decode.success(TwoBridge)
+    "middle_bridge" -> decode.success(MiddleBridge)
+    _ -> decode.failure(TwoBridge, "BoardVariant")
+  }
+}
+
+fn game_variant_to_json(game_variant: GameVariant) -> json.Json {
+  case game_variant {
+    RiverSacrifice -> json.string("river_sacrifice")
+    FlemishGiant -> json.string("flemish_giant")
+  }
+}
+
+fn game_variant_decoder() -> decode.Decoder(GameVariant) {
+  use variant <- decode.then(decode.string)
+  case variant {
+    "river_sacrifice" -> decode.success(RiverSacrifice)
+    "flemish_giant" -> decode.success(FlemishGiant)
+    _ -> decode.failure(RiverSacrifice, "GameVariant")
+  }
+}
