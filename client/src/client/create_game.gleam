@@ -111,7 +111,7 @@ pub fn view(model: Model) -> Element(Message) {
             }),
             event.on_click(UserClickedBoardVariant(shared.GreatCrossing)),
           ],
-          [html.text("Greate Crossing")],
+          [html.text("Great Crossing")],
         ),
       ]),
       html.div([attribute.class("mt-2")], [
