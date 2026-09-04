@@ -32,8 +32,7 @@ pub type SquareColor {
 pub fn game_view(model: Model) -> Element(Message) {
   html.div(
     [
-      attribute.class("grid grid-cols-8 grid-rows-9 w-full min-h-108 "),
-      attribute.class("aspect-square outline-1"),
+      attribute.class("grid grid-cols-8 grid-rows-9 w-full min-h-108 outline-1"),
       case model.role {
         Some(role) ->
           case role {
@@ -321,7 +320,9 @@ pub fn clock_view(
     Ok(
       html.div(
         [
-          attribute.class("md:ml-8 flex justify-between items-start"),
+          attribute.class(
+            "md:ml-8 mt-4 md:mt-0 flex justify-between items-start",
+          ),
           attribute.class(case player_role {
             Host -> "flex-row md:flex-col"
             Guest -> "flex-row-reverse md:flex-col-reverse"
