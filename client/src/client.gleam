@@ -117,7 +117,7 @@ fn init(_) -> #(Model, Effect(Message)) {
     Error(_) -> #(NotFound, None)
   }
   let ws_url = websocket_url("/ws/")
-  let game = cheg.new(shared.TwoBridge, shared.RiverSacrifice)
+  let game = cheg.new(shared.TwinPasses, shared.RiverSacrifice)
 
   let #(init_msg, websocket) = case route {
     Game(id:) -> {
@@ -184,7 +184,7 @@ fn init_page_model(route: Route) {
     Game(id: _) -> GameModel
     WaitingRoom ->
       WaitingRoomModel(
-        board_variant: shared.TwoBridge,
+        board_variant: shared.TwinPasses,
         game_variant: shared.RiverSacrifice,
       )
     Learn -> LearnModel
@@ -458,7 +458,7 @@ fn create_game() -> Effect(Message) {
   let body =
     shared.CreateGame(
       is_public: False,
-      board_variant: shared.MiddleBridge,
+      board_variant: shared.GreatCrossing,
       game_variant: shared.RiverSacrifice,
     )
     |> shared.create_game_to_json

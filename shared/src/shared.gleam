@@ -34,8 +34,8 @@ pub type CreateGame {
 }
 
 pub type BoardVariant {
-  TwoBridge
-  MiddleBridge
+  TwinPasses
+  GreatCrossing
 }
 
 pub type GameVariant {
@@ -92,17 +92,17 @@ pub fn create_game_decoder() -> decode.Decoder(CreateGame) {
 
 fn board_variant_to_json(board_variant: BoardVariant) -> json.Json {
   case board_variant {
-    TwoBridge -> json.string("two_bridge")
-    MiddleBridge -> json.string("middle_bridge")
+    TwinPasses -> json.string("two_bridge")
+    GreatCrossing -> json.string("middle_bridge")
   }
 }
 
 fn board_variant_decoder() -> decode.Decoder(BoardVariant) {
   use variant <- decode.then(decode.string)
   case variant {
-    "two_bridge" -> decode.success(TwoBridge)
-    "middle_bridge" -> decode.success(MiddleBridge)
-    _ -> decode.failure(TwoBridge, "BoardVariant")
+    "two_bridge" -> decode.success(TwinPasses)
+    "middle_bridge" -> decode.success(GreatCrossing)
+    _ -> decode.failure(TwinPasses, "BoardVariant")
   }
 }
 

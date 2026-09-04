@@ -25,7 +25,7 @@ pub type Message {
 
 pub fn init() {
   let model =
-    Model(board_variant: shared.TwoBridge, game_variant: shared.RiverSacrifice)
+    Model(board_variant: shared.TwinPasses, game_variant: shared.RiverSacrifice)
 
   model
 }
@@ -94,39 +94,39 @@ pub fn view(model: Model) -> Element(Message) {
             attribute.class("p-2 w-fit rounded-md cursor-pointer border"),
             attribute.class("border-blue-500"),
             attribute.class(case model.board_variant {
-              shared.TwoBridge -> "text-white bg-blue-500"
-              shared.MiddleBridge -> "hover:bg-blue-500 hover:text-white"
+              shared.TwinPasses -> "text-white bg-blue-500"
+              shared.GreatCrossing -> "hover:bg-blue-500 hover:text-white"
             }),
-            event.on_click(UserClickedBoardVariant(shared.TwoBridge)),
+            event.on_click(UserClickedBoardVariant(shared.TwinPasses)),
           ],
-          [html.text("Two Bridge")],
+          [html.text("Twin Passes")],
         ),
         html.button(
           [
             attribute.class("p-2 w-fit rounded-md cursor-pointer border"),
             attribute.class("border-blue-500"),
             attribute.class(case model.board_variant {
-              shared.TwoBridge -> "hover:bg-blue-500 hover:text-white"
-              shared.MiddleBridge -> "text-white bg-blue-500"
+              shared.TwinPasses -> "hover:bg-blue-500 hover:text-white"
+              shared.GreatCrossing -> "text-white bg-blue-500"
             }),
-            event.on_click(UserClickedBoardVariant(shared.MiddleBridge)),
+            event.on_click(UserClickedBoardVariant(shared.GreatCrossing)),
           ],
-          [html.text("Middle Bridge")],
+          [html.text("Greate Crossing")],
         ),
       ]),
       html.div([attribute.class("mt-2")], [
         html.img([
-          attribute.src("/static/two_bridge.png"),
+          attribute.src("twin_passes.svg"),
           attribute.hidden(case model.board_variant {
-            shared.TwoBridge -> False
-            shared.MiddleBridge -> True
+            shared.TwinPasses -> False
+            shared.GreatCrossing -> True
           }),
         ]),
         html.img([
-          attribute.src("/static/middle_bridge.png"),
+          attribute.src("great_crossing.svg"),
           attribute.hidden(case model.board_variant {
-            shared.TwoBridge -> True
-            shared.MiddleBridge -> False
+            shared.TwinPasses -> True
+            shared.GreatCrossing -> False
           }),
         ]),
       ]),

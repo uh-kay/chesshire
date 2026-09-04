@@ -67,8 +67,8 @@ pub fn new(
   game_variant: shared.GameVariant,
 ) -> Game {
   let board_variant = case board_variant {
-    shared.TwoBridge -> board.TwoBridge
-    shared.MiddleBridge -> board.MiddleBridge
+    shared.TwinPasses -> board.TwoBridge
+    shared.GreatCrossing -> board.MiddleBridge
   }
   let game_variant = case game_variant {
     shared.RiverSacrifice -> game.RiverSacrifice
@@ -83,8 +83,8 @@ pub fn apply_board_variant(
   board_variant: shared.BoardVariant,
 ) -> Game {
   let board_variant = case board_variant {
-    shared.TwoBridge -> board.TwoBridge
-    shared.MiddleBridge -> board.MiddleBridge
+    shared.TwinPasses -> board.TwoBridge
+    shared.GreatCrossing -> board.MiddleBridge
   }
   Game(game.Game(..game.game, board_variant:))
 }

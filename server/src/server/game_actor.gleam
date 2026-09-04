@@ -365,7 +365,7 @@ fn registry_loop(
               invite_code,
               shared.CreateGame(
                 True,
-                board_variant: shared.TwoBridge,
+                board_variant: shared.TwinPasses,
                 game_variant: shared.RiverSacrifice,
               ),
             ))
@@ -394,7 +394,7 @@ fn registry_loop(
               id,
               shared.CreateGame(
                 True,
-                board_variant: shared.TwoBridge,
+                board_variant: shared.TwinPasses,
                 game_variant: shared.RiverSacrifice,
               ),
             ))
