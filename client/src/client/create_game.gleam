@@ -116,14 +116,14 @@ pub fn view(model: Model) -> Element(Message) {
       ]),
       html.div([attribute.class("mt-2")], [
         html.img([
-          attribute.src("twin_passes.svg"),
+          attribute.src("/static/twin_passes.svg"),
           attribute.hidden(case model.board_variant {
             shared.TwinPasses -> False
             shared.GreatCrossing -> True
           }),
         ]),
         html.img([
-          attribute.src("great_crossing.svg"),
+          attribute.src("/static/great_crossing.svg"),
           attribute.hidden(case model.board_variant {
             shared.TwinPasses -> True
             shared.GreatCrossing -> False
