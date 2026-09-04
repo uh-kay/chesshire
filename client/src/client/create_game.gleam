@@ -116,14 +116,14 @@ pub fn view(model: Model) -> Element(Message) {
       ]),
       html.div([attribute.class("mt-2")], [
         html.img([
-          attribute.src("two_bridge.png"),
+          attribute.src("/static/two_bridge.png"),
           attribute.hidden(case model.board_variant {
             shared.TwoBridge -> False
             shared.MiddleBridge -> True
           }),
         ]),
         html.img([
-          attribute.src("middle_bridge.png"),
+          attribute.src("/static/middle_bridge.png"),
           attribute.hidden(case model.board_variant {
             shared.TwoBridge -> True
             shared.MiddleBridge -> False
