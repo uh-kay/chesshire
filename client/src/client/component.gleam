@@ -15,7 +15,6 @@ import lustre/event
 pub type Message {
   UserClickedSquare(piece: Option(#(cheg.PieceType, cheg.Color)), position: Int)
   UserClickedTargetSquare(move: cheg.Move)
-  UserClickedNewGame
 }
 
 pub type Model {
@@ -360,7 +359,7 @@ pub fn clock_view(
   }
 }
 
-pub fn navbar() -> Element(_) {
+pub fn navbar(static_directory: String) -> Element(_) {
   html.nav([attribute.class("p-4 border-b bg-blue-200 border-blue-500")], [
     html.div(
       [attribute.class("flex justify-between items-center max-w-4xl mx-auto")],
@@ -370,7 +369,7 @@ pub fn navbar() -> Element(_) {
           [
             html.img([
               attribute.class("w-8 mr-2"),
-              attribute.src("/static/chesshire_favicon.svg"),
+              attribute.src(static_directory <> "chesshire_favicon.svg"),
             ]),
             html.text("Chesshire"),
           ],

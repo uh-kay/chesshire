@@ -40,3 +40,7 @@ export function websocket_url(path) {
     return `${protocol}//${window.location.host}${path}`;
   }
 }
+
+export function protocol(location) {
+  return location.protocol;
+}

@@ -3,7 +3,6 @@ import client/accordion
 import client/component
 import client/create_game
 import client/icon
-import gleam/dynamic/decode
 import gleam/http/response.{type Response}
 import gleam/int
 import gleam/javascript/promise.{type Promise}
@@ -18,6 +17,8 @@ import lustre/element/html
 import lustre/event
 import modem
 import plinth/browser/clipboard
+import plinth/browser/location
+import plinth/browser/window
 import rsvp
 import shared
 
@@ -79,7 +80,6 @@ pub type Message {
   UserClickedCreatePrivateGame
   UserClickedCopyLink(lobby_url: String)
 
-  ServerCreatedGame(Result(String, rsvp.Error(String)))
   ServerCreatedSession(Result(Response(String), rsvp.Error(String)))
   ServerReturnedRole(cheg.Role)
   ServerUpdatedGame(body: String)
@@ -94,7 +94,7 @@ pub type Route {
   Home
   Game(id: String)
   WaitingRoom
-  Create
+  Create(is_public: Bool)
   Learn
   NotFound
 }
@@ -108,7 +108,8 @@ fn init(_) -> #(Model, Effect(Message)) {
           ["game"] -> WaitingRoom
           ["game", id] -> Game(id)
           ["learn"] -> Learn
-          ["create"] -> Create
+          ["create"] -> Create(is_public: True)
+          ["create", "private"] -> Create(is_public: False)
           _ -> NotFound
         },
         Some(uri),
@@ -179,7 +180,7 @@ fn init(_) -> #(Model, Effect(Message)) {
 
 fn init_page_model(route: Route) {
   case route {
-    Create -> CreateModel(create_game.init())
+    Create(is_public) -> CreateModel(create_game.init(is_public))
     Home -> HomeModel
     Game(id: _) -> GameModel
     WaitingRoom ->
@@ -197,7 +198,8 @@ fn on_url_change(uri: uri.Uri) -> Message {
     [] -> UserNavigatedTo(Home)
     ["game", id] -> UserNavigatedTo(Game(id))
     ["learn"] -> UserNavigatedTo(Learn)
-    ["create"] -> UserNavigatedTo(Create)
+    ["create"] -> UserNavigatedTo(Create(is_public: True))
+    ["create", "private"] -> UserNavigatedTo(Create(is_public: False))
     _ -> UserNavigatedTo(NotFound)
   }
 }
@@ -249,34 +251,15 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
-    ComponentProducedMessage(component.UserClickedNewGame) -> {
-      let effect = create_game()
-
-      #(model, effect)
-    }
     UserClickedCreatePrivateGame -> {
-      let effect = create_game()
-
-      #(model, effect)
-    }
-    ServerCreatedGame(result) -> {
-      let model = case result {
-        Ok(lobby_code) -> Model(..model, lobby_code:)
-        Error(_) -> model
-      }
-
-      let effect = case result {
-        Ok(lobby_code) -> {
-          case uri.parse("/game/" <> lobby_code) {
-            Ok(uri) -> modem.load(uri)
-            Error(_) -> effect.none()
-          }
-        }
+      let effect = case uri.parse("/create/private") {
+        Ok(uri) -> modem.load(uri)
         Error(_) -> effect.none()
       }
 
       #(model, effect)
     }
+
     ServerReturnedRole(role) -> {
       let model = Model(..model, role: Some(role))
       let effect = listen(model.websocket)
@@ -418,14 +401,18 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
             create_game.update(create_model, message)
 
           let model = case message {
-            create_game.UserClickedCreateGame ->
-              Model(
-                ..model,
-                page_model: WaitingRoomModel(
-                  board_variant: create_model.board_variant,
-                  game_variant: create_model.game_variant,
-                ),
-              )
+            create_game.ServerCreatedGame(result) ->
+              case result {
+                Ok(_) ->
+                  Model(
+                    ..model,
+                    page_model: WaitingRoomModel(
+                      board_variant: create_model.board_variant,
+                      game_variant: create_model.game_variant,
+                    ),
+                  )
+                Error(_) -> model
+              }
             _ -> Model(..model, page_model: CreateModel(create_model))
           }
           let effect = effect.map(effect, CreatePageMessage)
@@ -452,24 +439,6 @@ fn current_time(remaining: Int, tick: Int, offset: Int) -> Int {
 }
 
 // EFFECTS --------------------------------------------------------------------
-
-fn create_game() -> Effect(Message) {
-  let url = "/v1/game"
-  let body =
-    shared.CreateGame(
-      is_public: False,
-      board_variant: shared.GreatCrossing,
-      game_variant: shared.RiverSacrifice,
-    )
-    |> shared.create_game_to_json
-  let decoder = {
-    use invite_code <- decode.field("invite_code", decode.string)
-    decode.success(invite_code)
-  }
-  let handler = rsvp.expect_json(decoder, ServerCreatedGame)
-
-  rsvp.post(url, body, handler)
-}
 
 fn create_session() -> Effect(Message) {
   let url = "/v1/session"
@@ -568,12 +537,22 @@ fn set_timeout(delay: Int, cb: fn() -> a) -> Nil
 @external(javascript, "./client.ffi.mjs", "websocket_url")
 fn websocket_url(path: String) -> String
 
+@external(javascript, "./client.ffi.mjs", "protocol")
+fn protocol(location: location.Location) -> String
+
 // VIEW -----------------------------------------------------------------------
 
 fn view(model: Model) -> Element(Message) {
   let lobby_url = case model.uri {
     Some(uri) -> uri.to_string(uri)
     None -> ""
+  }
+
+  let location = window.self() |> window.location()
+  let protocol = protocol(location)
+  let static_directory = case protocol {
+    "https:" -> "/static/"
+    _ -> ""
   }
 
   case model.route {
@@ -736,7 +715,7 @@ fn view(model: Model) -> Element(Message) {
             ]),
             html.img([
               attribute.class("w-lg mt-2"),
-              attribute.src("/static/chesshire_screenshot.webp"),
+              attribute.src(static_directory <> "chesshire_screenshot.webp"),
             ]),
             html.p([attribute.class("mt-2")], [
               html.text("Normal chess rule applies but with these additions:"),
@@ -750,7 +729,7 @@ fn view(model: Model) -> Element(Message) {
               ]),
               html.img([
                 attribute.class("w-64"),
-                attribute.src("/static/knight_rule.png"),
+                attribute.src(static_directory <> "knight_rule.png"),
               ]),
               html.li([], [
                 html.text(
@@ -759,7 +738,7 @@ fn view(model: Model) -> Element(Message) {
               ]),
               html.img([
                 attribute.class("w-64"),
-                attribute.src("/static/attack_rule.png"),
+                attribute.src(static_directory <> "attack_rule.png"),
               ]),
               html.li([], [
                 html.text(
@@ -772,7 +751,7 @@ fn view(model: Model) -> Element(Message) {
         ])
       layout(content)
     }
-    Create ->
+    Create(_) ->
       case model.page_model {
         CreateModel(model) ->
           create_game.view(model) |> element.map(CreatePageMessage)
@@ -782,8 +761,15 @@ fn view(model: Model) -> Element(Message) {
 }
 
 fn layout(content: Element(Message)) -> Element(Message) {
+  let location = window.self() |> window.location()
+  let protocol = protocol(location)
+  let static_directory = case protocol {
+    "https:" -> "/static/"
+    _ -> ""
+  }
+
   element.fragment([
-    component.navbar() |> element.map(ComponentProducedMessage),
+    component.navbar(static_directory) |> element.map(ComponentProducedMessage),
     html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
   ])
 }

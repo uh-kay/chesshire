@@ -7,13 +7,19 @@ import lustre/element.{type Element}
 import lustre/element/html
 import lustre/event
 import modem
+import plinth/browser/location
+import plinth/browser/window
 import rsvp
 import shared
 
 // MODEL ----------------------------------------------------------------------
 
 pub type Model {
-  Model(board_variant: shared.BoardVariant, game_variant: shared.GameVariant)
+  Model(
+    is_public: Bool,
+    board_variant: shared.BoardVariant,
+    game_variant: shared.GameVariant,
+  )
 }
 
 pub type Message {
@@ -23,9 +29,13 @@ pub type Message {
   ServerCreatedGame(Result(String, rsvp.Error(String)))
 }
 
-pub fn init() {
+pub fn init(is_public: Bool) -> Model {
   let model =
-    Model(board_variant: shared.TwinPasses, game_variant: shared.RiverSacrifice)
+    Model(
+      is_public:,
+      board_variant: shared.TwinPasses,
+      game_variant: shared.RiverSacrifice,
+    )
 
   model
 }
@@ -34,14 +44,8 @@ pub fn init() {
 pub fn update(model: Model, message: Message) {
   case message {
     UserClickedCreateGame -> {
-      let effect = case uri.parse("/game/") {
-        Ok(uri) ->
-          effect.batch([
-            modem.load(uri),
-            create_game(model.board_variant, model.game_variant),
-          ])
-        Error(_) -> effect.none()
-      }
+      let effect =
+        create_game(model.is_public, model.board_variant, model.game_variant)
 
       #(model, effect)
     }
@@ -55,13 +59,23 @@ pub fn update(model: Model, message: Message) {
     )
     ServerCreatedGame(result) -> {
       let effect = case result {
-        Ok(_) -> {
-          case uri.parse("/game/") {
-            Ok(uri) -> modem.load(uri)
-            Error(_) -> effect.none()
+        Ok(invite_code) -> {
+          case model.is_public {
+            True ->
+              case uri.parse("/game/") {
+                Ok(uri) -> modem.load(uri)
+                Error(_) -> effect.none()
+              }
+            False ->
+              case uri.parse("/game/" <> invite_code) {
+                Ok(uri) -> modem.load(uri)
+                Error(_) -> effect.none()
+              }
           }
         }
-        Error(_) -> effect.none()
+        Error(_) -> {
+          effect.none()
+        }
       }
       #(model, effect)
     }
@@ -69,10 +83,14 @@ pub fn update(model: Model, message: Message) {
 }
 
 // EFFECTS --------------------------------------------------------------------
-fn create_game(board_variant, game_variant) -> effect.Effect(Message) {
+fn create_game(
+  is_public: Bool,
+  board_variant: shared.BoardVariant,
+  game_variant: shared.GameVariant,
+) -> effect.Effect(Message) {
   let url = "/v1/game"
   let body =
-    shared.CreateGame(is_public: True, board_variant:, game_variant:)
+    shared.CreateGame(is_public:, board_variant:, game_variant:)
     |> shared.create_game_to_json
   let decoder = {
     use invite_code <- decode.field("invite_code", decode.string)
@@ -83,8 +101,20 @@ fn create_game(board_variant, game_variant) -> effect.Effect(Message) {
   rsvp.post(url, body, handler)
 }
 
+// EXTERNAL -------------------------------------------------------------------
+@external(javascript, "../client.ffi.mjs", "protocol")
+fn protocol(location: location.Location) -> String
+
 // VIEW -----------------------------------------------------------------------
 pub fn view(model: Model) -> Element(Message) {
+  let location = window.self() |> window.location()
+  let protocol = protocol(location)
+  echo protocol
+  let static_directory = case protocol {
+    "https:" -> "/static/"
+    _ -> "/"
+  }
+
   let content =
     html.div([attribute.class("p-8 max-w-2xl mx-auto flex flex-col")], [
       html.p([attribute.class("text-lg")], [html.text("Board Variant")]),
@@ -116,14 +146,14 @@ pub fn view(model: Model) -> Element(Message) {
       ]),
       html.div([attribute.class("mt-2")], [
         html.img([
-          attribute.src("/static/twin_passes.svg"),
+          attribute.src(static_directory <> "twin_passes.svg"),
           attribute.hidden(case model.board_variant {
             shared.TwinPasses -> False
             shared.GreatCrossing -> True
           }),
         ]),
         html.img([
-          attribute.src("/static/great_crossing.svg"),
+          attribute.src(static_directory <> "great_crossing.svg"),
           attribute.hidden(case model.board_variant {
             shared.TwinPasses -> True
             shared.GreatCrossing -> False
@@ -152,12 +182,15 @@ pub fn view(model: Model) -> Element(Message) {
       ),
     ])
 
-  layout(content)
+  layout(static_directory, content)
 }
 
-fn layout(content: Element(Message)) -> Element(Message) {
+fn layout(
+  static_directory: String,
+  content: Element(Message),
+) -> Element(Message) {
   element.fragment([
-    component.navbar(),
+    component.navbar(static_directory),
     html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
   ])
 }
