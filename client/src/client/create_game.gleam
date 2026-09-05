@@ -109,7 +109,7 @@ fn protocol(location: location.Location) -> String
 pub fn view(model: Model) -> Element(Message) {
   let location = window.self() |> window.location()
   let protocol = protocol(location)
-  echo protocol
+
   let static_directory = case protocol {
     "https:" -> "/static/"
     _ -> "/"
@@ -178,7 +178,12 @@ pub fn view(model: Model) -> Element(Message) {
           attribute.class("hover:bg-blue-600"),
           event.on_click(UserClickedCreateGame),
         ],
-        [html.text("Create Game")],
+        [
+          html.text(case model.is_public {
+            True -> "Create Game"
+            False -> "Create Private Game"
+          }),
+        ],
       ),
     ])
 
