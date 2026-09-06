@@ -43,13 +43,22 @@ pub fn handle_ws(
           actor.call(game_subject, 1000, Join(session, _, outgoing))
 
         case join_result {
-          JoinOk(role:, model:, guest_joined:) -> {
+          JoinOk(role:, model:, guest_joined:, host_color:, guest_color:) -> {
             let selector = process.new_selector() |> process.select(outgoing)
             let player_color = case role {
-              Host -> Some(cheg.White)
-              Guest -> Some(cheg.Black)
+              Host ->
+                Some(case host_color {
+                  shared.Black -> cheg.Black
+                  shared.White -> cheg.White
+                })
+              Guest ->
+                Some(case guest_color {
+                  shared.Black -> cheg.Black
+                  shared.White -> cheg.White
+                })
               Spectator -> None
             }
+
             let payload =
               cheg.game_view_to_json(cheg.GameView(
                 game: model.game,
@@ -170,7 +179,13 @@ pub type GameMsg {
 }
 
 pub type JoinReply {
-  JoinOk(role: cheg.Role, model: Chesshire, guest_joined: Bool)
+  JoinOk(
+    role: cheg.Role,
+    model: Chesshire,
+    guest_joined: Bool,
+    host_color: shared.PlayerColor,
+    guest_color: shared.PlayerColor,
+  )
   JoinRejected(reason: String)
 }
 
@@ -194,6 +209,8 @@ type GameActor {
     invite_code: String,
     host: GameActorStatus,
     guest: GameActorStatus,
+    host_color: shared.PlayerColor,
+    guest_color: shared.PlayerColor,
     spectators: List(GameActorStatus),
   )
 }
@@ -227,7 +244,13 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
 
           actor.send(
             reply_to,
-            JoinOk(Host, new_state.model, state.guest != Empty),
+            JoinOk(
+              Host,
+              new_state.model,
+              state.guest != Empty,
+              host_color: state.host_color,
+              guest_color: state.guest_color,
+            ),
           )
           actor.continue(new_state)
         }
@@ -239,7 +262,13 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
 
           actor.send(
             reply_to,
-            JoinOk(Host, new_state.model, state.guest != Empty),
+            JoinOk(
+              Host,
+              new_state.model,
+              state.guest != Empty,
+              host_color: state.host_color,
+              guest_color: state.guest_color,
+            ),
           )
           actor.continue(new_state)
         }
@@ -251,7 +280,13 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
 
           actor.send(
             reply_to,
-            JoinOk(Guest, new_state.model, state.guest != Empty),
+            JoinOk(
+              Guest,
+              new_state.model,
+              state.guest != Empty,
+              host_color: state.host_color,
+              guest_color: state.guest_color,
+            ),
           )
           actor.continue(new_state)
         }
@@ -263,7 +298,13 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
 
           actor.send(
             reply_to,
-            JoinOk(Guest, new_state.model, state.guest != Empty),
+            JoinOk(
+              Guest,
+              new_state.model,
+              state.guest != Empty,
+              host_color: state.host_color,
+              guest_color: state.guest_color,
+            ),
           )
           actor.continue(new_state)
         }
@@ -275,7 +316,16 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
               Online(#(session, socket)),
               ..state.spectators
             ])
-          actor.send(reply_to, JoinOk(Spectator, state.model, True))
+          actor.send(
+            reply_to,
+            JoinOk(
+              Spectator,
+              state.model,
+              True,
+              host_color: state.host_color,
+              guest_color: state.guest_color,
+            ),
+          )
           actor.continue(state)
         }
 
@@ -298,8 +348,17 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
           Some(role) -> Ok(role)
           None -> Error(UnknownPlayer)
         })
-        let current_turn = cheg.role(state.model.game)
-        use _ <- result.try(case player_role == current_turn {
+        use player_color <- result.try(case player_role {
+          Host -> Ok(state.host_color)
+          Guest -> Ok(state.guest_color)
+          Spectator -> Error(UnknownPlayer)
+        })
+        let player_color = case player_color {
+          shared.Black -> cheg.Black
+          shared.White -> cheg.White
+        }
+        let current_turn = cheg.to_move(state.model.game)
+        use _ <- result.try(case player_color == current_turn {
           True -> Ok(Nil)
           False -> Error(OutOfTurn)
         })
@@ -315,6 +374,15 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
         let state = GameActor(..state, model: Chesshire(..state.model, game:))
         let #(time, game_state) = get_time(game, state)
 
+        let host_color = case state.host_color {
+          shared.Black -> cheg.Black
+          shared.White -> cheg.White
+        }
+        let guest_color = case state.guest_color {
+          shared.Black -> cheg.Black
+          shared.White -> cheg.White
+        }
+
         let host_payload =
           cheg.game_view_to_json(cheg.GameView(
             game:,
@@ -322,7 +390,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
             role: Host,
             time:,
             guest_joined: state.guest != Empty,
-            player_color: Some(cheg.White),
+            player_color: Some(host_color),
             lobby_id: state.invite_code,
           ))
           |> json.to_string
@@ -333,7 +401,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
             role: Guest,
             time:,
             guest_joined: state.guest != Empty,
-            player_color: Some(cheg.Black),
+            player_color: Some(guest_color),
             lobby_id: state.invite_code,
           ))
           |> json.to_string
@@ -407,6 +475,14 @@ fn broadcast_payload(state: GameActor, new_state: GameActor) -> Nil {
   let time = state.model.time
   let guest_joined = new_state.guest != Empty
   let lobby_id = state.invite_code
+  let host_color = case state.host_color {
+    shared.Black -> cheg.Black
+    shared.White -> cheg.White
+  }
+  let guest_color = case state.guest_color {
+    shared.Black -> cheg.Black
+    shared.White -> cheg.White
+  }
 
   let host_payload =
     cheg.game_view_to_json(cheg.GameView(
@@ -415,7 +491,7 @@ fn broadcast_payload(state: GameActor, new_state: GameActor) -> Nil {
       game_state:,
       time:,
       guest_joined:,
-      player_color: Some(cheg.White),
+      player_color: Some(host_color),
       lobby_id:,
     ))
     |> json.to_string
@@ -426,7 +502,7 @@ fn broadcast_payload(state: GameActor, new_state: GameActor) -> Nil {
       game_state:,
       time:,
       guest_joined:,
-      player_color: Some(cheg.Black),
+      player_color: Some(guest_color),
       lobby_id:,
     ))
     |> json.to_string
@@ -471,6 +547,10 @@ fn new(invite_code: String, create_game: shared.CreateGame) -> GameActor {
   let game = cheg.new(create_game.board_variant, create_game.game_variant)
   let game_state = cheg.state(game)
   let time = shared.new_time(shared.monotonic_time())
+  let guest_color = case create_game.host_side {
+    shared.Black -> shared.White
+    shared.White -> shared.Black
+  }
 
   GameActor(
     model: Chesshire(game:, time:, invite_code:, game_state:),
@@ -478,6 +558,8 @@ fn new(invite_code: String, create_game: shared.CreateGame) -> GameActor {
     host: Empty,
     guest: Empty,
     spectators: [],
+    host_color: create_game.host_side,
+    guest_color:,
   )
 }
 
@@ -589,6 +671,10 @@ fn registry_loop(
                 True,
                 board_variant: shared.TwinPasses,
                 game_variant: shared.RiverSacrifice,
+                host_side: case int.random(2) {
+                  0 -> shared.Black
+                  _ -> shared.White
+                },
               ),
             ))
             |> actor.on_message(handle_message)
@@ -618,6 +704,10 @@ fn registry_loop(
                 True,
                 board_variant: shared.TwinPasses,
                 game_variant: shared.RiverSacrifice,
+                host_side: case int.random(2) {
+                  0 -> shared.Black
+                  _ -> shared.White
+                },
               ),
             ))
             |> actor.on_message(handle_message)

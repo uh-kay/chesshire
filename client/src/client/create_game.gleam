@@ -1,5 +1,6 @@
 import client/component
 import gleam/dynamic/decode
+import gleam/int
 import gleam/uri
 import lustre/attribute
 import lustre/effect
@@ -17,15 +18,23 @@ import shared
 pub type Model {
   Model(
     is_public: Bool,
+    host_side: HostSide,
     board_variant: shared.BoardVariant,
     game_variant: shared.GameVariant,
   )
+}
+
+pub type HostSide {
+  Black
+  Random
+  White
 }
 
 pub type Message {
   UserClickedCreateGame
   UserClickedBoardVariant(board_variant: shared.BoardVariant)
   UserClickedGameVariant(game_variant: shared.GameVariant)
+  UserClickedPlayingSide(playing_side: HostSide)
   ServerCreatedGame(Result(String, rsvp.Error(String)))
 }
 
@@ -33,6 +42,7 @@ pub fn init(is_public: Bool) -> Model {
   let model =
     Model(
       is_public:,
+      host_side: Random,
       board_variant: shared.TwinPasses,
       game_variant: shared.RiverSacrifice,
     )
@@ -44,8 +54,23 @@ pub fn init(is_public: Bool) -> Model {
 pub fn update(model: Model, message: Message) {
   case message {
     UserClickedCreateGame -> {
+      let host_side = case model.host_side {
+        Black -> shared.Black
+        Random -> {
+          case int.random(2) {
+            1 -> shared.Black
+            _ -> shared.White
+          }
+        }
+        White -> shared.White
+      }
       let effect =
-        create_game(model.is_public, model.board_variant, model.game_variant)
+        create_game(
+          model.is_public,
+          model.board_variant,
+          model.game_variant,
+          host_side,
+        )
 
       #(model, effect)
     }
@@ -79,6 +104,11 @@ pub fn update(model: Model, message: Message) {
       }
       #(model, effect)
     }
+    UserClickedPlayingSide(playing_side:) -> {
+      let model = Model(..model, host_side: playing_side)
+
+      #(model, effect.none())
+    }
   }
 }
 
@@ -87,10 +117,11 @@ fn create_game(
   is_public: Bool,
   board_variant: shared.BoardVariant,
   game_variant: shared.GameVariant,
+  host_side: shared.PlayerColor,
 ) -> effect.Effect(Message) {
   let url = "/v1/game"
   let body =
-    shared.CreateGame(is_public:, board_variant:, game_variant:)
+    shared.CreateGame(is_public:, board_variant:, game_variant:, host_side:)
     |> shared.create_game_to_json
   let decoder = {
     use invite_code <- decode.field("invite_code", decode.string)
@@ -115,31 +146,32 @@ pub fn view(model: Model) -> Element(Message) {
     _ -> "/"
   }
 
+  let button_style = fn(selected_variant: Bool) {
+    [
+      attribute.class("p-2 w-fit rounded-md cursor-pointer border-2"),
+      attribute.class("border-blue-500"),
+      attribute.class(case selected_variant {
+        True -> "text-white bg-blue-500"
+        False -> "hover:bg-blue-500 hover:text-white"
+      }),
+    ]
+  }
+
   let content =
     html.div([attribute.class("p-8 max-w-2xl mx-auto flex flex-col")], [
       html.p([attribute.class("text-lg")], [html.text("Board Variant")]),
       html.div([attribute.class("mt-2 flex gap-2")], [
         html.button(
           [
-            attribute.class("p-2 w-fit rounded-md cursor-pointer border"),
-            attribute.class("border-blue-500"),
-            attribute.class(case model.board_variant {
-              shared.TwinPasses -> "text-white bg-blue-500"
-              shared.GreatCrossing -> "hover:bg-blue-500 hover:text-white"
-            }),
             event.on_click(UserClickedBoardVariant(shared.TwinPasses)),
+            ..button_style(model.board_variant == shared.TwinPasses)
           ],
           [html.text("Twin Passes")],
         ),
         html.button(
           [
-            attribute.class("p-2 w-fit rounded-md cursor-pointer border"),
-            attribute.class("border-blue-500"),
-            attribute.class(case model.board_variant {
-              shared.TwinPasses -> "hover:bg-blue-500 hover:text-white"
-              shared.GreatCrossing -> "text-white bg-blue-500"
-            }),
             event.on_click(UserClickedBoardVariant(shared.GreatCrossing)),
+            ..button_style(model.board_variant == shared.GreatCrossing)
           ],
           [html.text("Great Crossing")],
         ),
@@ -164,12 +196,36 @@ pub fn view(model: Model) -> Element(Message) {
       html.p([attribute.class("mt-3 text-lg")], [html.text("Rule Variant")]),
       html.button(
         [
-          attribute.class("p-2 mt-2 w-fit rounded-md cursor-pointer border"),
-          attribute.class("border-blue-500 text-white bg-blue-500"),
           event.on_click(UserClickedGameVariant(shared.RiverSacrifice)),
+          ..button_style(model.game_variant == shared.RiverSacrifice)
         ],
         [html.text("River Sacrifice")],
       ),
+
+      html.p([attribute.class("mt-3 text-lg")], [html.text("Side")]),
+      html.div([attribute.class("mt-2 flex gap-2")], [
+        html.button(
+          [
+            event.on_click(UserClickedPlayingSide(Black)),
+            ..button_style(model.host_side == Black)
+          ],
+          [html.text("Black")],
+        ),
+        html.button(
+          [
+            event.on_click(UserClickedPlayingSide(Random)),
+            ..button_style(model.host_side == Random)
+          ],
+          [html.text("Random")],
+        ),
+        html.button(
+          [
+            event.on_click(UserClickedPlayingSide(White)),
+            ..button_style(model.host_side == White)
+          ],
+          [html.text("White")],
+        ),
+      ]),
 
       html.button(
         [

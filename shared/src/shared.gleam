@@ -30,6 +30,7 @@ pub type CreateGame {
     is_public: Bool,
     board_variant: BoardVariant,
     game_variant: GameVariant,
+    host_side: PlayerColor,
   )
 }
 
@@ -41,6 +42,11 @@ pub type BoardVariant {
 pub type GameVariant {
   RiverSacrifice
   FlemishGiant
+}
+
+pub type PlayerColor {
+  Black
+  White
 }
 
 @external(erlang, "shared_ffi", "monotonic_time")
@@ -75,11 +81,13 @@ pub fn time_decoder() -> decode.Decoder(Time) {
 }
 
 pub fn create_game_to_json(create_game: CreateGame) -> json.Json {
-  let CreateGame(is_public:, board_variant:, game_variant:) = create_game
+  let CreateGame(is_public:, board_variant:, game_variant:, host_side:) =
+    create_game
   json.object([
     #("is_public", json.bool(is_public)),
     #("board_variant", board_variant_to_json(board_variant)),
     #("game_variant", game_variant_to_json(game_variant)),
+    #("host_side", player_color_to_json(host_side)),
   ])
 }
 
@@ -87,7 +95,13 @@ pub fn create_game_decoder() -> decode.Decoder(CreateGame) {
   use is_public <- decode.field("is_public", decode.bool)
   use board_variant <- decode.field("board_variant", board_variant_decoder())
   use game_variant <- decode.field("game_variant", game_variant_decoder())
-  decode.success(CreateGame(is_public, board_variant:, game_variant:))
+  use host_side <- decode.field("host_side", player_color_decoder())
+  decode.success(CreateGame(
+    is_public,
+    board_variant:,
+    game_variant:,
+    host_side:,
+  ))
 }
 
 fn board_variant_to_json(board_variant: BoardVariant) -> json.Json {
@@ -119,5 +133,21 @@ fn game_variant_decoder() -> decode.Decoder(GameVariant) {
     "river_sacrifice" -> decode.success(RiverSacrifice)
     "flemish_giant" -> decode.success(FlemishGiant)
     _ -> decode.failure(RiverSacrifice, "GameVariant")
+  }
+}
+
+fn player_color_to_json(player_color: PlayerColor) -> json.Json {
+  case player_color {
+    Black -> json.string("black")
+    White -> json.string("white")
+  }
+}
+
+fn player_color_decoder() -> decode.Decoder(PlayerColor) {
+  use variant <- decode.then(decode.string)
+  case variant {
+    "black" -> decode.success(Black)
+    "white" -> decode.success(White)
+    _ -> decode.failure(Black, "PlayerColor")
   }
 }

@@ -18,7 +18,11 @@ pub type Message {
 }
 
 pub type Model {
-  Model(game: cheg.Game, moves: List(cheg.Move), role: Option(cheg.Role))
+  Model(
+    game: cheg.Game,
+    moves: List(cheg.Move),
+    player_color: Option(cheg.Color),
+  )
 }
 
 pub type SquareColor {
@@ -32,14 +36,10 @@ pub fn game_view(model: Model) -> Element(Message) {
   html.div(
     [
       attribute.class("grid grid-cols-8 grid-rows-9 w-full min-h-108 outline-1"),
-      case model.role {
-        Some(role) ->
-          case role {
-            Host -> attribute.class("scale-y-[-1]")
-            Guest -> attribute.class("scale-x-[-1]")
-            Spectator -> attribute.class("scale-y-[-1]")
-          }
-        None -> attribute.none()
+      case model.player_color {
+        Some(cheg.White) -> attribute.class("scale-y-[-1]")
+        Some(cheg.Black) -> attribute.class("scale-x-[-1]")
+        None -> attribute.class("scale-y-[-1]")
       },
     ],
     board_view(model),
@@ -91,32 +91,34 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
 
     let #(last_from, last_to) = cheg.last_move(model.game)
 
-    case model.role {
-      Some(role) -> {
-        let last_move = last_from == pos || last_to == pos
-        let in_check = cheg.in_check(model.game)
-        let checked_piece = case in_check, cheg.to_move(model.game) {
-          True, cheg.Black -> Some(#(cheg.King, cheg.Black))
-          True, cheg.White -> Some(#(cheg.King, cheg.White))
-          _, _ -> None
-        }
+    let last_move = last_from == pos || last_to == pos
+    let in_check = cheg.in_check(model.game)
+    let checked_piece = case in_check, cheg.to_move(model.game) {
+      True, cheg.Black -> Some(#(cheg.King, cheg.Black))
+      True, cheg.White -> Some(#(cheg.King, cheg.White))
+      _, _ -> None
+    }
 
-        case list.find(model.moves, fn(move) { cheg.move_to(move) == pos }) {
-          Ok(move) ->
-            target_square_view(
-              pos,
-              color,
-              role,
-              piece,
-              move,
-              last_move,
-              list.contains(river_square, cheg.move_to(move)),
-            )
-          Error(_) ->
-            square_view(pos, role, color, piece, last_move, checked_piece)
-        }
-      }
-      None -> element.none()
+    case list.find(model.moves, fn(move) { cheg.move_to(move) == pos }) {
+      Ok(move) ->
+        target_square_view(
+          pos,
+          color,
+          model.player_color,
+          piece,
+          move,
+          last_move,
+          list.contains(river_square, cheg.move_to(move)),
+        )
+      Error(_) ->
+        square_view(
+          pos,
+          model.player_color,
+          color,
+          piece,
+          last_move,
+          checked_piece,
+        )
     }
   })
 }
@@ -124,7 +126,7 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
 fn target_square_view(
   position: Int,
   square_color: SquareColor,
-  role: cheg.Role,
+  player_color: Option(cheg.Color),
   piece: Option(#(cheg.PieceType, cheg.Color)),
   move: cheg.Move,
   is_last_move: Bool,
@@ -144,17 +146,17 @@ fn target_square_view(
       event.on_click(UserClickedTargetSquare(move)),
     ],
     [
-      special_square_marker(square_color, role),
+      special_square_marker(square_color, player_color),
       html.div(
         [
           attribute.class(case piece {
             Some(_) -> "w-18 z-40 flex justify-center"
             None -> "w-3 h-3 lg:w-5 lg:h-5 rounded-full bg-black/30"
           }),
-          attribute.class(case piece, role {
-            Some(_), Host -> "scale-y-[-1]"
-            Some(_), Guest -> "scale-x-[-1]"
-            Some(_), Spectator -> "scale-y-[-1]"
+          attribute.class(case piece, player_color {
+            Some(_), Some(cheg.White) -> "scale-y-[-1]"
+            Some(_), Some(cheg.Black) -> "scale-x-[-1]"
+            Some(_), None -> "scale-y-[-1]"
             None, _ -> ""
           }),
         ],
@@ -175,7 +177,7 @@ fn target_square_view(
 
 fn square_view(
   position: Int,
-  role: cheg.Role,
+  player_color: Option(cheg.Color),
   square_color: SquareColor,
   piece: Option(#(cheg.PieceType, cheg.Color)),
   is_last_move: Bool,
@@ -194,14 +196,14 @@ fn square_view(
       event.on_click(UserClickedSquare(piece, position)),
     ],
     [
-      special_square_marker(square_color, role),
+      special_square_marker(square_color, player_color),
       html.div(
         [
           attribute.class("w-18 z-40 flex justify-center"),
-          attribute.class(case role {
-            Host -> "scale-y-[-1]"
-            Guest -> "scale-x-[-1]"
-            Spectator -> "scale-y-[-1]"
+          attribute.class(case player_color {
+            Some(cheg.White) -> "scale-y-[-1]"
+            Some(cheg.Black) -> "scale-x-[-1]"
+            None -> "scale-y-[-1]"
           }),
         ],
         [html.div([attribute.class("w-11 md:w-16")], [piece_view(piece)])],
@@ -226,14 +228,14 @@ fn square_color_style(square_color: SquareColor) {
 
 fn special_square_marker(
   square_color: SquareColor,
-  role: cheg.Role,
+  player_color: Option(cheg.Color),
 ) -> Element(a) {
   let special_square_style = [
     attribute.class("absolute text-white"),
-    attribute.class(case role {
-      Host -> "bottom-0 left-2"
-      Guest -> "top-0 right-2"
-      Spectator -> "bottom-0 left-2"
+    attribute.class(case player_color {
+      Some(cheg.White) -> "bottom-0 left-2"
+      Some(cheg.Black) -> "top-0 right-2"
+      None -> "bottom-0 left-2"
     }),
   ]
   case square_color {

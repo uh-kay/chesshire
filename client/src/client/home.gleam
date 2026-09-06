@@ -180,7 +180,7 @@ pub fn view(model: Model) {
           component.game_view(component.Model(
             game: model.game,
             moves: model.current_piece_moves,
-            role: option.Some(cheg.Host),
+            player_color: option.Some(cheg.White),
           ))
             |> element.map(ComponentProducedMessage),
         ],

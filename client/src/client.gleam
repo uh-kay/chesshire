@@ -611,7 +611,7 @@ fn view(model: Model) -> Element(Message) {
                 component.game_view(component.Model(
                   game: model.game,
                   moves: model.current_piece_moves,
-                  role: model.role,
+                  player_color: model.player_color,
                 ))
                   |> element.map(ComponentProducedMessage),
                 component.clock_view(
@@ -658,7 +658,7 @@ fn view(model: Model) -> Element(Message) {
                 component.game_view(component.Model(
                   game: model.game,
                   moves: model.current_piece_moves,
-                  role: model.role,
+                  player_color: model.player_color,
                 ))
                   |> element.map(ComponentProducedMessage),
                 component.clock_view(
