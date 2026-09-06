@@ -339,7 +339,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
     }
 
     UserNavigatedTo(route) -> {
-      let model = Model(..model, route:)
+      let model = Model(..model, route:, page_model: init_page_model(route))
       let effect = effect.none()
 
       #(model, effect)
