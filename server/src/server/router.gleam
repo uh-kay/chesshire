@@ -5,7 +5,6 @@ import gleam/otp/actor
 import gleam/result
 import server/context.{type Context}
 import server/game
-import server/game_actor
 import server/web
 import shared
 import wisp.{type Request, type Response, Signed}
@@ -22,14 +21,18 @@ pub fn handle_request(
   use req <- web.middleware(req, static_directory)
 
   case req.method, wisp.path_segments(req) {
-    Get, ["ws"] -> game.handle_ws(ctx, req, "")
-    Get, ["ws", id] -> game.handle_ws(ctx, req, id)
+    Get, ["ws"] -> game.handle_ws(ctx.registry, req, "")
+    Get, ["ws", id] -> game.handle_ws(ctx.registry, req, id)
     _, ["v1", ..segments] -> api_routes(ctx, req, segments)
     _, _ -> web.serve_index()
   }
 }
 
-fn api_routes(ctx: Context, req: wisp.Request, segments: List(String)) {
+fn api_routes(
+  ctx: Context,
+  req: wisp.Request,
+  segments: List(String),
+) -> Response {
   case req.method, segments {
     Post, ["session"] -> {
       let token = wisp.random_string(12)
@@ -54,7 +57,7 @@ fn api_routes(ctx: Context, req: wisp.Request, segments: List(String)) {
       use json <- wisp.require_json(req)
 
       let result = {
-        let invite_code = game_actor.create_invite_code(8)
+        let invite_code = game.create_invite_code(8)
 
         use create_game <- result.try(
           decode.run(json, shared.create_game_decoder())
@@ -63,14 +66,14 @@ fn api_routes(ctx: Context, req: wisp.Request, segments: List(String)) {
 
         case create_game.is_public {
           True -> {
-            actor.call(ctx.registry, 1000, game_actor.CreatePublicLobby(
+            actor.call(ctx.registry, 1000, game.CreatePublicLobby(
               id: invite_code,
               create_game:,
               reply_to: _,
             ))
           }
           False -> {
-            actor.call(ctx.registry, 1000, game_actor.CreatePrivateLobby(
+            actor.call(ctx.registry, 1000, game.CreatePrivateLobby(
               invite_code:,
               create_game:,
               reply_to: _,

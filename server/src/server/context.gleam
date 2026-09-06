@@ -1,6 +1,6 @@
 import gleam/erlang/process.{type Subject}
-import server/game_actor
+import server/game
 
 pub type Context {
-  Context(registry: Subject(game_actor.RegistryMsg))
+  Context(registry: Subject(game.RegistryMsg))
 }
