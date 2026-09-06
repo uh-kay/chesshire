@@ -187,7 +187,7 @@ fn square_view(
       square_color_style(square_color),
       attribute.class(case checked_king, piece {
         Some(checked_king), Some(piece) if checked_king == piece ->
-          "aspect-square bg-radial-[at_50%_50%] from-red-500 to-transparent"
+          "bg-radial-[at_50%_50%] from-red-500 to-transparent"
         _, _ -> ""
       }),
       attribute.data("pos", int.to_string(position)),
@@ -204,7 +204,7 @@ fn square_view(
             Spectator -> "scale-y-[-1]"
           }),
         ],
-        [html.div([attribute.class("w-10 md:w-14")], [piece_view(piece)])],
+        [html.div([attribute.class("w-11 md:w-16")], [piece_view(piece)])],
       ),
       last_move_indicator(is_last_move),
     ],
@@ -212,7 +212,7 @@ fn square_view(
 }
 
 fn square_style() {
-  attribute.class("flex justify-center items-center relative")
+  attribute.class("flex justify-center items-center relative aspect-square")
 }
 
 fn square_color_style(square_color: SquareColor) {

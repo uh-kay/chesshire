@@ -2,6 +2,7 @@ import cheg
 import client/accordion
 import client/component
 import client/create_game
+import client/home
 import client/icon
 import gleam/http/response.{type Response}
 import gleam/int
@@ -58,7 +59,7 @@ type Model {
 
 type PageModel {
   CreateModel(create_game.Model)
-  HomeModel
+  HomeModel(home.Model)
   GameModel
   WaitingRoomModel(
     board_variant: shared.BoardVariant,
@@ -73,11 +74,12 @@ pub type Message {
   AccordionProducedMessage(accordion.Message)
 
   CreatePageMessage(create_game.Message)
+  HomePageMessage(home.Message)
 
   UserNavigatedTo(Route)
-  UserClickedCreatePublicGame
-  UserClickedFindGame
-  UserClickedCreatePrivateGame
+  // UserClickedCreatePublicGame
+  // UserClickedFindGame
+  // UserClickedCreatePrivateGame
   UserClickedCopyLink(lobby_url: String)
 
   ServerCreatedSession(Result(Response(String), rsvp.Error(String)))
@@ -181,7 +183,7 @@ fn init(_) -> #(Model, Effect(Message)) {
 fn init_page_model(route: Route) {
   case route {
     Create(is_public) -> CreateModel(create_game.init(is_public))
-    Home -> HomeModel
+    Home -> HomeModel(home.init())
     Game(id: _) -> GameModel
     WaitingRoom ->
       WaitingRoomModel(
@@ -214,6 +216,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
+
     ComponentProducedMessage(component.UserClickedSquare(piece, pos)) -> {
       let current_piece_moves = case model.player_color {
         Some(player_color) -> {
@@ -236,6 +239,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
+
     ComponentProducedMessage(component.UserClickedTargetSquare(move)) -> {
       let message = cheg.move_to_json(move) |> json.to_string
       let game = cheg.apply_move(model.game, move)
@@ -251,14 +255,6 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
-    UserClickedCreatePrivateGame -> {
-      let effect = case uri.parse("/create/private") {
-        Ok(uri) -> modem.load(uri)
-        Error(_) -> effect.none()
-      }
-
-      #(model, effect)
-    }
 
     ServerReturnedRole(role) -> {
       let model = Model(..model, role: Some(role))
@@ -266,6 +262,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
+
     ServerUpdatedGame(body:) -> {
       case json.parse(body, cheg.game_view_decoder()) {
         Ok(game_view) -> {
@@ -340,24 +337,29 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
+
     UserNavigatedTo(route) -> {
       let model = Model(..model, route:)
       let effect = effect.none()
 
       #(model, effect)
     }
+
     ServerCreatedSession(_) -> {
       let effect = effect.none()
 
       #(model, effect)
     }
+
     UserClickedCopyLink(lobby_url:) -> {
       let model = Model(..model, link_copied: True)
       let effect = effect.batch([copy_link(lobby_url), reset_timer(1000)])
 
       #(model, effect)
     }
+
     TimerExpired -> #(Model(..model, link_copied: False), effect.none())
+
     ClockStoppedTicking -> {
       let black_time =
         int.clamp(model.time.black_time, shared.min_time, shared.max_time)
@@ -385,15 +387,9 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
-    UserClickedFindGame -> {
-      let effect = case uri.parse("/game/") {
-        Ok(uri) -> modem.load(uri)
-        Error(_) -> effect.none()
-      }
 
-      #(model, effect)
-    }
     ClientPingedServer -> #(model, ping_server(60_000, model.websocket))
+
     CreatePageMessage(message) -> {
       case model.page_model {
         CreateModel(create_model) -> {
@@ -422,14 +418,19 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         _ -> #(model, effect.none())
       }
     }
-    UserClickedCreatePublicGame -> {
-      let effect = case uri.parse("/create") {
-        Ok(uri) -> modem.load(uri)
-        Error(_) -> effect.none()
-      }
 
-      #(model, effect)
-    }
+    HomePageMessage(message) ->
+      case model.page_model {
+        HomeModel(home_model) -> {
+          let #(home_model, effect) = home.update(home_model, message)
+
+          let model = Model(..model, page_model: HomeModel(home_model))
+          let effect = effect.map(effect, HomePageMessage)
+
+          #(model, effect)
+        }
+        _ -> #(model, effect.none())
+      }
   }
 }
 
@@ -556,44 +557,14 @@ fn view(model: Model) -> Element(Message) {
   }
 
   case model.route {
-    Home -> {
-      let content =
-        html.div([attribute.class("p-8 mx-auto max-w-4xl flex flex-col")], [
-          html.div([attribute.class("flex gap-8")], [
-            html.a(
-              [
-                attribute.class("p-2 bg-blue-500 text-white rounded-md h-fit"),
-                attribute.class("hover:bg-blue-600 hover:cursor-pointer"),
-                event.on_click(UserClickedCreatePublicGame),
-              ],
-              [html.text("Create Game")],
-            ),
-            html.div([attribute.class("")], [
-              html.button(
-                [
-                  attribute.class("bg-blue-500 p-2 rounded-md w-fit"),
-                  attribute.class("text-white hover:cursor-pointer"),
-                  attribute.class("hover:bg-blue-600"),
-                  event.on_click(UserClickedFindGame),
-                ],
-                [html.text("Join Game")],
-              ),
-            ]),
-            html.button(
-              [
-                attribute.class("p-2 bg-blue-500 text-white rounded-md h-fit"),
-                attribute.class("hover:bg-blue-600 hover:cursor-pointer"),
-                event.on_click(UserClickedCreatePrivateGame),
-              ],
-              [html.text("Create Private Game")],
-            ),
-          ]),
-          // accordion.view(model.faq) |> element.map(AccordionProducedMessage),
-        ])
-
-      layout(content)
-    }
     NotFound -> element.none()
+
+    Home ->
+      case model.page_model {
+        HomeModel(model) -> home.view(model) |> element.map(HomePageMessage)
+        _ -> element.none()
+      }
+
     Game(id: _) -> {
       case model.guest_joined {
         False -> {
@@ -656,6 +627,7 @@ fn view(model: Model) -> Element(Message) {
         }
       }
     }
+
     WaitingRoom ->
       case model.guest_joined {
         False -> {
@@ -701,6 +673,7 @@ fn view(model: Model) -> Element(Message) {
           layout(content)
         }
       }
+
     Learn -> {
       let content =
         html.main([attribute.class("max-w-fit mx-auto")], [
@@ -751,6 +724,7 @@ fn view(model: Model) -> Element(Message) {
         ])
       layout(content)
     }
+
     Create(_) ->
       case model.page_model {
         CreateModel(model) ->
