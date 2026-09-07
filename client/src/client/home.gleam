@@ -229,7 +229,7 @@ fn layout(content: Element(Message)) -> Element(Message) {
   }
 
   element.fragment([
-    component.navbar(static_directory) |> element.map(ComponentProducedMessage),
+    component.navbar(static_directory),
     html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
   ])
 }

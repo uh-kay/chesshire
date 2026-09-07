@@ -193,6 +193,7 @@ pub type GameView {
     guest_joined: Bool,
     player_color: Option(shared.PlayerColor),
     lobby_id: String,
+    is_public: Bool,
   )
 }
 
@@ -456,6 +457,7 @@ pub fn game_view_to_json(game_view: GameView) -> Json {
     guest_joined:,
     player_color:,
     lobby_id:,
+    is_public:,
   ) = game_view
   json.object([
     #("game", game_to_json(game)),
@@ -465,6 +467,7 @@ pub fn game_view_to_json(game_view: GameView) -> Json {
     #("guest_joined", json.bool(guest_joined)),
     #("player_color", json.nullable(player_color, shared.player_color_to_json)),
     #("lobby_id", json.string(lobby_id)),
+    #("is_public", json.bool(is_public)),
   ])
 }
 
@@ -479,6 +482,7 @@ pub fn game_view_decoder() -> Decoder(GameView) {
     decode.optional(shared.player_color_decoder()),
   )
   use lobby_id <- decode.field("lobby_id", decode.string)
+  use is_public <- decode.field("is_public", decode.bool)
   decode.success(GameView(
     game:,
     role:,
@@ -487,6 +491,7 @@ pub fn game_view_decoder() -> Decoder(GameView) {
     guest_joined:,
     player_color:,
     lobby_id:,
+    is_public:,
   ))
 }
 

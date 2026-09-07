@@ -43,7 +43,14 @@ pub fn handle_ws(
           actor.call(game_subject, 1000, Join(session, _, outgoing))
 
         case join_result {
-          JoinOk(role:, model:, guest_joined:, host_color:, guest_color:) -> {
+          JoinOk(
+            role:,
+            model:,
+            guest_joined:,
+            host_color:,
+            guest_color:,
+            is_public:,
+          ) -> {
             let selector = process.new_selector() |> process.select(outgoing)
             let player_color = case role {
               Host -> Some(host_color)
@@ -60,6 +67,7 @@ pub fn handle_ws(
                 guest_joined:,
                 player_color:,
                 lobby_id: model.invite_code,
+                is_public: is_public,
               ))
               |> json.to_string
 
@@ -177,6 +185,7 @@ pub type JoinReply {
     guest_joined: Bool,
     host_color: shared.PlayerColor,
     guest_color: shared.PlayerColor,
+    is_public: Bool,
   )
   JoinRejected(reason: String)
 }
@@ -204,6 +213,7 @@ type GameActor {
     host_color: shared.PlayerColor,
     guest_color: shared.PlayerColor,
     spectators: List(GameActorStatus),
+    is_public: Bool,
   )
 }
 
@@ -242,6 +252,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
               state.guest != Empty,
               host_color: state.host_color,
               guest_color: state.guest_color,
+              is_public: state.is_public,
             ),
           )
           actor.continue(new_state)
@@ -260,6 +271,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
               state.guest != Empty,
               host_color: state.host_color,
               guest_color: state.guest_color,
+              is_public: state.is_public,
             ),
           )
           actor.continue(new_state)
@@ -278,6 +290,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
               state.guest != Empty,
               host_color: state.host_color,
               guest_color: state.guest_color,
+              is_public: state.is_public,
             ),
           )
           actor.continue(new_state)
@@ -296,6 +309,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
               state.guest != Empty,
               host_color: state.host_color,
               guest_color: state.guest_color,
+              is_public: state.is_public,
             ),
           )
           actor.continue(new_state)
@@ -316,6 +330,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
               True,
               host_color: state.host_color,
               guest_color: state.guest_color,
+              is_public: state.is_public,
             ),
           )
           actor.continue(state)
@@ -371,6 +386,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
             guest_joined: state.guest != Empty,
             player_color: Some(state.host_color),
             lobby_id: state.invite_code,
+            is_public: state.is_public,
           ))
           |> json.to_string
         let guest_payload =
@@ -382,6 +398,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
             guest_joined: state.guest != Empty,
             player_color: Some(state.guest_color),
             lobby_id: state.invite_code,
+            is_public: state.is_public,
           ))
           |> json.to_string
         let spectator_payload =
@@ -393,6 +410,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
             guest_joined: state.guest != Empty,
             player_color: None,
             lobby_id: state.invite_code,
+            is_public: state.is_public,
           ))
           |> json.to_string
 
@@ -464,6 +482,7 @@ fn broadcast_payload(state: GameActor, new_state: GameActor) -> Nil {
       guest_joined:,
       player_color: Some(state.host_color),
       lobby_id:,
+      is_public: state.is_public,
     ))
     |> json.to_string
   let guest_payload =
@@ -475,6 +494,7 @@ fn broadcast_payload(state: GameActor, new_state: GameActor) -> Nil {
       guest_joined:,
       player_color: Some(state.guest_color),
       lobby_id:,
+      is_public: state.is_public,
     ))
     |> json.to_string
   let spectator_payload =
@@ -486,6 +506,7 @@ fn broadcast_payload(state: GameActor, new_state: GameActor) -> Nil {
       guest_joined:,
       player_color: None,
       lobby_id:,
+      is_public: state.is_public,
     ))
     |> json.to_string
 
@@ -514,7 +535,11 @@ fn broadcast(
   })
 }
 
-fn new(invite_code: String, create_game: shared.CreateGame) -> GameActor {
+fn new(
+  invite_code: String,
+  create_game: shared.CreateGame,
+  is_public,
+) -> GameActor {
   let game = cheg.new(create_game.board_variant, create_game.game_variant)
   let game_state = cheg.state(game)
   let time = shared.new_time(shared.monotonic_time())
@@ -531,6 +556,7 @@ fn new(invite_code: String, create_game: shared.CreateGame) -> GameActor {
     spectators: [],
     host_color: create_game.host_side,
     guest_color:,
+    is_public:,
   )
 }
 
@@ -647,6 +673,7 @@ fn registry_loop(
                   _ -> shared.White
                 },
               ),
+              False,
             ))
             |> actor.on_message(handle_message)
             |> actor.start
@@ -680,6 +707,7 @@ fn registry_loop(
                   _ -> shared.White
                 },
               ),
+              True,
             ))
             |> actor.on_message(handle_message)
             |> actor.start
@@ -695,7 +723,7 @@ fn registry_loop(
     }
     CreatePrivateLobby(invite_code:, create_game:, reply_to:) -> {
       let assert Ok(started) =
-        actor.new(new(invite_code, create_game))
+        actor.new(new(invite_code, create_game, False))
         |> actor.on_message(handle_message)
         |> actor.start
       let state =
@@ -708,7 +736,7 @@ fn registry_loop(
     }
     CreatePublicLobby(create_game:, reply_to:, id:) -> {
       let assert Ok(started) =
-        actor.new(new(id, create_game))
+        actor.new(new(id, create_game, True))
         |> actor.on_message(handle_message)
         |> actor.start
 
