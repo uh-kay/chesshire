@@ -103,7 +103,7 @@ pub fn update(model: Model, message: Message) {
 
 pub fn view(model: Model) {
   let button_style = [
-    attribute.class("p-2 w-fit bg-blue-500 text-white rounded-md"),
+    attribute.class("px-2 py-3 w-fit bg-blue-500 text-white rounded-md"),
     attribute.class("hover:bg-blue-600 hover:cursor-pointer flex"),
     attribute.class("gap-1"),
   ]
@@ -147,20 +147,35 @@ pub fn view(model: Model) {
         [
           html.div([attribute.class("flex gap-3")], [
             html.a(
-              [event.on_click(UserClickedCreatePublicGame), ..button_style],
+              [
+                event.on_click(UserClickedCreatePublicGame),
+                attribute.class("w-full justify-center"),
+                ..button_style
+              ],
               [icon.plus(), html.text("Public Match")],
             ),
 
             html.button(
-              [event.on_click(UserClickedCreatePrivateGame), ..button_style],
+              [
+                event.on_click(UserClickedCreatePrivateGame),
+                attribute.class("w-full justify-center"),
+                ..button_style
+              ],
               [icon.globe_lock(), html.text("Private Match")],
             ),
           ]),
 
-          html.button([event.on_click(UserClickedFindGame), ..button_style], [
-            icon.search(),
-            html.text("Find Match"),
-          ]),
+          html.button(
+            [
+              event.on_click(UserClickedFindGame),
+              attribute.class("w-full justify-center"),
+              ..button_style
+            ],
+            [
+              icon.search(),
+              html.text("Find Match"),
+            ],
+          ),
         ],
       ),
 
