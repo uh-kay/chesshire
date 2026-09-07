@@ -634,3 +634,83 @@ pub fn chevron_down() {
     [svg.path([attribute("d", "m6 9 6 6 6-6")])],
   )
 }
+
+pub fn plus() {
+  svg.svg(
+    [
+      attribute.class("lucide lucide-plus"),
+      attribute("stroke-linejoin", "round"),
+      attribute("stroke-linecap", "round"),
+      attribute("stroke-width", "2"),
+      attribute("stroke", "currentColor"),
+      attribute("fill", "none"),
+      attribute("viewBox", "0 0 24 24"),
+      attribute("height", "24"),
+      attribute("width", "24"),
+      attribute("xmlns", "http://www.w3.org/2000/svg"),
+    ],
+    [
+      svg.path([attribute("d", "M5 12h14")]),
+      svg.path([attribute("d", "M12 5v14")]),
+    ],
+  )
+}
+
+pub fn search() {
+  svg.svg(
+    [
+      attribute.class("lucide lucide-search"),
+      attribute("stroke-linejoin", "round"),
+      attribute("stroke-linecap", "round"),
+      attribute("stroke-width", "2"),
+      attribute("stroke", "currentColor"),
+      attribute("fill", "none"),
+      attribute("viewBox", "0 0 24 24"),
+      attribute("height", "24"),
+      attribute("width", "24"),
+      attribute("xmlns", "http://www.w3.org/2000/svg"),
+    ],
+    [
+      svg.path([attribute("d", "m21 21-4.34-4.34")]),
+      svg.circle([
+        attribute("r", "8"),
+        attribute("cy", "11"),
+        attribute("cx", "11"),
+      ]),
+    ],
+  )
+}
+
+pub fn globe_lock() {
+  svg.svg(
+    [
+      attribute.class("lucide lucide-globe-lock"),
+      attribute("stroke-linejoin", "round"),
+      attribute("stroke-linecap", "round"),
+      attribute("stroke-width", "2"),
+      attribute("stroke", "currentColor"),
+      attribute("fill", "none"),
+      attribute("viewBox", "0 0 24 24"),
+      attribute("height", "24"),
+      attribute("width", "24"),
+      attribute("xmlns", "http://www.w3.org/2000/svg"),
+    ],
+    [
+      svg.path([
+        attribute(
+          "d",
+          "M15.686 15A14.5 14.5 0 0 1 12 22a14.5 14.5 0 0 1 0-20 10 10 0 1 0 9.542 13",
+        ),
+      ]),
+      svg.path([attribute("d", "M2 12h8.5")]),
+      svg.path([attribute("d", "M20 6V4a2 2 0 1 0-4 0v2")]),
+      svg.rect([
+        attribute("rx", "1"),
+        attribute("y", "6"),
+        attribute("x", "14"),
+        attribute("height", "5"),
+        attribute("width", "8"),
+      ]),
+    ],
+  )
+}

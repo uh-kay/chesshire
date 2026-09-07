@@ -744,6 +744,6 @@ fn layout(content: Element(Message)) -> Element(Message) {
 
   element.fragment([
     component.navbar(static_directory) |> element.map(ComponentProducedMessage),
-    html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
+    html.main([attribute.class("bg-orange-100 min-h-dvh")], [content]),
   ])
 }

@@ -1,5 +1,6 @@
 import cheg
 import client/component
+import client/icon
 import gleam/option
 import gleam/uri
 import lustre/attribute
@@ -101,40 +102,69 @@ pub fn update(model: Model, message: Message) {
 }
 
 pub fn view(model: Model) {
+  let button_style = [
+    attribute.class("p-2 w-fit bg-blue-500 text-white rounded-md"),
+    attribute.class("hover:bg-blue-600 hover:cursor-pointer flex"),
+    attribute.class("gap-1"),
+  ]
+
   html.div(
     [
-      attribute.class("pt-8 px-3 md:p-8 max-w-fit mx-auto"),
+      attribute.class("pt-4 md:pt-8 px-3 md:p-8 max-w-fit mx-auto"),
       attribute.class("flex flex-col"),
     ],
     [
-      html.div([attribute.class("flex gap-4")], [
-        html.a(
-          [
-            attribute.class("p-2 w-fit bg-blue-500 text-white rounded-md"),
-            attribute.class("hover:bg-blue-600 hover:cursor-pointer"),
-            event.on_click(UserClickedCreatePublicGame),
-          ],
-          [html.text("Create Game")],
-        ),
-        html.button(
-          [
-            attribute.class("bg-blue-500 p-2 rounded-md w-fit"),
-            attribute.class("text-white hover:cursor-pointer"),
-            attribute.class("hover:bg-blue-600"),
-            event.on_click(UserClickedFindGame),
-          ],
-          [html.text("Join Game")],
-        ),
-        html.button(
-          [
-            attribute.class("p-2 bg-blue-500 text-white rounded-md w-fit"),
-            attribute.class("hover:bg-blue-600 hover:cursor-pointer"),
-            event.on_click(UserClickedCreatePrivateGame),
-          ],
-          [html.text("Create Private Game")],
-        ),
-      ]),
-      html.p([attribute.class("text-2xl mt-8")], [html.text("Sandbox")]),
+      html.p([attribute.class("text-2xl")], [html.text("Create")]),
+
+      // Big screen layout
+      html.div(
+        [
+          attribute.class("mt-2 flex gap-4 pb-8 border-gray-400 border-b"),
+          attribute.class("hidden md:flex"),
+        ],
+        [
+          html.a([event.on_click(UserClickedCreatePublicGame), ..button_style], [
+            icon.plus(),
+            html.text("Public Match"),
+          ]),
+          html.button([event.on_click(UserClickedFindGame), ..button_style], [
+            icon.search(),
+            html.text("Find Match"),
+          ]),
+          html.button(
+            [event.on_click(UserClickedCreatePrivateGame), ..button_style],
+            [icon.globe_lock(), html.text("Private Match")],
+          ),
+        ],
+      ),
+
+      // Small screen layout
+      html.div(
+        [
+          attribute.class("mt-2 gap-4 pb-8 border-gray-400 border-b"),
+          attribute.class("flex flex-col md:hidden"),
+        ],
+        [
+          html.div([attribute.class("flex gap-3")], [
+            html.a(
+              [event.on_click(UserClickedCreatePublicGame), ..button_style],
+              [icon.plus(), html.text("Public Match")],
+            ),
+
+            html.button(
+              [event.on_click(UserClickedCreatePrivateGame), ..button_style],
+              [icon.globe_lock(), html.text("Private Match")],
+            ),
+          ]),
+
+          html.button([event.on_click(UserClickedFindGame), ..button_style], [
+            icon.search(),
+            html.text("Find Match"),
+          ]),
+        ],
+      ),
+
+      html.p([attribute.class("text-2xl mt-6")], [html.text("Sandbox")]),
       html.div(
         [attribute.class("mt-2 flex flex-col-reverse md:flex-row gap-4")],
         [
