@@ -136,14 +136,14 @@ fn game_variant_decoder() -> decode.Decoder(GameVariant) {
   }
 }
 
-fn player_color_to_json(player_color: PlayerColor) -> json.Json {
+pub fn player_color_to_json(player_color: PlayerColor) -> json.Json {
   case player_color {
     Black -> json.string("black")
     White -> json.string("white")
   }
 }
 
-fn player_color_decoder() -> decode.Decoder(PlayerColor) {
+pub fn player_color_decoder() -> decode.Decoder(PlayerColor) {
   use variant <- decode.then(decode.string)
   case variant {
     "black" -> decode.success(Black)

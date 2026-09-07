@@ -42,11 +42,11 @@ type Model {
     route: Route,
     lobby_code: String,
     error: Option(String),
-    current_piece: Option(#(Int, Option(#(cheg.PieceType, cheg.Color)))),
+    current_piece: Option(#(Int, Option(#(cheg.PieceType, shared.PlayerColor)))),
     current_piece_moves: List(cheg.Move),
     websocket: Option(Websocket),
     role: Option(cheg.Role),
-    player_color: Option(cheg.Color),
+    player_color: Option(shared.PlayerColor),
     guest_joined: Bool,
     offset: Int,
     link_copied: Bool,
@@ -267,12 +267,12 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       case json.parse(body, cheg.game_view_decoder()) {
         Ok(game_view) -> {
           let black_tick = case cheg.to_move(game_view.game) {
-            cheg.Black -> shared.monotonic_time()
-            cheg.White -> model.time.black_tick
+            shared.Black -> shared.monotonic_time()
+            shared.White -> model.time.black_tick
           }
           let white_tick = case cheg.to_move(game_view.game) {
-            cheg.Black -> model.time.white_tick
-            cheg.White -> shared.monotonic_time()
+            shared.Black -> model.time.white_tick
+            shared.White -> shared.monotonic_time()
           }
 
           let effect =
@@ -309,7 +309,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       let offset = model.offset
 
       let #(time, effect) = case cheg.to_move(model.game), model.time.started {
-        cheg.Black, True -> {
+        shared.Black, True -> {
           let black_tick = shared.monotonic_time()
           let black_time =
             current_time(model.time.black_time, model.time.black_tick, offset)
@@ -320,7 +320,7 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
           }
           #(shared.Time(..model.time, black_time:, black_tick:), effect)
         }
-        cheg.White, True -> {
+        shared.White, True -> {
           let white_tick = shared.monotonic_time()
           let white_time =
             current_time(model.time.white_time, model.time.white_tick, offset)

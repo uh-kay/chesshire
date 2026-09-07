@@ -46,16 +46,8 @@ pub fn handle_ws(
           JoinOk(role:, model:, guest_joined:, host_color:, guest_color:) -> {
             let selector = process.new_selector() |> process.select(outgoing)
             let player_color = case role {
-              Host ->
-                Some(case host_color {
-                  shared.Black -> cheg.Black
-                  shared.White -> cheg.White
-                })
-              Guest ->
-                Some(case guest_color {
-                  shared.Black -> cheg.Black
-                  shared.White -> cheg.White
-                })
+              Host -> Some(host_color)
+              Guest -> Some(guest_color)
               Spectator -> None
             }
 
@@ -353,10 +345,6 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
           Guest -> Ok(state.guest_color)
           Spectator -> Error(UnknownPlayer)
         })
-        let player_color = case player_color {
-          shared.Black -> cheg.Black
-          shared.White -> cheg.White
-        }
         let current_turn = cheg.to_move(state.model.game)
         use _ <- result.try(case player_color == current_turn {
           True -> Ok(Nil)
@@ -374,15 +362,6 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
         let state = GameActor(..state, model: Chesshire(..state.model, game:))
         let #(time, game_state) = get_time(game, state)
 
-        let host_color = case state.host_color {
-          shared.Black -> cheg.Black
-          shared.White -> cheg.White
-        }
-        let guest_color = case state.guest_color {
-          shared.Black -> cheg.Black
-          shared.White -> cheg.White
-        }
-
         let host_payload =
           cheg.game_view_to_json(cheg.GameView(
             game:,
@@ -390,7 +369,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
             role: Host,
             time:,
             guest_joined: state.guest != Empty,
-            player_color: Some(host_color),
+            player_color: Some(state.host_color),
             lobby_id: state.invite_code,
           ))
           |> json.to_string
@@ -401,7 +380,7 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
             role: Guest,
             time:,
             guest_joined: state.guest != Empty,
-            player_color: Some(guest_color),
+            player_color: Some(state.guest_color),
             lobby_id: state.invite_code,
           ))
           |> json.to_string
@@ -475,14 +454,6 @@ fn broadcast_payload(state: GameActor, new_state: GameActor) -> Nil {
   let time = state.model.time
   let guest_joined = new_state.guest != Empty
   let lobby_id = state.invite_code
-  let host_color = case state.host_color {
-    shared.Black -> cheg.Black
-    shared.White -> cheg.White
-  }
-  let guest_color = case state.guest_color {
-    shared.Black -> cheg.Black
-    shared.White -> cheg.White
-  }
 
   let host_payload =
     cheg.game_view_to_json(cheg.GameView(
@@ -491,7 +462,7 @@ fn broadcast_payload(state: GameActor, new_state: GameActor) -> Nil {
       game_state:,
       time:,
       guest_joined:,
-      player_color: Some(host_color),
+      player_color: Some(state.host_color),
       lobby_id:,
     ))
     |> json.to_string
@@ -502,7 +473,7 @@ fn broadcast_payload(state: GameActor, new_state: GameActor) -> Nil {
       game_state:,
       time:,
       guest_joined:,
-      player_color: Some(guest_color),
+      player_color: Some(state.guest_color),
       lobby_id:,
     ))
     |> json.to_string
@@ -571,8 +542,8 @@ fn get_time(
   let started = cheg.get_full_moves(game) >= 2
   let to_move = cheg.to_move(game)
   let last_tick = case to_move {
-    cheg.Black -> state.model.time.black_tick
-    cheg.White -> state.model.time.white_tick
+    shared.Black -> state.model.time.black_tick
+    shared.White -> state.model.time.white_tick
   }
   let elapsed = case state.model.time.started {
     False -> 0
@@ -580,20 +551,20 @@ fn get_time(
   }
 
   let black_time = case to_move {
-    cheg.Black -> state.model.time.black_time
-    cheg.White -> state.model.time.black_time - elapsed
+    shared.Black -> state.model.time.black_time
+    shared.White -> state.model.time.black_time - elapsed
   }
   let white_time = case to_move {
-    cheg.Black -> state.model.time.white_time - elapsed
-    cheg.White -> state.model.time.white_time
+    shared.Black -> state.model.time.white_time - elapsed
+    shared.White -> state.model.time.white_time
   }
   let black_tick = case to_move {
-    cheg.White -> now
-    cheg.Black -> state.model.time.black_tick
+    shared.White -> now
+    shared.Black -> state.model.time.black_tick
   }
   let white_tick = case to_move {
-    cheg.White -> state.model.time.white_tick
-    cheg.Black -> now
+    shared.White -> state.model.time.white_tick
+    shared.Black -> now
   }
 
   let state = cheg.state(game)

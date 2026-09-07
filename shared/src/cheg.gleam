@@ -117,16 +117,11 @@ pub type PieceType {
   King
 }
 
-pub type Color {
-  Black
-  White
-}
-
-pub fn board(game: Game) -> Dict(Int, #(PieceType, Color)) {
+pub fn board(game: Game) -> Dict(Int, #(PieceType, shared.PlayerColor)) {
   dict.map_values(game.game.board, fn(_, v) {
     let #(piece, color) = v
     let piece = piece_to_piece_type(piece)
-    let color = color_to_piece_color(color)
+    let color = color_to_player_color(color)
     #(piece, color)
   })
 }
@@ -142,10 +137,10 @@ pub fn piece_to_piece_type(piece: Piece) -> PieceType {
   }
 }
 
-pub fn color_to_piece_color(color: board.Color) -> Color {
+pub fn color_to_player_color(color: board.Color) -> shared.PlayerColor {
   case color {
-    board.White -> White
-    board.Black -> Black
+    board.White -> shared.White
+    board.Black -> shared.Black
   }
 }
 
@@ -166,10 +161,10 @@ pub fn role(game: Game) -> Role {
   }
 }
 
-pub fn to_move(game: Game) -> Color {
+pub fn to_move(game: Game) -> shared.PlayerColor {
   case game.game.to_move {
-    board.White -> White
-    board.Black -> Black
+    board.White -> shared.White
+    board.Black -> shared.Black
   }
 }
 
@@ -186,7 +181,7 @@ pub fn legal_moves_for_piece(game: Game, pos: Int) -> List(Move) {
 }
 
 pub type JoinModel {
-  JoinModel(board: Dict(Int, #(PieceType, Color)), role: Role)
+  JoinModel(board: Dict(Int, #(PieceType, shared.PlayerColor)), role: Role)
 }
 
 pub type GameView {
@@ -196,7 +191,7 @@ pub type GameView {
     game_state: GameState,
     time: shared.Time,
     guest_joined: Bool,
-    player_color: Option(Color),
+    player_color: Option(shared.PlayerColor),
     lobby_id: String,
   )
 }
@@ -434,22 +429,6 @@ fn draw_reason_decoder() -> Decoder(DrawReason) {
   }
 }
 
-fn color_to_json(color: Color) -> Json {
-  case color {
-    Black -> json.string("black")
-    White -> json.string("white")
-  }
-}
-
-fn color_decoder() -> Decoder(Color) {
-  use variant <- decode.then(decode.string)
-  case variant {
-    "black" -> decode.success(Black)
-    "white" -> decode.success(White)
-    _ -> decode.failure(Black, "Color")
-  }
-}
-
 pub fn role_decoder() -> Decoder(Role) {
   use variant <- decode.then(decode.string)
   case variant {
@@ -484,7 +463,7 @@ pub fn game_view_to_json(game_view: GameView) -> Json {
     #("game_state", game_state_to_json(game_state)),
     #("time", shared.time_to_json(time)),
     #("guest_joined", json.bool(guest_joined)),
-    #("player_color", json.nullable(player_color, color_to_json)),
+    #("player_color", json.nullable(player_color, shared.player_color_to_json)),
     #("lobby_id", json.string(lobby_id)),
   ])
 }
@@ -497,7 +476,7 @@ pub fn game_view_decoder() -> Decoder(GameView) {
   use guest_joined <- decode.field("guest_joined", decode.bool)
   use player_color <- decode.field(
     "player_color",
-    decode.optional(color_decoder()),
+    decode.optional(shared.player_color_decoder()),
   )
   use lobby_id <- decode.field("lobby_id", decode.string)
   decode.success(GameView(

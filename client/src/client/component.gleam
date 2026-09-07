@@ -11,9 +11,13 @@ import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html
 import lustre/event
+import shared
 
 pub type Message {
-  UserClickedSquare(piece: Option(#(cheg.PieceType, cheg.Color)), position: Int)
+  UserClickedSquare(
+    piece: Option(#(cheg.PieceType, shared.PlayerColor)),
+    position: Int,
+  )
   UserClickedTargetSquare(move: cheg.Move)
 }
 
@@ -21,7 +25,7 @@ pub type Model {
   Model(
     game: cheg.Game,
     moves: List(cheg.Move),
-    player_color: Option(cheg.Color),
+    player_color: Option(shared.PlayerColor),
   )
 }
 
@@ -37,8 +41,8 @@ pub fn game_view(model: Model) -> Element(Message) {
     [
       attribute.class("grid grid-cols-8 grid-rows-9 w-full min-h-108 outline-1"),
       case model.player_color {
-        Some(cheg.White) -> attribute.class("scale-y-[-1]")
-        Some(cheg.Black) -> attribute.class("scale-x-[-1]")
+        Some(shared.White) -> attribute.class("scale-y-[-1]")
+        Some(shared.Black) -> attribute.class("scale-x-[-1]")
         None -> attribute.class("scale-y-[-1]")
       },
     ],
@@ -94,8 +98,8 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
     let last_move = last_from == pos || last_to == pos
     let in_check = cheg.in_check(model.game)
     let checked_piece = case in_check, cheg.to_move(model.game) {
-      True, cheg.Black -> Some(#(cheg.King, cheg.Black))
-      True, cheg.White -> Some(#(cheg.King, cheg.White))
+      True, shared.Black -> Some(#(cheg.King, shared.Black))
+      True, shared.White -> Some(#(cheg.King, shared.White))
       _, _ -> None
     }
 
@@ -126,8 +130,8 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
 fn target_square_view(
   position: Int,
   square_color: SquareColor,
-  player_color: Option(cheg.Color),
-  piece: Option(#(cheg.PieceType, cheg.Color)),
+  player_color: Option(shared.PlayerColor),
+  piece: Option(#(cheg.PieceType, shared.PlayerColor)),
   move: cheg.Move,
   is_last_move: Bool,
   is_river: Bool,
@@ -154,8 +158,8 @@ fn target_square_view(
             None -> "w-3 h-3 lg:w-5 lg:h-5 rounded-full bg-black/30"
           }),
           attribute.class(case piece, player_color {
-            Some(_), Some(cheg.White) -> "scale-y-[-1]"
-            Some(_), Some(cheg.Black) -> "scale-x-[-1]"
+            Some(_), Some(shared.White) -> "scale-y-[-1]"
+            Some(_), Some(shared.Black) -> "scale-x-[-1]"
             Some(_), None -> "scale-y-[-1]"
             None, _ -> ""
           }),
@@ -177,11 +181,11 @@ fn target_square_view(
 
 fn square_view(
   position: Int,
-  player_color: Option(cheg.Color),
+  player_color: Option(shared.PlayerColor),
   square_color: SquareColor,
-  piece: Option(#(cheg.PieceType, cheg.Color)),
+  piece: Option(#(cheg.PieceType, shared.PlayerColor)),
   is_last_move: Bool,
-  checked_king: option.Option(#(cheg.PieceType, cheg.Color)),
+  checked_king: option.Option(#(cheg.PieceType, shared.PlayerColor)),
 ) -> Element(Message) {
   html.div(
     [
@@ -201,8 +205,8 @@ fn square_view(
         [
           attribute.class("w-18 z-40 flex justify-center"),
           attribute.class(case player_color {
-            Some(cheg.White) -> "scale-y-[-1]"
-            Some(cheg.Black) -> "scale-x-[-1]"
+            Some(shared.White) -> "scale-y-[-1]"
+            Some(shared.Black) -> "scale-x-[-1]"
             None -> "scale-y-[-1]"
           }),
         ],
@@ -228,13 +232,13 @@ fn square_color_style(square_color: SquareColor) {
 
 fn special_square_marker(
   square_color: SquareColor,
-  player_color: Option(cheg.Color),
+  player_color: Option(shared.PlayerColor),
 ) -> Element(a) {
   let special_square_style = [
     attribute.class("absolute text-white"),
     attribute.class(case player_color {
-      Some(cheg.White) -> "bottom-0 left-2"
-      Some(cheg.Black) -> "top-0 right-2"
+      Some(shared.White) -> "bottom-0 left-2"
+      Some(shared.Black) -> "top-0 right-2"
       None -> "bottom-0 left-2"
     }),
   ]
@@ -266,21 +270,21 @@ fn last_move_indicator(is_last_move: Bool) -> Element(a) {
 }
 
 fn piece_view(
-  piece: Option(#(cheg.PieceType, cheg.Color)),
+  piece: Option(#(cheg.PieceType, shared.PlayerColor)),
 ) -> Element(Message) {
   case piece {
-    Some(#(cheg.Pawn, cheg.White)) -> icon.white_pawn()
-    Some(#(cheg.Knight, cheg.White)) -> icon.white_knight()
-    Some(#(cheg.Bishop, cheg.White)) -> icon.white_bishop()
-    Some(#(cheg.Rook, cheg.White)) -> icon.white_rook()
-    Some(#(cheg.Queen, cheg.White)) -> icon.white_queen()
-    Some(#(cheg.King, cheg.White)) -> icon.white_king()
-    Some(#(cheg.Pawn, cheg.Black)) -> icon.black_pawn()
-    Some(#(cheg.Knight, cheg.Black)) -> icon.black_knight()
-    Some(#(cheg.Bishop, cheg.Black)) -> icon.black_bishop()
-    Some(#(cheg.Rook, cheg.Black)) -> icon.black_rook()
-    Some(#(cheg.Queen, cheg.Black)) -> icon.black_queen()
-    Some(#(cheg.King, cheg.Black)) -> icon.black_king()
+    Some(#(cheg.Pawn, shared.White)) -> icon.white_pawn()
+    Some(#(cheg.Knight, shared.White)) -> icon.white_knight()
+    Some(#(cheg.Bishop, shared.White)) -> icon.white_bishop()
+    Some(#(cheg.Rook, shared.White)) -> icon.white_rook()
+    Some(#(cheg.Queen, shared.White)) -> icon.white_queen()
+    Some(#(cheg.King, shared.White)) -> icon.white_king()
+    Some(#(cheg.Pawn, shared.Black)) -> icon.black_pawn()
+    Some(#(cheg.Knight, shared.Black)) -> icon.black_knight()
+    Some(#(cheg.Bishop, shared.Black)) -> icon.black_bishop()
+    Some(#(cheg.Rook, shared.Black)) -> icon.black_rook()
+    Some(#(cheg.Queen, shared.Black)) -> icon.black_queen()
+    Some(#(cheg.King, shared.Black)) -> icon.black_king()
     None -> element.none()
   }
 }
