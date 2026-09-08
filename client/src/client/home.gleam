@@ -193,31 +193,38 @@ pub fn view(model: Model) {
               ],
               [html.text("Reset")],
             ),
-            html.label([], [html.text("Board Variant")]),
-            html.div([attribute.class("flex flex-row md:flex-col gap-2")], [
-              html.button(
+            html.div([], [
+              html.label([], [html.text("Board Variant")]),
+              html.div(
+                [attribute.class("flex flex-row md:flex-col mt-2 gap-2")],
                 [
-                  attribute.class("p-2 w-fit md:w-full md:h-fit rounded-md"),
-                  attribute.class("text-nowrap border-2 border-blue-500"),
-                  attribute.class(case model.board_variant {
-                    TwinPasses -> "bg-blue-500 text-white"
-                    GreatCrossing -> ""
-                  }),
-                  event.on_click(UserClickedChangeBoardVariant(TwinPasses)),
+                  html.button(
+                    [
+                      attribute.class("p-2 w-fit md:w-full md:h-fit rounded-md"),
+                      attribute.class("text-nowrap border-2 border-blue-500"),
+                      attribute.class(case model.board_variant {
+                        TwinPasses -> "bg-blue-500 text-white"
+                        GreatCrossing -> ""
+                      }),
+                      event.on_click(UserClickedChangeBoardVariant(TwinPasses)),
+                    ],
+                    [html.text("Twin Passes")],
+                  ),
+                  html.button(
+                    [
+                      attribute.class("p-2 w-fit md:w-full md:h-fit rounded-md"),
+                      attribute.class("text-nowrap border-2 border-blue-500"),
+                      attribute.class(case model.board_variant {
+                        GreatCrossing -> "bg-blue-500 text-white"
+                        TwinPasses -> ""
+                      }),
+                      event.on_click(UserClickedChangeBoardVariant(
+                        GreatCrossing,
+                      )),
+                    ],
+                    [html.text("Great Crossing")],
+                  ),
                 ],
-                [html.text("Twin Passes")],
-              ),
-              html.button(
-                [
-                  attribute.class("p-2 w-fit md:w-full md:h-fit rounded-md"),
-                  attribute.class("text-nowrap border-2 border-blue-500"),
-                  attribute.class(case model.board_variant {
-                    GreatCrossing -> "bg-blue-500 text-white"
-                    TwinPasses -> ""
-                  }),
-                  event.on_click(UserClickedChangeBoardVariant(GreatCrossing)),
-                ],
-                [html.text("Great Crossing")],
               ),
             ]),
           ]),

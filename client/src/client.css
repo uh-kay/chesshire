@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+    --font-sans: "Inter", sans-serif;
+}
+
 .ellipsis {
     display: inline-block;
     overflow: hidden;
