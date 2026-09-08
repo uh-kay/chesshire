@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-    --font-sans: "Inter", sans-serif;
+    --font-sans: "Comic Relief", sans-serif;
 }
 
 .ellipsis {

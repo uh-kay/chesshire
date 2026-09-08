@@ -144,6 +144,10 @@ pub fn color_to_player_color(color: board.Color) -> shared.PlayerColor {
   }
 }
 
+pub fn move_from(move: Move) {
+  move.move.from
+}
+
 pub fn move_to(move: Move) -> Int {
   move.move.to
 }
@@ -177,6 +181,26 @@ pub fn last_move(game: Game) -> #(Int, Int) {
 }
 
 pub fn legal_moves_for_piece(game: Game, pos: Int) -> List(Move) {
+  list.filter(legal_moves(game), fn(move) { move.move.from == pos })
+}
+
+pub fn legal_premoves_for_piece(game: Game, pos: Int) {
+  let to_move = case game.game.to_move {
+    board.White -> board.Black
+    board.Black -> board.White
+  }
+  let king_position = case to_move {
+    board.White -> game.game.white_pieces.king_position
+    board.Black -> game.game.black_pieces.king_position
+  }
+  let attack_information =
+    attack.calculate(
+      game.game.board,
+      game.game.river_squares,
+      king_position,
+      to_move,
+    )
+  let game = Game(game.Game(..game.game, to_move:, attack_information:))
   list.filter(legal_moves(game), fn(move) { move.move.from == pos })
 }
 
@@ -242,7 +266,7 @@ fn game_to_json(game: Game) -> json.Json {
     #("castling", game.castling_to_json(castling)),
     #("en_passant_square", case en_passant_square {
       None -> json.null()
-      option.Some(value) -> json.int(value)
+      Some(value) -> json.int(value)
     }),
     #("half_moves", json.int(half_moves)),
     #("full_moves", json.int(full_moves)),
@@ -256,12 +280,12 @@ fn game_to_json(game: Game) -> json.Json {
     #("white_pieces", game.piece_info_to_json(white_pieces)),
     #("current_piece", case current_piece {
       None -> json.null()
-      option.Some(value) ->
+      Some(value) ->
         json.preprocessed_array([
           json.int(value.0),
           case value.1 {
             None -> json.null()
-            option.Some(value) ->
+            Some(value) ->
               json.preprocessed_array([
                 board.piece_to_json(value.0),
                 board.color_to_json(value.1),

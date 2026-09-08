@@ -1,10 +1,9 @@
-import cheg.{Guest, Host, Spectator}
+import cheg
 import client/icon
 import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import gleam/result
 import gleam/set
 import gleam/string
 import lustre/attribute
@@ -26,6 +25,7 @@ pub type Model {
     game: cheg.Game,
     moves: List(cheg.Move),
     player_color: Option(shared.PlayerColor),
+    premove: Option(cheg.Move),
   )
 }
 
@@ -102,6 +102,11 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
       True, shared.White -> Some(#(cheg.King, shared.White))
       _, _ -> None
     }
+    let is_premove = case model.premove {
+      Some(premove) ->
+        cheg.move_from(premove) == pos || cheg.move_to(premove) == pos
+      None -> False
+    }
 
     case list.find(model.moves, fn(move) { cheg.move_to(move) == pos }) {
       Ok(move) ->
@@ -122,6 +127,7 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
           piece,
           last_move,
           checked_piece,
+          is_premove,
         )
     }
   })
@@ -186,6 +192,7 @@ fn square_view(
   piece: Option(#(cheg.PieceType, shared.PlayerColor)),
   is_last_move: Bool,
   checked_king: option.Option(#(cheg.PieceType, shared.PlayerColor)),
+  is_premove: Bool,
 ) -> Element(Message) {
   html.div(
     [
@@ -213,6 +220,7 @@ fn square_view(
         [html.div([attribute.class("w-11 md:w-16")], [piece_view(piece)])],
       ),
       last_move_indicator(is_last_move),
+      premove_indicator(is_premove),
     ],
   )
 }
@@ -269,6 +277,18 @@ fn last_move_indicator(is_last_move: Bool) -> Element(a) {
   )
 }
 
+fn premove_indicator(is_premove: Bool) {
+  html.div(
+    [
+      attribute.class(case is_premove {
+        True -> "absolute inset-0 bg-pink-400/30"
+        False -> ""
+      }),
+    ],
+    [],
+  )
+}
+
 fn piece_view(
   piece: Option(#(cheg.PieceType, shared.PlayerColor)),
 ) -> Element(Message) {
@@ -292,77 +312,54 @@ fn piece_view(
 pub fn clock_view(
   black_time: Int,
   white_time: Int,
-  player_role: Option(cheg.Role),
+  player_color: Option(shared.PlayerColor),
   state: cheg.GameState,
 ) -> Element(_) {
-  let result = {
-    use player_role <- result.try(
-      case player_role {
-        Some(role) -> Ok(role)
-        None -> Error(Nil)
-      }
-      |> result.replace_error(element.none()),
-    )
+  let black_time = format_time(black_time)
+  let white_time = format_time(white_time)
 
-    let black_time = format_time(black_time)
-    let white_time = format_time(white_time)
+  let state = case state {
+    cheg.Continue -> element.none()
+    cheg.Draw(reason:) ->
+      html.p([], [
+        html.text(case reason {
+          cheg.ThreefoldRepetition -> "🤝 Draw: threefold repetition"
+          cheg.InsufficientMaterial -> "🤝 Draw: insufficient material"
+          cheg.Stalemate -> "🤝 Draw: stalemate"
+          cheg.FiftyMoves -> "🤝 Draw: fifty move rule"
+        }),
+      ])
+    cheg.WhiteWin -> html.p([], [html.text("White wins 🎉")])
+    cheg.BlackWin -> html.p([], [html.text("Black wins 🎉")])
+  }
 
-    let state = case state {
-      cheg.Continue -> element.none()
-      cheg.Draw(reason:) ->
-        html.p([], [
-          html.text(case reason {
-            cheg.ThreefoldRepetition -> "🤝 Draw: threefold repetition"
-            cheg.InsufficientMaterial -> "🤝 Draw: insufficient material"
-            cheg.Stalemate -> "🤝 Draw: stalemate"
-            cheg.FiftyMoves -> "🤝 Draw: fifty move rule"
-          }),
-        ])
-      cheg.WhiteWin -> html.p([], [html.text("White wins 🎉")])
-      cheg.BlackWin -> html.p([], [html.text("Black wins 🎉")])
-    }
-
-    Ok(
-      html.div(
+  html.div(
+    [
+      attribute.class("md:ml-8 mt-4 md:mt-0 flex justify-between items-start"),
+      attribute.class(case player_color {
+        Some(shared.White) -> "flex-row md:flex-col"
+        Some(shared.Black) -> "flex-row-reverse md:flex-col-reverse"
+        None -> "flex-row md:flex-col"
+      }),
+    ],
+    [
+      html.p(
         [
-          attribute.class(
-            "md:ml-8 mt-4 md:mt-0 flex justify-between items-start",
-          ),
-          attribute.class(case player_role {
-            Host -> "flex-row md:flex-col"
-            Guest -> "flex-row-reverse md:flex-col-reverse"
-            Spectator -> "flex-row md:flex-col"
-          }),
+          attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
+          attribute.class("text-center text-3xl"),
         ],
-        [
-          html.p(
-            [
-              attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
-              attribute.class("text-center text-3xl"),
-            ],
-            [
-              html.text(black_time),
-            ],
-          ),
-          state,
-          html.p(
-            [
-              attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
-              attribute.class("text-center text-3xl"),
-            ],
-            [
-              html.text(white_time),
-            ],
-          ),
-        ],
+        [html.text(black_time)],
       ),
-    )
-  }
-
-  case result {
-    Ok(el) -> el
-    Error(el) -> el
-  }
+      state,
+      html.p(
+        [
+          attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
+          attribute.class("text-center text-3xl"),
+        ],
+        [html.text(white_time)],
+      ),
+    ],
+  )
 }
 
 pub fn navbar(static_directory: String) -> Element(_) {

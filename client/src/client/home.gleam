@@ -233,6 +233,7 @@ pub fn view(model: Model) {
             game: model.game,
             moves: model.current_piece_moves,
             player_color: option.Some(shared.White),
+            premove: option.None,
           ))
             |> element.map(ComponentProducedMessage),
         ],

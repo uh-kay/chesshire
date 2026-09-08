@@ -2,6 +2,7 @@ import cheg
 import client/component
 import client/icon
 import client/websocket
+import gleam/dict
 import gleam/int
 import gleam/javascript/promise.{type Promise}
 import gleam/json
@@ -36,6 +37,9 @@ pub type Model {
     offset: Int,
     lobby_id: String,
     is_public: Bool,
+    move_count: Int,
+    premove: Option(cheg.Move),
+    game_history: dict.Dict(Int, cheg.Game),
   )
 }
 
@@ -56,6 +60,7 @@ pub fn init(
   lobby_id: String,
 ) -> #(Model, Effect(Message)) {
   let game = cheg.new(shared.TwinPasses, shared.RiverSacrifice)
+  let game_history = dict.new() |> dict.insert(1, game)
   let time = shared.new_time(shared.monotonic_time())
 
   let init_message = case websocket {
@@ -79,10 +84,13 @@ pub fn init(
       current_page_uri:,
       websocket:,
       current_piece: None,
-      // in the future calculate based on latency
+      // in the future calculate offset based on latency
       offset: 0,
       lobby_id:,
       is_public: False,
+      premove: None,
+      game_history:,
+      move_count: 1,
     )
   let effect = effect.batch([get_game_view(init_message), tick()])
 
@@ -98,12 +106,29 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         Some(player_color) -> {
           let to_move = cheg.to_move(model.game)
 
+          let previous_game = case model.move_count {
+            1 -> {
+              let assert Ok(previous_game) =
+                dict.get(model.game_history, model.move_count)
+              previous_game
+            }
+            _ -> {
+              let assert Ok(previous_game) =
+                dict.get(model.game_history, model.move_count - 1)
+              previous_game
+            }
+          }
+
           case piece {
             Some(#(_, piece_color))
               if player_color == to_move
               && player_color == piece_color
               && model.game_state == cheg.Continue
             -> cheg.legal_moves_for_piece(model.game, position)
+            Some(#(_, piece_color))
+              if player_color == piece_color && model.game_state == cheg.Continue
+            -> cheg.legal_premoves_for_piece(previous_game, position)
+
             _ -> []
           }
         }
@@ -117,15 +142,34 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
     }
     ComponentProducedMessage(component.UserClickedTargetSquare(move:)) -> {
       let message = cheg.move_to_json(move) |> json.to_string
-      let game = cheg.apply_move(model.game, move)
 
-      case model.websocket {
-        Some(ws) -> websocket.send_message(ws, message)
-        None -> Nil
+      let to_move = cheg.to_move(model.game)
+      let #(game, premove) = case model.player_color {
+        Some(player_color) ->
+          case player_color != to_move {
+            True -> #(model.game, Some(move))
+            False -> #(cheg.apply_move(model.game, move), None)
+          }
+        None -> #(model.game, model.premove)
+      }
+
+      case premove {
+        Some(_) -> Nil
+        None ->
+          case model.websocket {
+            Some(ws) -> websocket.send_message(ws, message)
+            None -> Nil
+          }
       }
 
       let model =
-        Model(..model, game:, current_piece: None, current_piece_moves: [])
+        Model(
+          ..model,
+          game:,
+          current_piece: None,
+          current_piece_moves: [],
+          premove:,
+        )
       let effect = effect.none()
 
       #(model, effect)
@@ -149,6 +193,22 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
             shared.White -> shared.monotonic_time()
           }
 
+          let game = game_view.game
+          let game_history =
+            dict.insert(model.game_history, model.move_count + 1, game)
+          let move_count = model.move_count + 1
+
+          case model.premove {
+            Some(move) -> {
+              let message = cheg.move_to_json(move) |> json.to_string
+              case model.websocket {
+                Some(ws) -> websocket.send_message(ws, message)
+                None -> Nil
+              }
+            }
+            None -> Nil
+          }
+
           let effect =
             effect.batch([
               case game_view.game_state != cheg.Continue {
@@ -165,13 +225,16 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
           let model =
             Model(
               ..model,
-              game: game_view.game,
+              game:,
               time: shared.Time(..game_view.time, black_tick:, white_tick:),
               guest_joined: game_view.guest_joined,
               role: Some(game_view.role),
               game_state: game_view.game_state,
               player_color: game_view.player_color,
               is_public: game_view.is_public,
+              premove: None,
+              game_history:,
+              move_count:,
             )
 
           #(model, effect)
@@ -386,12 +449,13 @@ pub fn view(model: Model) -> Element(Message) {
               game: model.game,
               moves: model.current_piece_moves,
               player_color: model.player_color,
+              premove: model.premove,
             ))
               |> element.map(ComponentProducedMessage),
             component.clock_view(
               model.time.black_time,
               model.time.white_time,
-              model.role,
+              model.player_color,
               model.game_state,
             ),
           ],
