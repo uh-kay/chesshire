@@ -84,7 +84,7 @@ pub fn init(
       lobby_id:,
       is_public: False,
     )
-  let effect = get_game_view(init_message)
+  let effect = effect.batch([get_game_view(init_message), tick()])
 
   #(model, effect)
 }
