@@ -586,7 +586,10 @@ fn sliding_moves_in_direction(
         game.attack_information,
       )
     {
-      True -> [Move(piece, from: start_position, to: new_position), ..moves]
+      True -> [
+        Sacrifice(piece, from: start_position, to: new_position),
+        ..moves
+      ]
       False -> moves
     },
   )
@@ -673,7 +676,7 @@ pub fn apply(game: Game, move: Move) {
         captured_piece,
         None,
       )
-    Sacrifice(from:, to:, sacrificed_piece:) ->
+    Sacrifice(from:, to:, sacrificed_piece:) -> {
       do_apply(
         game,
         sacrificed_piece,
@@ -684,6 +687,7 @@ pub fn apply(game: Game, move: Move) {
         None,
         Some(sacrificed_piece),
       )
+    }
   }
 }
 
@@ -715,6 +719,7 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
     river_squares:,
     bridge_squares:,
     game_variant:,
+    captured_pieces:,
   ) = game
 
   let castling = case to_move {
@@ -806,6 +811,7 @@ fn apply_castle(game: Game, from: Int, to: Int, long: Bool) -> Game {
     river_squares:,
     bridge_squares:,
     game_variant:,
+    captured_pieces:,
   )
 }
 
@@ -838,6 +844,7 @@ fn do_apply(
     river_squares:,
     bridge_squares:,
     game_variant:,
+    captured_pieces:,
   ) = game
 
   let #(
@@ -885,20 +892,30 @@ fn do_apply(
 
   let zobrist_hash = hash.toggle_piece(zobrist_hash, to, piece, our_color)
 
-  let #(zobrist_hash, opposing_pawn_material, opposing_non_pawn_material) = case
-    captured_piece
-  {
+  let #(
+    zobrist_hash,
+    opposing_pawn_material,
+    opposing_non_pawn_material,
+    captured_pieces,
+  ) = case captured_piece {
     Some(board.Pawn) -> #(
       hash.toggle_piece(zobrist_hash, to, board.Pawn, to_move),
       opposing_pawn_material - board.pawn_value,
       opposing_non_pawn_material,
+      add_captured_pieces(captured_pieces, #(board.Pawn, enemy_color), False),
     )
     Some(piece) -> #(
       hash.toggle_piece(zobrist_hash, to, piece, to_move),
       opposing_pawn_material,
       opposing_non_pawn_material - board.piece_value(piece),
+      add_captured_pieces(captured_pieces, #(piece, enemy_color), False),
     )
-    None -> #(zobrist_hash, opposing_pawn_material, opposing_non_pawn_material)
+    None -> #(
+      zobrist_hash,
+      opposing_pawn_material,
+      opposing_non_pawn_material,
+      captured_pieces,
+    )
   }
 
   let #(board, river_squares, bridge_squares) = case
@@ -922,22 +939,27 @@ fn do_apply(
     }
   }
 
-  let #(our_pawn_material, our_non_pawn_material) = case sacrificed_piece {
-    Some(piece) ->
+  let #(our_pawn_material, our_non_pawn_material, captured_pieces) = case
+    sacrificed_piece
+  {
+    Some(piece) -> {
       case piece {
         board.Pawn -> #(
           our_pawn_material - board.pawn_value,
           our_non_pawn_material,
+          add_captured_pieces(captured_pieces, #(board.Pawn, enemy_color), True),
         )
         _ -> #(
           our_pawn_material,
           our_non_pawn_material - board.piece_value(piece),
+          add_captured_pieces(captured_pieces, #(piece, enemy_color), True),
         )
       }
-    None -> #(our_pawn_material, our_non_pawn_material)
+    }
+    None -> #(our_pawn_material, our_non_pawn_material, captured_pieces)
   }
 
-  let #(board, zobrist_hash, opposing_pawn_material) = case
+  let #(board, zobrist_hash, opposing_pawn_material, captured_pieces) = case
     en_passant,
     en_passant_square,
     our_color
@@ -948,6 +970,7 @@ fn do_apply(
         dict.delete(board, ep_square),
         hash.toggle_piece(zobrist_hash, ep_square, board.Pawn, board.Black),
         opposing_pawn_material - board.pawn_value,
+        add_captured_pieces(captured_pieces, #(board.Pawn, enemy_color), False),
       )
     }
     True, Some(square), board.Black -> {
@@ -956,9 +979,10 @@ fn do_apply(
         dict.delete(board, ep_square),
         hash.toggle_piece(zobrist_hash, ep_square, board.Pawn, board.White),
         opposing_pawn_material - board.pawn_value,
+        add_captured_pieces(captured_pieces, #(board.Pawn, enemy_color), False),
       )
     }
-    _, _, _ -> #(board, zobrist_hash, opposing_pawn_material)
+    _, _, _ -> #(board, zobrist_hash, opposing_pawn_material, captured_pieces)
   }
 
   let en_passant_square = case piece, to - from {
@@ -1028,6 +1052,7 @@ fn do_apply(
     river_squares:,
     bridge_squares:,
     game_variant:,
+    captured_pieces:,
   )
 }
 
@@ -1042,5 +1067,24 @@ fn remove_castling(castling: game.Castling, position: Int) -> game.Castling {
     0 -> game.Castling(..castling, white_queenside: False)
     64 -> game.Castling(..castling, black_queenside: False)
     _ -> castling
+  }
+}
+
+fn add_captured_pieces(
+  captured_pieces: game.CapturedPieces,
+  piece: #(board.Piece, board.Color),
+  is_sacrifice: Bool,
+) {
+  case is_sacrifice {
+    True ->
+      game.CapturedPieces(
+        ..captured_pieces,
+        sacrificed: list.prepend(captured_pieces.sacrificed, piece),
+      )
+    False ->
+      game.CapturedPieces(
+        ..captured_pieces,
+        captured: list.prepend(captured_pieces.captured, piece),
+      )
   }
 }

@@ -438,6 +438,7 @@ pub fn view(model: Model) -> Element(Message) {
       layout(content)
     }
     True, _ -> {
+      let captured_pieces = cheg.get_captured_pieces(model.game)
       let content =
         html.div(
           [
@@ -457,7 +458,9 @@ pub fn view(model: Model) -> Element(Message) {
               model.time.white_time,
               model.player_color,
               model.game_state,
-            ),
+              captured_pieces,
+            )
+              |> element.map(ComponentProducedMessage),
           ],
         )
 

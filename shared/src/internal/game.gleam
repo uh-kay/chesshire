@@ -32,6 +32,14 @@ pub type Game {
     current_piece: Option(#(Int, Option(#(board.Piece, board.Color)))),
     current_piece_moves: List(Int),
     last_move: #(Int, Int),
+    captured_pieces: CapturedPieces,
+  )
+}
+
+pub type CapturedPieces {
+  CapturedPieces(
+    captured: List(#(board.Piece, board.Color)),
+    sacrificed: List(#(board.Piece, board.Color)),
   )
 }
 
@@ -72,6 +80,8 @@ pub fn new(board_variant: board.Variant, game_variant: GameVariant) -> Game {
     * 2
   let zobrist_hash = hash.hash(board, board.White)
 
+  let captured_pieces = CapturedPieces(captured: [], sacrificed: [])
+
   Game(
     board:,
     to_move: board.White,
@@ -99,6 +109,7 @@ pub fn new(board_variant: board.Variant, game_variant: GameVariant) -> Game {
     river_squares:,
     bridge_squares:,
     game_variant:,
+    captured_pieces:,
   )
 }
 
@@ -214,4 +225,54 @@ pub fn piece_info_decoder() -> decode.Decoder(PieceInfo) {
   use non_pawn_material <- decode.field("non_pawn_material", decode.int)
   use pawn_material <- decode.field("pawn_material", decode.int)
   decode.success(PieceInfo(king_position:, non_pawn_material:, pawn_material:))
+}
+
+pub fn captured_pieces_to_json(captured_pieces: CapturedPieces) -> json.Json {
+  let CapturedPieces(captured:, sacrificed:) = captured_pieces
+  json.object([
+    #(
+      "captured",
+      json.array(captured, fn(value) {
+        let #(piece, color) = value
+
+        json.preprocessed_array([
+          board.piece_to_json(piece),
+          board.color_to_json(color),
+        ])
+      }),
+    ),
+    #(
+      "sacrificed",
+      json.array(sacrificed, fn(value) {
+        let #(piece, color) = value
+
+        json.preprocessed_array([
+          board.piece_to_json(piece),
+          board.color_to_json(color),
+        ])
+      }),
+    ),
+  ])
+}
+
+pub fn captured_pieces_decoder() -> decode.Decoder(CapturedPieces) {
+  use captured <- decode.field(
+    "captured",
+    decode.list({
+      use a <- decode.field(0, board.piece_decoder())
+      use b <- decode.field(1, board.color_decoder())
+
+      decode.success(#(a, b))
+    }),
+  )
+  use sacrificed <- decode.field(
+    "sacrificed",
+    decode.list({
+      use a <- decode.field(0, board.piece_decoder())
+      use b <- decode.field(1, board.color_decoder())
+
+      decode.success(#(a, b))
+    }),
+  )
+  decode.success(CapturedPieces(captured:, sacrificed:))
 }

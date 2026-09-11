@@ -35,6 +35,28 @@ pub fn get_full_moves(game: Game) {
   game.game.full_moves
 }
 
+pub fn get_captured_pieces(game: Game) {
+  let captured_pieces = game.game.captured_pieces
+
+  CapturedPieces(
+    captured: list.map(captured_pieces.captured, fn(value) {
+      let #(piece, color) = value
+      #(piece_to_piece_type(piece), color_to_player_color(color))
+    }),
+    sacrificed: list.map(captured_pieces.sacrificed, fn(value) {
+      let #(piece, color) = value
+      #(piece_to_piece_type(piece), color_to_player_color(color))
+    }),
+  )
+}
+
+pub type CapturedPieces {
+  CapturedPieces(
+    captured: List(#(PieceType, shared.PlayerColor)),
+    sacrificed: List(#(PieceType, shared.PlayerColor)),
+  )
+}
+
 pub type DrawReason {
   ThreefoldRepetition
   InsufficientMaterial
@@ -251,6 +273,7 @@ fn game_to_json(game: Game) -> json.Json {
     river_squares:,
     bridge_squares:,
     game_variant:,
+    captured_pieces:,
   ) = game.game
   json.object([
     #(
@@ -302,6 +325,7 @@ fn game_to_json(game: Game) -> json.Json {
     #("river_squares", json.array(river_squares, json.int)),
     #("bridge_squares", json.array(bridge_squares, json.int)),
     #("game_variant", game.game_variant_to_json(game_variant)),
+    #("captured_pieces", game.captured_pieces_to_json(captured_pieces)),
   ])
 }
 
@@ -374,6 +398,10 @@ fn game_decoder() -> decode.Decoder(Game) {
   use river_squares <- decode.field("river_squares", decode.list(decode.int))
   use bridge_squares <- decode.field("bridge_squares", decode.list(decode.int))
   use game_variant <- decode.field("game_variant", game.game_variant_decoder())
+  use captured_pieces <- decode.field(
+    "captured_pieces",
+    game.captured_pieces_decoder(),
+  )
   decode.success(
     Game(game.Game(
       board:,
@@ -394,6 +422,7 @@ fn game_decoder() -> decode.Decoder(Game) {
       river_squares:,
       bridge_squares:,
       game_variant:,
+      captured_pieces:,
     )),
   )
 }

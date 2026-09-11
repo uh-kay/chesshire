@@ -309,11 +309,35 @@ fn piece_view(
   }
 }
 
+fn captured_piece_view(
+  piece: cheg.PieceType,
+  pawn_count: Int,
+  fill_color: String,
+) -> Element(Message) {
+  case piece {
+    cheg.Pawn ->
+      html.div([attribute.class("flex")], [
+        html.div([attribute.class("w-6 h-6")], [
+          icon.pawn(fill_color),
+        ]),
+        html.p([attribute.class("text-lg")], [
+          html.text(int.to_string(pawn_count)),
+        ]),
+      ])
+    cheg.Knight -> html.div([attribute.class("w-6")], [icon.knight(fill_color)])
+    cheg.Bishop -> html.div([attribute.class("w-6")], [icon.bishop(fill_color)])
+    cheg.Rook -> html.div([attribute.class("w-6")], [icon.rook(fill_color)])
+    cheg.Queen -> html.div([attribute.class("w-6")], [icon.queen(fill_color)])
+    cheg.King -> html.div([attribute.class("w-6")], [element.none()])
+  }
+}
+
 pub fn clock_view(
   black_time: Int,
   white_time: Int,
   player_color: Option(shared.PlayerColor),
   state: cheg.GameState,
+  captured_pieces: cheg.CapturedPieces,
 ) -> Element(_) {
   let black_time = format_time(black_time)
   let white_time = format_time(white_time)
@@ -337,26 +361,114 @@ pub fn clock_view(
     [
       attribute.class("md:ml-8 mt-4 md:mt-0 flex justify-between items-start"),
       attribute.class(case player_color {
-        Some(shared.White) -> "flex-row md:flex-col"
-        Some(shared.Black) -> "flex-row-reverse md:flex-col-reverse"
-        None -> "flex-row md:flex-col"
+        Some(shared.Black) -> "flex-row md:flex-col-reverse"
+        _ -> "flex-row-reverse md:flex-col"
       }),
     ],
     [
-      html.p(
+      html.div(
         [
-          attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
-          attribute.class("text-center text-3xl"),
+          attribute.class("flex gap-2"),
+          attribute.class(case player_color {
+            Some(shared.Black) -> "flex-col md:flex-col-reverse"
+            _ -> "flex-col"
+          }),
         ],
-        [html.text(black_time)],
+        [
+          html.p(
+            [
+              attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
+              attribute.class("text-center text-3xl"),
+            ],
+            [html.text(black_time)],
+          ),
+          html.div(
+            [attribute.class("flex")],
+            set.filter(set.from_list(captured_pieces.captured), fn(value) {
+              let #(_, color) = value
+              color == shared.Black
+            })
+              |> set.map(fn(value) {
+                let #(piece, _) = value
+                let pawn_count =
+                  list.count(captured_pieces.captured, fn(value) {
+                    let #(piece, _) = value
+                    piece == cheg.Pawn
+                  })
+
+                captured_piece_view(piece, pawn_count, "#6a7282")
+              })
+              |> set.to_list,
+          ),
+        ],
       ),
+
+      case list.is_empty(captured_pieces.sacrificed) {
+        True -> element.none()
+        False ->
+          html.div(
+            [attribute.class("flex flex-col bg-blue-300 px-4 py-3 rounded-md")],
+            [
+              html.p([], [html.text("Sacrificed:")]),
+              html.div(
+                [attribute.class("flex")],
+                set.map(set.from_list(captured_pieces.sacrificed), fn(value) {
+                  let #(piece, color) = value
+                  let pawn_count =
+                    list.count(captured_pieces.sacrificed, fn(value) {
+                      let #(piece, pawn_color) = value
+                      piece == cheg.Pawn && pawn_color == color
+                    })
+                  let fill_color = case color {
+                    shared.Black -> "#fff"
+                    shared.White -> "#000"
+                  }
+
+                  captured_piece_view(piece, pawn_count, fill_color)
+                })
+                  |> set.to_list,
+              ),
+            ],
+          )
+      },
+
       state,
-      html.p(
+
+      html.div(
         [
-          attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
-          attribute.class("text-center text-3xl"),
+          attribute.class("flex gap-2"),
+          attribute.class(case player_color {
+            Some(shared.Black) -> "flex-col-reverse md:flex-col"
+            _ -> "flex-col-reverse"
+          }),
         ],
-        [html.text(white_time)],
+        [
+          html.div(
+            [attribute.class("flex")],
+            set.filter(set.from_list(captured_pieces.captured), fn(value) {
+              let #(_, color) = value
+              color == shared.White
+            })
+              |> set.map(fn(value) {
+                let #(piece, _) = value
+                let pawn_count =
+                  list.count(captured_pieces.captured, fn(value) {
+                    let #(piece, _) = value
+                    piece == cheg.Pawn
+                  })
+
+                captured_piece_view(piece, pawn_count, "#6a7282")
+              })
+              |> set.to_list,
+          ),
+          html.p(
+            [
+              attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
+              attribute.class("text-center text-3xl"),
+            ],
+            [html.text(white_time)],
+          ),
+        ],
       ),
     ],
   )
