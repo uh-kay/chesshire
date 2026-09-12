@@ -371,7 +371,7 @@ pub fn clock_view(
           attribute.class("flex gap-2"),
           attribute.class(case player_color {
             Some(shared.Black) -> "flex-col md:flex-col-reverse"
-            _ -> "flex-col"
+            _ -> "flex-col md:flex-col"
           }),
         ],
         [
@@ -386,7 +386,7 @@ pub fn clock_view(
             [attribute.class("flex")],
             set.filter(set.from_list(captured_pieces.captured), fn(value) {
               let #(_, color) = value
-              color == shared.Black
+              color == shared.White
             })
               |> set.map(fn(value) {
                 let #(piece, _) = value
@@ -438,8 +438,8 @@ pub fn clock_view(
         [
           attribute.class("flex gap-2"),
           attribute.class(case player_color {
-            Some(shared.Black) -> "flex-col-reverse md:flex-col"
-            _ -> "flex-col-reverse"
+            Some(shared.Black) -> "flex-col-reverse md:flex-col-reverse"
+            _ -> "flex-col-reverse md:flex-col"
           }),
         ],
         [
@@ -447,7 +447,7 @@ pub fn clock_view(
             [attribute.class("flex")],
             set.filter(set.from_list(captured_pieces.captured), fn(value) {
               let #(_, color) = value
-              color == shared.White
+              color == shared.Black
             })
               |> set.map(fn(value) {
                 let #(piece, _) = value
