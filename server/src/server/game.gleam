@@ -233,10 +233,15 @@ pub type GameError {
 fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
   case message {
     Join(session:, reply_to:, socket:) -> {
-      let #(time, game_state) = get_time(state.model.game, state)
-
       let state =
-        GameActor(..state, model: Chesshire(..state.model, time:, game_state:))
+        GameActor(
+          ..state,
+          model: Chesshire(
+            ..state.model,
+            time: state.model.time,
+            game_state: state.model.game_state,
+          ),
+        )
 
       case state.host, state.guest {
         // New game, first to join becomes host
@@ -373,9 +378,9 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
           False -> Error(IllegalMove)
         })
 
+        let #(time, game_state) = get_time(state.model.game, state)
         let game = cheg.apply_move(state.model.game, move)
         let state = GameActor(..state, model: Chesshire(..state.model, game:))
-        let #(time, game_state) = get_time(game, state)
 
         let host_payload =
           cheg.game_view_to_json(cheg.GameView(
@@ -577,20 +582,20 @@ fn get_time(
   }
 
   let black_time = case to_move {
-    shared.Black -> state.model.time.black_time
-    shared.White -> state.model.time.black_time - elapsed
+    shared.Black -> state.model.time.black_time - elapsed
+    shared.White -> state.model.time.black_time
   }
   let white_time = case to_move {
-    shared.Black -> state.model.time.white_time - elapsed
-    shared.White -> state.model.time.white_time
+    shared.Black -> state.model.time.white_time
+    shared.White -> state.model.time.white_time - elapsed
   }
   let black_tick = case to_move {
-    shared.White -> now
     shared.Black -> state.model.time.black_tick
+    shared.White -> now
   }
   let white_tick = case to_move {
-    shared.White -> state.model.time.white_tick
     shared.Black -> now
+    shared.White -> state.model.time.white_tick
   }
 
   let state = cheg.state(game)
