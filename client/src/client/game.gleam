@@ -127,7 +127,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
             -> cheg.legal_moves_for_piece(model.game, position)
             Some(#(_, piece_color))
               if player_color == piece_color && model.game_state == cheg.Continue
-            -> cheg.legal_premoves_for_piece(previous_game, position)
+            -> cheg.legal_premoves_for_piece(previous_game, position, to_move)
 
             _ -> []
           }

@@ -206,11 +206,16 @@ pub fn legal_moves_for_piece(game: Game, pos: Int) -> List(Move) {
   list.filter(legal_moves(game), fn(move) { move.move.from == pos })
 }
 
-pub fn legal_premoves_for_piece(game: Game, pos: Int) {
-  let to_move = case game.game.to_move {
-    board.White -> board.Black
-    board.Black -> board.White
+pub fn legal_premoves_for_piece(
+  game: Game,
+  pos: Int,
+  to_move: shared.PlayerColor,
+) {
+  let to_move = case to_move {
+    shared.White -> board.White
+    shared.Black -> board.Black
   }
+
   let king_position = case to_move {
     board.White -> game.game.white_pieces.king_position
     board.Black -> game.game.black_pieces.king_position
@@ -222,7 +227,15 @@ pub fn legal_premoves_for_piece(game: Game, pos: Int) {
       king_position,
       to_move,
     )
-  let game = Game(game.Game(..game.game, to_move:, attack_information:))
+  let game =
+    Game(
+      game.Game(
+        ..game.game,
+        to_move:,
+        attack_information:,
+        en_passant_square: None,
+      ),
+    )
   list.filter(legal_moves(game), fn(move) { move.move.from == pos })
 }
 
