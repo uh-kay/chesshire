@@ -3,9 +3,8 @@ import gleam/http.{Get, Post}
 import gleam/json
 import gleam/otp/actor
 import gleam/result
-import server/context.{type Context}
 import server/game
-import server/web
+import server/web.{type Context}
 import shared
 import wisp.{type Request, type Response, Signed}
 

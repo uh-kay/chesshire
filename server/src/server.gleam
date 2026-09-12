@@ -3,9 +3,9 @@ import gleam/erlang/process
 import gleam/int
 import gleam/result
 import mist
-import server/context
 import server/game
 import server/router
+import server/web
 import wisp
 import wisp_mist
 
@@ -14,7 +14,7 @@ pub fn main() -> Nil {
 
   let assert Ok(secret_key) = envoy.get("SECRET_KEY")
   let assert Ok(started) = game.start_registry()
-  let ctx = context.Context(registry: started.data)
+  let ctx = web.Context(registry: started.data)
   let assert Ok(priv_directory) = wisp.priv_directory("server")
   let static_directory = priv_directory <> "/static"
 

@@ -233,16 +233,6 @@ pub type GameError {
 fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
   case message {
     Join(session:, reply_to:, socket:) -> {
-      let state =
-        GameActor(
-          ..state,
-          model: Chesshire(
-            ..state.model,
-            time: state.model.time,
-            game_state: state.model.game_state,
-          ),
-        )
-
       case state.host, state.guest {
         // New game, first to join becomes host
         Empty, Empty -> {

@@ -1,7 +1,13 @@
+import gleam/erlang/process.{type Subject}
 import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html
+import server/game
 import wisp.{type Request, type Response}
+
+pub type Context {
+  Context(registry: Subject(game.RegistryMsg))
+}
 
 pub fn middleware(
   req: Request,
