@@ -2,7 +2,6 @@ import cheg
 import client/component
 import client/icon
 import client/websocket
-import gleam/dict
 import gleam/int
 import gleam/javascript/promise.{type Promise}
 import gleam/json
@@ -37,9 +36,7 @@ pub type Model {
     offset: Int,
     lobby_id: String,
     is_public: Bool,
-    move_count: Int,
     premove: Option(cheg.Move),
-    game_history: dict.Dict(Int, cheg.Game),
   )
 }
 
@@ -60,7 +57,6 @@ pub fn init(
   lobby_id: String,
 ) -> #(Model, Effect(Message)) {
   let game = cheg.new(shared.TwinPasses, shared.RiverSacrifice)
-  let game_history = dict.new() |> dict.insert(1, game)
   let time = shared.new_time(shared.monotonic_time())
 
   let init_message = case websocket {
@@ -89,8 +85,6 @@ pub fn init(
       lobby_id:,
       is_public: False,
       premove: None,
-      game_history:,
-      move_count: 1,
     )
   let effect = effect.batch([get_game_view(init_message), tick()])
 
@@ -106,19 +100,6 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         Some(player_color) -> {
           let to_move = cheg.to_move(model.game)
 
-          let previous_game = case model.move_count {
-            1 -> {
-              let assert Ok(previous_game) =
-                dict.get(model.game_history, model.move_count)
-              previous_game
-            }
-            _ -> {
-              let assert Ok(previous_game) =
-                dict.get(model.game_history, model.move_count - 1)
-              previous_game
-            }
-          }
-
           case piece {
             Some(#(_, piece_color))
               if player_color == to_move
@@ -127,8 +108,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
             -> cheg.legal_moves_for_piece(model.game, position)
             Some(#(_, piece_color))
               if player_color == piece_color && model.game_state == cheg.Continue
-            -> cheg.legal_premoves_for_piece(previous_game, position, to_move)
-
+            -> cheg.legal_premoves_for_piece(model.game, position, player_color)
             _ -> []
           }
         }
@@ -194,9 +174,6 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
           }
 
           let game = game_view.game
-          let game_history =
-            dict.insert(model.game_history, model.move_count + 1, game)
-          let move_count = model.move_count + 1
 
           case model.premove {
             Some(move) -> {
@@ -233,8 +210,6 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
               player_color: game_view.player_color,
               is_public: game_view.is_public,
               premove: None,
-              game_history:,
-              move_count:,
             )
 
           #(model, effect)
