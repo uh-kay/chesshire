@@ -14,10 +14,12 @@ FROM erlang:${ERLANG_VERSION} AS builder
 COPY --from=gleam-bin /bin/gleam /bin/gleam
 
 COPY ./shared /build/shared
+COPY ./cheg /build/cheg
 COPY ./client /build/client
 COPY ./server /build/server
 
 RUN cd /build/shared && gleam deps download
+RUN cd /build/cheg && gleam deps download
 RUN cd /build/client && gleam deps download
 RUN cd /build/server && gleam deps download
 
