@@ -5,12 +5,10 @@ import gleam/option
 import gleam/uri
 import lustre/attribute
 import lustre/effect
-import lustre/element.{type Element}
+import lustre/element
 import lustre/element/html
 import lustre/event
 import modem
-import plinth/browser/location
-import plinth/browser/window
 import shared.{GreatCrossing, TwinPasses}
 
 pub type Model {
@@ -240,22 +238,5 @@ pub fn view(model: Model) {
       ),
     ],
   )
-  |> layout
+  |> component.layout()
 }
-
-fn layout(content: Element(Message)) -> Element(Message) {
-  let location = window.self() |> window.location()
-  let protocol = protocol(location)
-  let static_directory = case protocol {
-    "https:" -> "/static/"
-    _ -> ""
-  }
-
-  element.fragment([
-    component.navbar(static_directory),
-    html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
-  ])
-}
-
-@external(javascript, "../client.ffi.mjs", "protocol")
-fn protocol(location: location.Location) -> String

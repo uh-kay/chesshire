@@ -10,6 +10,8 @@ import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html
 import lustre/event
+import plinth/browser/location
+import plinth/browser/window
 import shared
 
 pub type Message {
@@ -75,10 +77,8 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
   })
   |> list.map(fn(square) {
     let #(pos, piece) = square
-    let row = pos / 8
-    let col = pos % 8
 
-    let color = case { row + col } % 2 {
+    let color = case pos % 2 {
       0 -> Black
       _ -> White
     }
@@ -229,7 +229,7 @@ fn square_style() {
   attribute.class("flex justify-center items-center relative aspect-square")
 }
 
-fn square_color_style(square_color: SquareColor) {
+pub fn square_color_style(square_color: SquareColor) {
   attribute.class(case square_color {
     White -> "bg-green-200/50"
     Black -> "bg-green-700/70"
@@ -513,3 +513,20 @@ fn format_time(time: Int) {
   <> ":"
   <> string.pad_start(int.to_string(seconds), 2, "0")
 }
+
+pub fn layout(content: Element(a)) -> Element(a) {
+  let location = window.self() |> window.location()
+  let protocol = protocol(location)
+  let static_directory = case protocol {
+    "https:" -> "/static/"
+    _ -> ""
+  }
+
+  element.fragment([
+    navbar(static_directory),
+    html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
+  ])
+}
+
+@external(javascript, "../client.ffi.mjs", "protocol")
+fn protocol(location: location.Location) -> String

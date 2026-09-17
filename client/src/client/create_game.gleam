@@ -243,15 +243,5 @@ pub fn view(model: Model) -> Element(Message) {
       ),
     ])
 
-  layout(static_directory, content)
-}
-
-fn layout(
-  static_directory: String,
-  content: Element(Message),
-) -> Element(Message) {
-  element.fragment([
-    component.navbar(static_directory),
-    html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
-  ])
+  component.layout(content)
 }

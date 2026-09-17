@@ -14,8 +14,6 @@ import lustre/element/html
 import lustre/event
 import modem
 import plinth/browser/clipboard
-import plinth/browser/location
-import plinth/browser/window
 import shared
 
 // MODEL ----------------------------------------------------------------------
@@ -347,9 +345,6 @@ fn stop_clock() -> Effect(Message) {
 
 // EXTERNALS ------------------------------------------------------------------
 
-@external(javascript, "../client.ffi.mjs", "protocol")
-fn protocol(location: location.Location) -> String
-
 @external(javascript, "../client.ffi.mjs", "set_timeout")
 fn set_timeout(delay: Int, cb: fn() -> a) -> Nil
 
@@ -393,7 +388,7 @@ pub fn view(model: Model) -> Element(Message) {
           ]),
         ])
 
-      layout(content)
+      component.layout(content)
     }
     False, True -> {
       let content =
@@ -410,7 +405,7 @@ pub fn view(model: Model) -> Element(Message) {
           ],
         )
 
-      layout(content)
+      component.layout(content)
     }
     True, _ -> {
       let captured_pieces = cheg.get_captured_pieces(model.game)
@@ -439,21 +434,7 @@ pub fn view(model: Model) -> Element(Message) {
           ],
         )
 
-      layout(content)
+      component.layout(content)
     }
   }
-}
-
-fn layout(content: Element(Message)) -> Element(Message) {
-  let location = window.self() |> window.location()
-  let protocol = protocol(location)
-  let static_directory = case protocol {
-    "https:" -> "/static/"
-    _ -> ""
-  }
-
-  element.fragment([
-    component.navbar(static_directory),
-    html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
-  ])
 }

@@ -1,21 +1,17 @@
 import client/accordion
-import client/component
 import client/create_game
 import client/game
 import client/home
+import client/learn
 import client/websocket.{type Websocket}
 import gleam/http/response.{type Response}
 import gleam/json
 import gleam/option.{type Option, None, Some}
 import gleam/uri
 import lustre
-import lustre/attribute
 import lustre/effect.{type Effect}
 import lustre/element.{type Element}
-import lustre/element/html
 import modem
-import plinth/browser/location
-import plinth/browser/window
 import rsvp
 
 pub fn main() -> Nil {
@@ -42,15 +38,16 @@ type PageModel {
   CreateModel(create_game.Model)
   HomeModel(home.Model)
   GameModel(game.Model)
-  LearnModel
+  LearnModel(learn.Model)
   NotFoundModel
 }
 
 pub type Message {
   AccordionProducedMessage(accordion.Message)
 
-  CreatePageMessage(create_game.Message)
   HomePageMessage(home.Message)
+  LearnPageMessage(learn.Message)
+  CreatePageMessage(create_game.Message)
   GamePageMessage(game.Message)
 
   UserNavigatedTo(Route)
@@ -134,7 +131,7 @@ fn init_page(route: Route, websocket: Option(Websocket), uri: Option(uri.Uri)) {
       let #(model, effect) = game.init(uri, websocket, id)
       #(GameModel(model), effect.map(effect, GamePageMessage))
     }
-    Learn -> #(LearnModel, effect.none())
+    Learn -> #(LearnModel(learn.init()), effect.none())
     NotFound -> #(NotFoundModel, effect.none())
   }
 }
@@ -242,12 +239,25 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         }
         _ -> #(model, effect.none())
       }
+
     GamePageMessage(message) ->
       case model.page_model {
         GameModel(game_model) -> {
           let #(game_model, effect) = game.update(game_model, message)
           let model = Model(..model, page_model: GameModel(game_model))
           let effect = effect.map(effect, GamePageMessage)
+
+          #(model, effect)
+        }
+        _ -> #(model, effect.none())
+      }
+
+    LearnPageMessage(message) ->
+      case model.page_model {
+        LearnModel(learn_model) -> {
+          let #(learn_model, effect) = learn.update(learn_model, message)
+          let model = Model(..model, page_model: LearnModel(learn_model))
+          let effect = effect.map(effect, LearnPageMessage)
 
           #(model, effect)
         }
@@ -286,19 +296,9 @@ fn set_timeout(delay: Int, callback: fn() -> a) -> Nil
 @external(javascript, "./client.ffi.mjs", "websocket_url")
 fn websocket_url(path: String) -> String
 
-@external(javascript, "./client.ffi.mjs", "protocol")
-fn protocol(location: location.Location) -> String
-
 // VIEW -----------------------------------------------------------------------
 
 fn view(model: Model) -> Element(Message) {
-  let location = window.self() |> window.location()
-  let protocol = protocol(location)
-  let static_directory = case protocol {
-    "https:" -> "/static/"
-    _ -> ""
-  }
-
   case model.route {
     NotFound -> element.none()
 
@@ -309,54 +309,10 @@ fn view(model: Model) -> Element(Message) {
       }
 
     Learn -> {
-      let content =
-        html.main([attribute.class("max-w-fit mx-auto")], [
-          html.p([attribute.class("pt-8 text-xl font-bold text-blue-500")], [
-            html.text("What is Chesshire?"),
-          ]),
-          html.div([attribute.class("text-justify")], [
-            html.p([attribute.class("mt-2")], [
-              html.text(
-                "Chesshire is a new chess variant with river and bridges!",
-              ),
-            ]),
-            html.img([
-              attribute.class("w-lg mt-2"),
-              attribute.src(static_directory <> "chesshire_screenshot.webp"),
-            ]),
-            html.p([attribute.class("mt-2")], [
-              html.text("Normal chess rule applies but with these additions:"),
-            ]),
-            html.ul([attribute.class("list-disc list-inside")], [
-              html.li([], [html.text("Piece cannot move onto river tiles.")]),
-              html.li([], [
-                html.text(
-                  "Knight can jump across the river but cannot land on it.",
-                ),
-              ]),
-              html.img([
-                attribute.class("w-64"),
-                attribute.src(static_directory <> "knight_rule.png"),
-              ]),
-              html.li([], [
-                html.text(
-                  "Pieces cannot attack opponent piece across the river.",
-                ),
-              ]),
-              html.img([
-                attribute.class("w-64"),
-                attribute.src(static_directory <> "attack_rule.png"),
-              ]),
-              html.li([], [
-                html.text(
-                  "Pieces can only cross using bridges."
-                  <> " They can also attack opponent piece across the bridge.",
-                ),
-              ]),
-            ]),
-          ]),
-        ])
-      layout(content)
+      case model.page_model {
+        LearnModel(model) -> learn.view(model) |> element.map(LearnPageMessage)
+        _ -> element.none()
+      }
     }
 
     Create(_) ->
@@ -365,24 +321,11 @@ fn view(model: Model) -> Element(Message) {
           create_game.view(model) |> element.map(CreatePageMessage)
         _ -> element.none()
       }
+
     Game(_) ->
       case model.page_model {
         GameModel(model) -> game.view(model) |> element.map(GamePageMessage)
         _ -> element.none()
       }
   }
-}
-
-fn layout(content: Element(Message)) -> Element(Message) {
-  let location = window.self() |> window.location()
-  let protocol = protocol(location)
-  let static_directory = case protocol {
-    "https:" -> "/static/"
-    _ -> ""
-  }
-
-  element.fragment([
-    component.navbar(static_directory),
-    html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
-  ])
 }
