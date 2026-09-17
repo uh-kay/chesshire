@@ -77,10 +77,12 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
   })
   |> list.map(fn(square) {
     let #(pos, piece) = square
+    let row = pos / 8
+    let col = pos % 8
 
-    let color = case pos % 2 {
-      0 -> Black
-      _ -> White
+    let color = case { row + col } % 2 == 0 {
+      True -> Black
+      False -> White
     }
     let river_square = cheg.river_squares(model.game)
     let bridge_square = cheg.bridge_squares(model.game)
