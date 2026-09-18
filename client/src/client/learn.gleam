@@ -2,6 +2,7 @@ import cheg
 import client/component
 import client/icon
 import gleam/dict
+import gleam/dynamic/decode
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -35,6 +36,7 @@ pub type RiverKnightModel {
     board: dict.Dict(Int, Option(Piece)),
     moves: List(#(Int, Int)),
     can_move: Bool,
+    dragged_over_square: Option(Int),
   )
 }
 
@@ -45,6 +47,7 @@ pub type PawnSacrificeModel {
     can_move: Bool,
     river_squares: List(Int),
     bridge_squares: List(Int),
+    dragged_over_square: Option(Int),
   )
 }
 
@@ -55,12 +58,18 @@ pub type BridgeMovementModel {
     can_move: Bool,
     river_squares: List(Int),
     bridge_squares: List(Int),
+    dragged_over_square: Option(Int),
   )
 }
 
 pub type Message {
   UserClickedPiece(for: BoardType, from: Int)
   UserClickedTargetSquare(for: BoardType, move: #(Int, Int))
+  UserDraggedPiece(for: BoardType, from: Int)
+  UserDraggedOverTargetSquare
+  UserDraggedToTargetSquare(for: BoardType, position: Int)
+  UserDroppedPiece(for: BoardType, move: #(Int, Int))
+  UserCanceledDrag
 }
 
 pub fn init() {
@@ -79,6 +88,7 @@ pub fn init() {
       ]),
       moves: [],
       can_move: True,
+      dragged_over_square: None,
     )
   let pawn_sacrifice_model =
     PawnSacrificeModel(
@@ -97,6 +107,7 @@ pub fn init() {
       can_move: True,
       river_squares: [4, 5, 6],
       bridge_squares: [],
+      dragged_over_square: None,
     )
   let bridge_movement_model =
     BridgeMovementModel(
@@ -115,6 +126,7 @@ pub fn init() {
       can_move: True,
       river_squares: [4, 6],
       bridge_squares: [5],
+      dragged_over_square: None,
     )
 
   Model(river_knight_model:, pawn_sacrifice_model:, bridge_movement_model:)
@@ -187,7 +199,12 @@ pub fn update(model: Model, message: Message) {
 
           Model(
             ..model,
-            river_knight_model: RiverKnightModel(board:, moves:, can_move:),
+            river_knight_model: RiverKnightModel(
+              ..model.river_knight_model,
+              board:,
+              moves:,
+              can_move:,
+            ),
           )
         }
         PawnSacrifice -> {
@@ -206,6 +223,7 @@ pub fn update(model: Model, message: Message) {
           Model(
             ..model,
             pawn_sacrifice_model: PawnSacrificeModel(
+              ..model.pawn_sacrifice_model,
               board:,
               moves:,
               can_move:,
@@ -240,6 +258,182 @@ pub fn update(model: Model, message: Message) {
 
       #(model, effect.none())
     }
+    UserDraggedPiece(for:, from:) -> {
+      let model = case for {
+        RiverKnight -> {
+          let moves = case model.river_knight_model.can_move {
+            True -> [#(from, 7), #(from, 9)]
+            False -> []
+          }
+
+          Model(
+            ..model,
+            river_knight_model: RiverKnightModel(
+              ..model.river_knight_model,
+              moves:,
+            ),
+          )
+        }
+        PawnSacrifice -> {
+          let moves = case model.pawn_sacrifice_model.can_move {
+            True -> [#(from, 5)]
+            False -> []
+          }
+
+          Model(
+            ..model,
+            pawn_sacrifice_model: PawnSacrificeModel(
+              ..model.pawn_sacrifice_model,
+              moves:,
+            ),
+          )
+        }
+        BridgeMovement -> {
+          let moves = case model.bridge_movement_model.can_move {
+            True -> [#(from, 5), #(from, 9)]
+            False -> []
+          }
+
+          Model(
+            ..model,
+            bridge_movement_model: BridgeMovementModel(
+              ..model.bridge_movement_model,
+              moves:,
+            ),
+          )
+        }
+      }
+
+      #(model, effect.none())
+    }
+    UserDraggedOverTargetSquare -> #(model, effect.none())
+    UserDraggedToTargetSquare(position:, for:) -> {
+      let model = case for {
+        RiverKnight ->
+          Model(
+            ..model,
+            river_knight_model: RiverKnightModel(
+              ..model.river_knight_model,
+              dragged_over_square: Some(position),
+            ),
+          )
+        PawnSacrifice ->
+          Model(
+            ..model,
+            pawn_sacrifice_model: PawnSacrificeModel(
+              ..model.pawn_sacrifice_model,
+              dragged_over_square: Some(position),
+            ),
+          )
+        BridgeMovement ->
+          Model(
+            ..model,
+            bridge_movement_model: BridgeMovementModel(
+              ..model.bridge_movement_model,
+              dragged_over_square: Some(position),
+            ),
+          )
+      }
+
+      #(model, effect.none())
+    }
+    UserDroppedPiece(for:, move:) -> {
+      let model = case for {
+        RiverKnight -> {
+          let piece = case dict.get(model.river_knight_model.board, move.0) {
+            Ok(piece) -> piece
+            Error(_) -> None
+          }
+          let board =
+            model.river_knight_model.board
+            |> dict.insert(move.0, None)
+            |> dict.insert(move.1, piece)
+          let moves = []
+          let can_move = False
+
+          Model(
+            ..model,
+            river_knight_model: RiverKnightModel(
+              ..model.river_knight_model,
+              board:,
+              moves:,
+              can_move:,
+            ),
+          )
+        }
+        PawnSacrifice -> {
+          let board =
+            model.pawn_sacrifice_model.board
+            |> dict.insert(move.0, None)
+
+          let moves = []
+          let can_move = False
+          let river_squares =
+            list.filter(model.pawn_sacrifice_model.river_squares, fn(pos) {
+              pos != move.1
+            })
+          let bridge_squares = [move.1]
+
+          Model(
+            ..model,
+            pawn_sacrifice_model: PawnSacrificeModel(
+              ..model.pawn_sacrifice_model,
+              board:,
+              moves:,
+              can_move:,
+              river_squares:,
+              bridge_squares:,
+            ),
+          )
+        }
+        BridgeMovement -> {
+          let piece = case dict.get(model.bridge_movement_model.board, move.0) {
+            Ok(piece) -> piece
+            Error(_) -> None
+          }
+          let board =
+            model.bridge_movement_model.board
+            |> dict.insert(move.0, None)
+            |> dict.insert(move.1, piece)
+          let moves = []
+          let can_move = False
+
+          Model(
+            ..model,
+            bridge_movement_model: BridgeMovementModel(
+              ..model.bridge_movement_model,
+              board:,
+              moves:,
+              can_move:,
+            ),
+          )
+        }
+      }
+
+      #(model, effect.none())
+    }
+    UserCanceledDrag -> {
+      let model =
+        Model(
+          river_knight_model: RiverKnightModel(
+            ..model.river_knight_model,
+            moves: [],
+            dragged_over_square: None,
+          ),
+          pawn_sacrifice_model: PawnSacrificeModel(
+            ..model.pawn_sacrifice_model,
+            moves: [],
+            dragged_over_square: None,
+          ),
+          bridge_movement_model: BridgeMovementModel(
+            ..model.bridge_movement_model,
+            moves: [],
+            dragged_over_square: None,
+          ),
+        )
+
+      #(model, effect.none())
+    }
   }
 }
 
@@ -268,6 +462,7 @@ pub fn view(model: Model) {
           [4, 5, 6],
           [],
           model.river_knight_model.moves,
+          model.river_knight_model.dragged_over_square,
         ),
       ),
     ]),
@@ -285,6 +480,7 @@ pub fn view(model: Model) {
           model.pawn_sacrifice_model.river_squares,
           model.pawn_sacrifice_model.bridge_squares,
           model.pawn_sacrifice_model.moves,
+          model.pawn_sacrifice_model.dragged_over_square,
         ),
       ),
     ]),
@@ -302,6 +498,7 @@ pub fn view(model: Model) {
           model.bridge_movement_model.river_squares,
           model.bridge_movement_model.bridge_squares,
           model.bridge_movement_model.moves,
+          model.bridge_movement_model.dragged_over_square,
         ),
       ),
     ]),
@@ -309,7 +506,14 @@ pub fn view(model: Model) {
   |> component.layout
 }
 
-fn demo_view(for, board, river_squares, bridge_squares, moves) {
+fn demo_view(
+  for,
+  board,
+  river_squares,
+  bridge_squares,
+  moves,
+  dragover_square,
+) {
   let board =
     dict.to_list(board)
     |> list.sort(fn(a, b) {
@@ -346,12 +550,20 @@ fn demo_view(for, board, river_squares, bridge_squares, moves) {
 
     let square_view =
       html.div(square_style, [
-        html.div([attribute.class("w-18 scale-y-[-1]")], [piece_view(piece)]),
+        html.div(
+          [
+            attribute.class("w-18 scale-y-[-1]"),
+            attribute.draggable(True),
+            event.on("dragstart", decode.success(UserDraggedPiece(for, pos))),
+            event.on("dragend", decode.success(UserCanceledDrag)),
+          ],
+          [piece_view(piece)],
+        ),
         special_square_marker(square_color, Some(shared.White)),
       ])
 
     let has_piece = option.is_some(piece)
-    let target_square_view = fn(move) {
+    let target_square_view = fn(move, is_dragover) {
       html.div(
         [
           attribute.class(case list.contains(river_squares, pos) || has_piece {
@@ -359,14 +571,24 @@ fn demo_view(for, board, river_squares, bridge_squares, moves) {
             False -> ""
           }),
           event.on_click(UserClickedTargetSquare(for, move)),
+          event.on(
+            "dragenter",
+            decode.success(UserDraggedToTargetSquare(for, pos)),
+          ),
+          event.on("dragover", decode.success(UserDraggedOverTargetSquare))
+            |> event.prevent_default(),
+          event.on("drop", decode.success(UserDroppedPiece(for, move))),
           ..square_style
         ],
         [
           html.div(
             [
-              attribute.class(case piece {
-                Some(_) -> "w-18 z-40 flex justify-center"
-                None -> "w-3 h-3 rounded-full bg-black/30"
+              attribute.class(case piece, is_dragover {
+                Some(_), True ->
+                  "w-full h-full flex justify-center items-center bg-purple-700/15"
+                Some(_), False -> "w-18 z-40 flex justify-center"
+                None, False -> "w-3 h-3 rounded-full bg-black/30"
+                None, True -> "w-full h-full bg-purple-700/15"
               }),
               attribute.class("scale-y-[-1]"),
             ],
@@ -385,10 +607,13 @@ fn demo_view(for, board, river_squares, bridge_squares, moves) {
 
     case list.contains(to_moves, pos) {
       True ->
-        target_square_view(case list.find(moves, fn(move) { move.1 == pos }) {
-          Ok(move) -> move
-          Error(_) -> #(-1, -1)
-        })
+        target_square_view(
+          case list.find(moves, fn(move) { move.1 == pos }) {
+            Ok(move) -> move
+            Error(_) -> #(-1, -1)
+          },
+          dragover_square == Some(pos),
+        )
       False -> square_view
     }
   })

@@ -1,6 +1,7 @@
 import cheg
 import client/icon
 import gleam/dict
+import gleam/dynamic/decode
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -20,6 +21,14 @@ pub type Message {
     position: Int,
   )
   UserClickedTargetSquare(move: cheg.Move)
+  UserDraggedSquare(
+    piece: Option(#(cheg.PieceType, shared.PlayerColor)),
+    position: Int,
+  )
+  UserDraggedToTargetSquare(position: Int)
+  UserDraggedOverTargetSquare
+  UserDroppedPiece(move: cheg.Move)
+  UserCanceledDrag
 }
 
 pub type Model {
@@ -28,6 +37,7 @@ pub type Model {
     moves: List(cheg.Move),
     player_color: Option(shared.PlayerColor),
     premove: Option(cheg.Move),
+    dragged_over_square: Option(Int),
   )
 }
 
@@ -120,6 +130,7 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
           move,
           last_move,
           list.contains(river_square, cheg.move_to(move)),
+          model.dragged_over_square == Some(pos),
         )
       Error(_) ->
         square_view(
@@ -143,6 +154,7 @@ fn target_square_view(
   move: cheg.Move,
   is_last_move: Bool,
   is_river: Bool,
+  is_dragover: Bool,
 ) -> Element(Message) {
   let has_piece = option.is_some(piece)
 
@@ -156,14 +168,21 @@ fn target_square_view(
       }),
       attribute.data("pos", int.to_string(position)),
       event.on_click(UserClickedTargetSquare(move)),
+      event.on("dragenter", decode.success(UserDraggedToTargetSquare(position))),
+      event.on("dragover", decode.success(UserDraggedOverTargetSquare))
+        |> event.prevent_default(),
+      event.on("drop", decode.success(UserDroppedPiece(move))),
     ],
     [
       special_square_marker(square_color, player_color),
       html.div(
         [
-          attribute.class(case piece {
-            Some(_) -> "w-18 z-40 flex justify-center"
-            None -> "w-3 h-3 lg:w-5 lg:h-5 rounded-full bg-black/30"
+          attribute.class(case piece, is_dragover {
+            Some(_), True ->
+              "w-full h-full flex justify-center items-center bg-purple-700/15"
+            Some(_), False -> "w-18 z-40 flex justify-center"
+            None, False -> "w-3 h-3 lg:w-5 lg:h-5 rounded-full bg-black/30"
+            None, True -> "w-full h-full bg-purple-700/15"
           }),
           attribute.class(case piece, player_color {
             Some(_), Some(shared.White) -> "scale-y-[-1]"
@@ -219,7 +238,20 @@ fn square_view(
             None -> "scale-y-[-1]"
           }),
         ],
-        [html.div([attribute.class("w-11 md:w-16")], [piece_view(piece)])],
+        [
+          html.div(
+            [
+              attribute.class("w-11 md:w-16"),
+              attribute.draggable(True),
+              event.on(
+                "dragstart",
+                decode.success(UserDraggedSquare(piece, position)),
+              ),
+              event.on("dragend", decode.success(UserCanceledDrag)),
+            ],
+            [piece_view(piece)],
+          ),
+        ],
       ),
       last_move_indicator(is_last_move),
       premove_indicator(is_premove),

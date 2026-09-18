@@ -1,7 +1,7 @@
 import cheg
 import client/component
 import client/icon
-import gleam/option
+import gleam/option.{type Option, None, Some}
 import gleam/uri
 import lustre/attribute
 import lustre/effect
@@ -17,6 +17,7 @@ pub type Model {
     board_variant: shared.BoardVariant,
     game_variant: shared.GameVariant,
     current_piece_moves: List(cheg.Move),
+    dragged_over_square: Option(Int),
   )
 }
 
@@ -35,6 +36,7 @@ pub fn init() -> Model {
     board_variant: TwinPasses,
     game_variant: shared.RiverSacrifice,
     current_piece_moves: [],
+    dragged_over_square: None,
   )
 }
 
@@ -52,6 +54,32 @@ pub fn update(model: Model, message: Message) {
 
       #(model, effect.none())
     }
+    ComponentProducedMessage(component.UserDraggedSquare(position:, piece: _)) -> {
+      let moves = cheg.legal_moves_for_piece(model.game, position)
+
+      let model = Model(..model, current_piece_moves: moves)
+
+      #(model, effect.none())
+    }
+    ComponentProducedMessage(component.UserDraggedToTargetSquare(position:)) -> {
+      let model = Model(..model, dragged_over_square: Some(position))
+      #(model, effect.none())
+    }
+    ComponentProducedMessage(component.UserDroppedPiece(move:)) -> {
+      let game = cheg.apply_move(model.game, move)
+      let model = Model(..model, game:, current_piece_moves: [])
+
+      #(model, effect.none())
+    }
+    ComponentProducedMessage(component.UserCanceledDrag) -> {
+      let model =
+        Model(..model, dragged_over_square: None, current_piece_moves: [])
+      #(model, effect.none())
+    }
+    ComponentProducedMessage(component.UserDraggedOverTargetSquare) -> #(
+      model,
+      effect.none(),
+    )
     UserClickedCreatePublicGame -> {
       let effect = case uri.parse("/create") {
         Ok(uri) -> modem.load(uri)
@@ -230,8 +258,9 @@ pub fn view(model: Model) {
           component.game_view(component.Model(
             game: model.game,
             moves: model.current_piece_moves,
-            player_color: option.Some(shared.White),
-            premove: option.None,
+            player_color: Some(shared.White),
+            premove: None,
+            dragged_over_square: model.dragged_over_square,
           ))
             |> element.map(ComponentProducedMessage),
         ],

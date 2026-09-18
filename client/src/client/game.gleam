@@ -35,6 +35,7 @@ pub type Model {
     lobby_id: String,
     is_public: Bool,
     premove: Option(cheg.Move),
+    dragged_over_square: Option(Int),
   )
 }
 
@@ -83,6 +84,7 @@ pub fn init(
       lobby_id:,
       is_public: False,
       premove: None,
+      dragged_over_square: None,
     )
   let effect = effect.batch([get_game_view(init_message), tick()])
 
@@ -152,6 +154,86 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
+    ComponentProducedMessage(component.UserDraggedSquare(position:, piece:)) -> {
+      let current_piece_moves = case model.player_color {
+        Some(player_color) -> {
+          let to_move = cheg.to_move(model.game)
+
+          case piece {
+            Some(#(_, piece_color))
+              if player_color == to_move
+              && player_color == piece_color
+              && model.game_state == cheg.Continue
+            -> cheg.legal_moves_for_piece(model.game, position)
+            Some(#(_, piece_color))
+              if player_color == piece_color && model.game_state == cheg.Continue
+            -> cheg.legal_premoves_for_piece(model.game, position, player_color)
+            _ -> []
+          }
+        }
+        None -> []
+      }
+
+      let model = Model(..model, current_piece_moves:)
+      let effect = effect.none()
+
+      #(model, effect)
+    }
+    ComponentProducedMessage(component.UserDraggedToTargetSquare(position:)) -> {
+      let model = Model(..model, dragged_over_square: Some(position))
+
+      #(model, effect.none())
+    }
+    ComponentProducedMessage(component.UserDroppedPiece(move:)) -> {
+      let message = cheg.move_to_json(move) |> json.to_string
+
+      let to_move = cheg.to_move(model.game)
+      let #(game, premove) = case model.player_color {
+        Some(player_color) ->
+          case player_color != to_move {
+            True -> #(model.game, Some(move))
+            False -> #(cheg.apply_move(model.game, move), None)
+          }
+        None -> #(model.game, model.premove)
+      }
+
+      case premove {
+        Some(_) -> Nil
+        None ->
+          case model.websocket {
+            Some(ws) -> websocket.send_message(ws, message)
+            None -> Nil
+          }
+      }
+
+      let model =
+        Model(
+          ..model,
+          game:,
+          current_piece: None,
+          current_piece_moves: [],
+          premove:,
+          dragged_over_square: None,
+        )
+      let effect = effect.none()
+
+      #(model, effect)
+    }
+    ComponentProducedMessage(component.UserCanceledDrag) -> {
+      let model =
+        Model(
+          ..model,
+          dragged_over_square: None,
+          current_piece: None,
+          current_piece_moves: [],
+        )
+
+      #(model, effect.none())
+    }
+    ComponentProducedMessage(component.UserDraggedOverTargetSquare) -> #(
+      model,
+      effect.none(),
+    )
     UserClickedCopyLink(lobby_url:) -> {
       let model = Model(..model, link_copied: True)
       let effect = effect.batch([copy_link(lobby_url), reset_timer(1000)])
@@ -421,6 +503,7 @@ pub fn view(model: Model) -> Element(Message) {
               moves: model.current_piece_moves,
               player_color: model.player_color,
               premove: model.premove,
+              dragged_over_square: model.dragged_over_square,
             ))
               |> element.map(ComponentProducedMessage),
             component.clock_view(
