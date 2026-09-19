@@ -42,21 +42,8 @@ pub fn init() -> Model {
 
 pub fn update(model: Model, message: Message) {
   case message {
-    ComponentProducedMessage(component.UserClickedSquare(piece: _, position:)) -> {
+    ComponentProducedMessage(component.UserPickedUpPiece(piece: _, position:)) -> {
       let moves = cheg.legal_moves_for_piece(model.game, position)
-      let model = Model(..model, current_piece_moves: moves)
-
-      #(model, effect.none())
-    }
-    ComponentProducedMessage(component.UserClickedTargetSquare(move:)) -> {
-      let game = cheg.apply_move(model.game, move)
-      let model = Model(..model, game:, current_piece_moves: [])
-
-      #(model, effect.none())
-    }
-    ComponentProducedMessage(component.UserDraggedSquare(position:, piece: _)) -> {
-      let moves = cheg.legal_moves_for_piece(model.game, position)
-
       let model = Model(..model, current_piece_moves: moves)
 
       #(model, effect.none())

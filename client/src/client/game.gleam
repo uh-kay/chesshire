@@ -95,66 +95,7 @@ pub fn init(
 
 pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
   case message {
-    ComponentProducedMessage(component.UserClickedSquare(piece:, position:)) -> {
-      let current_piece_moves = case model.player_color {
-        Some(player_color) -> {
-          let to_move = cheg.to_move(model.game)
-
-          case piece {
-            Some(#(_, piece_color))
-              if player_color == to_move
-              && player_color == piece_color
-              && model.game_state == cheg.Continue
-            -> cheg.legal_moves_for_piece(model.game, position)
-            Some(#(_, piece_color))
-              if player_color == piece_color && model.game_state == cheg.Continue
-            -> cheg.legal_premoves_for_piece(model.game, position, player_color)
-            _ -> []
-          }
-        }
-        None -> []
-      }
-
-      let model = Model(..model, current_piece_moves:)
-      let effect = effect.none()
-
-      #(model, effect)
-    }
-    ComponentProducedMessage(component.UserClickedTargetSquare(move:)) -> {
-      let message = cheg.move_to_json(move) |> json.to_string
-
-      let to_move = cheg.to_move(model.game)
-      let #(game, premove) = case model.player_color {
-        Some(player_color) ->
-          case player_color != to_move {
-            True -> #(model.game, Some(move))
-            False -> #(cheg.apply_move(model.game, move), None)
-          }
-        None -> #(model.game, model.premove)
-      }
-
-      case premove {
-        Some(_) -> Nil
-        None ->
-          case model.websocket {
-            Some(ws) -> websocket.send_message(ws, message)
-            None -> Nil
-          }
-      }
-
-      let model =
-        Model(
-          ..model,
-          game:,
-          current_piece: None,
-          current_piece_moves: [],
-          premove:,
-        )
-      let effect = effect.none()
-
-      #(model, effect)
-    }
-    ComponentProducedMessage(component.UserDraggedSquare(position:, piece:)) -> {
+    ComponentProducedMessage(component.UserPickedUpPiece(piece:, position:)) -> {
       let current_piece_moves = case model.player_color {
         Some(player_color) -> {
           let to_move = cheg.to_move(model.game)

@@ -16,18 +16,13 @@ import plinth/browser/window
 import shared
 
 pub type Message {
-  UserClickedSquare(
+  UserPickedUpPiece(
     piece: Option(#(cheg.PieceType, shared.PlayerColor)),
     position: Int,
   )
-  UserClickedTargetSquare(move: cheg.Move)
-  UserDraggedSquare(
-    piece: Option(#(cheg.PieceType, shared.PlayerColor)),
-    position: Int,
-  )
+  UserDroppedPiece(move: cheg.Move)
   UserDraggedToTargetSquare(position: Int)
   UserDraggedOverTargetSquare
-  UserDroppedPiece(move: cheg.Move)
   UserCanceledDrag
 }
 
@@ -167,7 +162,7 @@ fn target_square_view(
         False -> ""
       }),
       attribute.data("pos", int.to_string(position)),
-      event.on_click(UserClickedTargetSquare(move)),
+      event.on_click(UserDroppedPiece(move)),
       event.on("dragenter", decode.success(UserDraggedToTargetSquare(position))),
       event.on("dragover", decode.success(UserDraggedOverTargetSquare))
         |> event.prevent_default(),
@@ -225,7 +220,7 @@ fn square_view(
         _, _ -> ""
       }),
       attribute.data("pos", int.to_string(position)),
-      event.on_click(UserClickedSquare(piece, position)),
+      event.on_click(UserPickedUpPiece(piece, position)),
     ],
     [
       special_square_marker(square_color, player_color),
@@ -245,7 +240,7 @@ fn square_view(
               attribute.draggable(True),
               event.on(
                 "dragstart",
-                decode.success(UserDraggedSquare(piece, position)),
+                decode.success(UserPickedUpPiece(piece, position)),
               ),
               event.on("dragend", decode.success(UserCanceledDrag)),
             ],
