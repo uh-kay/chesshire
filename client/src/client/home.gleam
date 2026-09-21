@@ -18,6 +18,8 @@ pub type Model {
     game_variant: shared.GameVariant,
     current_piece_moves: List(cheg.Move),
     dragged_over_square: Option(Int),
+    dragged_piece: Option(component.DraggedPiece),
+    current_move: Option(cheg.Move),
   )
 }
 
@@ -37,36 +39,115 @@ pub fn init() -> Model {
     game_variant: shared.RiverSacrifice,
     current_piece_moves: [],
     dragged_over_square: None,
+    dragged_piece: None,
+    current_move: None,
   )
 }
 
 pub fn update(model: Model, message: Message) {
   case message {
-    ComponentProducedMessage(component.UserPickedUpPiece(piece: _, position:)) -> {
+    ComponentProducedMessage(component.UserDraggedPiece(
+      from:,
+      pointer_x:,
+      pointer_y:,
+      offset_x:,
+      offset_y:,
+      width:,
+      height:,
+    )) -> {
+      let moves = cheg.legal_moves_for_piece(model.game, from)
+      let model =
+        Model(
+          ..model,
+          current_piece_moves: moves,
+          dragged_piece: Some(component.DraggedPiece(
+            width:,
+            height:,
+            from:,
+            pointer_x:,
+            pointer_y:,
+            offset_x:,
+            offset_y:,
+          )),
+        )
+
+      #(model, effect.none())
+    }
+
+    ComponentProducedMessage(component.UserDraggedToTargetSquare(
+      move:,
+      position:,
+    )) -> {
+      let model =
+        Model(
+          ..model,
+          current_move: Some(move),
+          dragged_over_square: Some(position),
+        )
+
+      #(model, effect.none())
+    }
+
+    ComponentProducedMessage(component.UserDraggedOutOfTargetSquare) -> {
+      let model = Model(..model, dragged_over_square: None, current_move: None)
+
+      #(model, effect.none())
+    }
+
+    ComponentProducedMessage(component.UserMovedPiece(pointer_x:, pointer_y:)) -> {
+      let model = case model.dragged_piece {
+        Some(dragged_piece) -> {
+          Model(
+            ..model,
+            dragged_piece: Some(
+              component.DraggedPiece(..dragged_piece, pointer_x:, pointer_y:),
+            ),
+          )
+        }
+        None -> model
+      }
+
+      #(model, effect.none())
+    }
+
+    ComponentProducedMessage(component.UserDroppedPiece) -> {
+      let game = case model.current_move {
+        Some(move) -> cheg.apply_move(model.game, move)
+        None -> model.game
+      }
+
+      let model =
+        Model(
+          ..model,
+          game:,
+          current_piece_moves: [],
+          dragged_over_square: None,
+          dragged_piece: None,
+          current_move: None,
+        )
+
+      #(model, effect.none())
+    }
+
+    ComponentProducedMessage(component.UserCancelledDrag) -> {
+      let model = Model(..model, dragged_piece: None)
+      #(model, effect.none())
+    }
+
+    ComponentProducedMessage(component.UserClickedPiece(piece: _, position:)) -> {
       let moves = cheg.legal_moves_for_piece(model.game, position)
       let model = Model(..model, current_piece_moves: moves)
 
       #(model, effect.none())
     }
-    ComponentProducedMessage(component.UserDraggedToTargetSquare(position:)) -> {
-      let model = Model(..model, dragged_over_square: Some(position))
-      #(model, effect.none())
-    }
-    ComponentProducedMessage(component.UserDroppedPiece(move:)) -> {
+
+    ComponentProducedMessage(component.UserClickedTargetSquare(move:)) -> {
       let game = cheg.apply_move(model.game, move)
       let model = Model(..model, game:, current_piece_moves: [])
 
       #(model, effect.none())
     }
-    ComponentProducedMessage(component.UserCanceledDrag) -> {
-      let model =
-        Model(..model, dragged_over_square: None, current_piece_moves: [])
-      #(model, effect.none())
-    }
-    ComponentProducedMessage(component.UserDraggedOverTargetSquare) -> #(
-      model,
-      effect.none(),
-    )
+
     UserClickedCreatePublicGame -> {
       let effect = case uri.parse("/create") {
         Ok(uri) -> modem.load(uri)
@@ -75,6 +156,7 @@ pub fn update(model: Model, message: Message) {
 
       #(model, effect)
     }
+
     UserClickedFindGame -> {
       let effect = case uri.parse("/game/") {
         Ok(uri) -> modem.load(uri)
@@ -83,6 +165,7 @@ pub fn update(model: Model, message: Message) {
 
       #(model, effect)
     }
+
     UserClickedCreatePrivateGame -> {
       let effect = case uri.parse("/create/private") {
         Ok(uri) -> modem.load(uri)
@@ -91,6 +174,7 @@ pub fn update(model: Model, message: Message) {
 
       #(model, effect)
     }
+
     UserClickedReset -> {
       let model =
         Model(
@@ -101,6 +185,7 @@ pub fn update(model: Model, message: Message) {
 
       #(model, effect.none())
     }
+
     UserClickedChangeBoardVariant(board_variant:) -> {
       let model =
         Model(
@@ -248,11 +333,15 @@ pub fn view(model: Model) {
             player_color: Some(shared.White),
             premove: None,
             dragged_over_square: model.dragged_over_square,
+            dragged_piece: model.dragged_piece,
           ))
+            |> element.map(ComponentProducedMessage),
+
+          component.dragged_piece_view(model.game, model.dragged_piece)
             |> element.map(ComponentProducedMessage),
         ],
       ),
     ],
   )
-  |> component.layout()
+  |> component.game_layout(model.dragged_piece, ComponentProducedMessage)
 }

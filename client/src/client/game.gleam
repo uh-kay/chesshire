@@ -2,6 +2,7 @@ import cheg
 import client/component
 import client/icon
 import client/websocket
+import gleam/dict
 import gleam/int
 import gleam/javascript/promise.{type Promise}
 import gleam/json
@@ -36,6 +37,8 @@ pub type Model {
     is_public: Bool,
     premove: Option(cheg.Move),
     dragged_over_square: Option(Int),
+    dragged_piece: Option(component.DraggedPiece),
+    current_move: Option(cheg.Move),
   )
 }
 
@@ -85,6 +88,8 @@ pub fn init(
       is_public: False,
       premove: None,
       dragged_over_square: None,
+      dragged_piece: None,
+      current_move: None,
     )
   let effect = effect.batch([get_game_view(init_message), tick()])
 
@@ -95,7 +100,145 @@ pub fn init(
 
 pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
   case message {
-    ComponentProducedMessage(component.UserPickedUpPiece(piece:, position:)) -> {
+    ComponentProducedMessage(component.UserDraggedPiece(
+      from:,
+      pointer_x:,
+      pointer_y:,
+      offset_x:,
+      offset_y:,
+      width:,
+      height:,
+    )) -> {
+      let piece = dict.get(cheg.board(model.game), from) |> option.from_result
+      let current_piece_moves = case model.player_color {
+        Some(player_color) -> {
+          let to_move = cheg.to_move(model.game)
+
+          case piece {
+            Some(#(_, piece_color))
+              if player_color == to_move
+              && player_color == piece_color
+              && model.game_state == cheg.Continue
+            -> cheg.legal_moves_for_piece(model.game, from)
+            Some(#(_, piece_color))
+              if player_color == piece_color && model.game_state == cheg.Continue
+            -> cheg.legal_premoves_for_piece(model.game, from, player_color)
+            _ -> []
+          }
+        }
+        None -> []
+      }
+      let dragged_piece =
+        Some(component.DraggedPiece(
+          width:,
+          height:,
+          from:,
+          pointer_x:,
+          pointer_y:,
+          offset_x:,
+          offset_y:,
+        ))
+
+      let model = Model(..model, current_piece_moves:, dragged_piece:)
+      let effect = effect.none()
+
+      #(model, effect)
+    }
+
+    ComponentProducedMessage(component.UserDraggedOutOfTargetSquare) -> {
+      let model = Model(..model, dragged_over_square: None, current_move: None)
+
+      #(model, effect.none())
+    }
+
+    ComponentProducedMessage(component.UserDraggedToTargetSquare(
+      position:,
+      move:,
+    )) -> {
+      let model =
+        Model(
+          ..model,
+          dragged_over_square: Some(position),
+          current_move: Some(move),
+        )
+
+      #(model, effect.none())
+    }
+
+    ComponentProducedMessage(component.UserMovedPiece(pointer_x:, pointer_y:)) -> {
+      let model = case model.dragged_piece {
+        Some(dragged_piece) ->
+          Model(
+            ..model,
+            dragged_piece: Some(
+              component.DraggedPiece(..dragged_piece, pointer_x:, pointer_y:),
+            ),
+          )
+        None -> model
+      }
+
+      #(model, effect.none())
+    }
+
+    ComponentProducedMessage(component.UserDroppedPiece) -> {
+      let #(game, premove) = case model.current_move {
+        Some(move) -> {
+          let message = cheg.move_to_json(move) |> json.to_string
+
+          let to_move = cheg.to_move(model.game)
+          let #(game, premove) = case model.player_color {
+            Some(player_color) ->
+              case player_color != to_move {
+                True -> #(model.game, Some(move))
+                False -> #(cheg.apply_move(model.game, move), None)
+              }
+            None -> #(model.game, model.premove)
+          }
+
+          case premove {
+            Some(_) -> Nil
+            None ->
+              case model.websocket {
+                Some(ws) -> websocket.send_message(ws, message)
+                None -> Nil
+              }
+          }
+
+          #(game, premove)
+        }
+        None -> #(model.game, model.premove)
+      }
+
+      let model =
+        Model(
+          ..model,
+          game:,
+          current_piece: None,
+          current_piece_moves: [],
+          premove:,
+          dragged_piece: None,
+          dragged_over_square: None,
+          current_move: None,
+        )
+      let effect = effect.none()
+
+      #(model, effect)
+    }
+
+    ComponentProducedMessage(component.UserCancelledDrag) -> {
+      let model =
+        Model(
+          ..model,
+          dragged_piece: None,
+          dragged_over_square: None,
+          current_move: None,
+          current_piece_moves: [],
+        )
+
+      #(model, effect.none())
+    }
+
+    ComponentProducedMessage(component.UserClickedPiece(piece:, position:)) -> {
       let current_piece_moves = case model.player_color {
         Some(player_color) -> {
           let to_move = cheg.to_move(model.game)
@@ -120,12 +263,8 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
-    ComponentProducedMessage(component.UserDraggedToTargetSquare(position:)) -> {
-      let model = Model(..model, dragged_over_square: Some(position))
 
-      #(model, effect.none())
-    }
-    ComponentProducedMessage(component.UserDroppedPiece(move:)) -> {
+    ComponentProducedMessage(component.UserClickedTargetSquare(move:)) -> {
       let message = cheg.move_to_json(move) |> json.to_string
 
       let to_move = cheg.to_move(model.game)
@@ -160,28 +299,16 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
-    ComponentProducedMessage(component.UserCanceledDrag) -> {
-      let model =
-        Model(
-          ..model,
-          dragged_over_square: None,
-          current_piece: None,
-          current_piece_moves: [],
-        )
 
-      #(model, effect.none())
-    }
-    ComponentProducedMessage(component.UserDraggedOverTargetSquare) -> #(
-      model,
-      effect.none(),
-    )
     UserClickedCopyLink(lobby_url:) -> {
       let model = Model(..model, link_copied: True)
       let effect = effect.batch([copy_link(lobby_url), reset_timer(1000)])
 
       #(model, effect)
     }
+
     TimerExpired -> #(Model(..model, link_copied: False), effect.none())
+
     ServerUpdatedGame(body:) -> {
       case json.parse(body, cheg.game_view_decoder()) {
         Ok(game_view) -> {
@@ -238,6 +365,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         Error(_) -> #(model, effect.none())
       }
     }
+
     ClockTickedForward -> {
       let offset = model.offset
 
@@ -270,6 +398,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
+
     ClockStoppedTicking -> {
       let black_time =
         int.clamp(model.time.black_time, shared.min_time, shared.max_time)
@@ -432,33 +561,33 @@ pub fn view(model: Model) -> Element(Message) {
     }
     True, _ -> {
       let captured_pieces = cheg.get_captured_pieces(model.game)
-      let content =
-        html.div(
-          [
-            attribute.class("pt-8 px-3 md:p-8 max-w-fit mx-auto"),
-            attribute.class("flex flex-col md:flex-row"),
-          ],
-          [
-            component.game_view(component.Model(
-              game: model.game,
-              moves: model.current_piece_moves,
-              player_color: model.player_color,
-              premove: model.premove,
-              dragged_over_square: model.dragged_over_square,
-            ))
-              |> element.map(ComponentProducedMessage),
-            component.clock_view(
-              model.time.black_time,
-              model.time.white_time,
-              model.player_color,
-              model.game_state,
-              captured_pieces,
-            )
-              |> element.map(ComponentProducedMessage),
-          ],
-        )
 
-      component.layout(content)
+      html.div(
+        [
+          attribute.class("pt-8 px-3 md:p-8 max-w-fit mx-auto"),
+          attribute.class("flex flex-col md:flex-row"),
+        ],
+        [
+          component.dragged_piece_view(model.game, model.dragged_piece),
+          component.game_view(component.Model(
+            game: model.game,
+            moves: model.current_piece_moves,
+            player_color: model.player_color,
+            premove: model.premove,
+            dragged_over_square: model.dragged_over_square,
+            dragged_piece: model.dragged_piece,
+          )),
+          component.clock_view(
+            model.time.black_time,
+            model.time.white_time,
+            model.player_color,
+            model.game_state,
+            captured_pieces,
+          ),
+        ],
+      )
+      |> element.map(ComponentProducedMessage)
+      |> component.game_layout(model.dragged_piece, ComponentProducedMessage)
     }
   }
 }

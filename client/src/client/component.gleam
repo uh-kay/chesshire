@@ -1,7 +1,9 @@
 import cheg
+import client/dom
 import client/icon
 import gleam/dict
 import gleam/dynamic/decode
+import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -16,14 +18,25 @@ import plinth/browser/window
 import shared
 
 pub type Message {
-  UserPickedUpPiece(
+  UserClickedPiece(
     piece: Option(#(cheg.PieceType, shared.PlayerColor)),
     position: Int,
   )
-  UserDroppedPiece(move: cheg.Move)
-  UserDraggedToTargetSquare(position: Int)
-  UserDraggedOverTargetSquare
-  UserCanceledDrag
+  UserClickedTargetSquare(move: cheg.Move)
+  UserDraggedPiece(
+    from: Int,
+    pointer_x: Int,
+    pointer_y: Int,
+    offset_x: Int,
+    offset_y: Int,
+    width: Int,
+    height: Int,
+  )
+  UserDraggedToTargetSquare(move: cheg.Move, position: Int)
+  UserDraggedOutOfTargetSquare
+  UserMovedPiece(pointer_x: Int, pointer_y: Int)
+  UserDroppedPiece
+  UserCancelledDrag
 }
 
 pub type Model {
@@ -33,6 +46,19 @@ pub type Model {
     player_color: Option(shared.PlayerColor),
     premove: Option(cheg.Move),
     dragged_over_square: Option(Int),
+    dragged_piece: Option(DraggedPiece),
+  )
+}
+
+pub type DraggedPiece {
+  DraggedPiece(
+    width: Int,
+    height: Int,
+    from: Int,
+    pointer_x: Int,
+    pointer_y: Int,
+    offset_x: Int,
+    offset_y: Int,
   )
 }
 
@@ -44,22 +70,32 @@ pub type SquareColor {
 }
 
 pub fn game_view(model: Model) -> Element(Message) {
-  html.div(
-    [
-      attribute.class("grid grid-cols-8 grid-rows-9 w-full min-h-108 outline-1"),
-      case model.player_color {
-        Some(shared.White) -> attribute.class("scale-y-[-1]")
-        Some(shared.Black) -> attribute.class("scale-x-[-1]")
-        None -> attribute.class("scale-y-[-1]")
-      },
-    ],
-    board_view(model),
-  )
+  html.div([], [
+    html.div(
+      [
+        attribute.class(
+          "grid grid-cols-8 grid-rows-9 w-full min-h-108 outline-1",
+        ),
+        case model.player_color {
+          Some(shared.White) -> attribute.class("scale-y-[-1]")
+          Some(shared.Black) -> attribute.class("scale-x-[-1]")
+          None -> attribute.class("scale-y-[-1]")
+        },
+      ],
+      board_view(model),
+    ),
+  ])
 }
 
 pub fn board_view(model: Model) -> List(Element(Message)) {
   let board = cheg.board(model.game)
   let new_board = dict.map_values(board, fn(_, v) { Some(v) })
+  let dragged_piece_position = case model.dragged_piece {
+    Some(dragged_piece) -> {
+      dragged_piece.from
+    }
+    None -> -1
+  }
 
   let current =
     board
@@ -136,6 +172,7 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
           last_move,
           checked_piece,
           is_premove,
+          dragged_piece_position == pos,
         )
     }
   })
@@ -161,12 +198,12 @@ fn target_square_view(
         True -> "inset-ring-2 inset-ring-red-500"
         False -> ""
       }),
-      attribute.data("pos", int.to_string(position)),
-      event.on_click(UserDroppedPiece(move)),
-      event.on("dragenter", decode.success(UserDraggedToTargetSquare(position))),
-      event.on("dragover", decode.success(UserDraggedOverTargetSquare))
-        |> event.prevent_default(),
-      event.on("drop", decode.success(UserDroppedPiece(move))),
+      event.on_click(UserClickedTargetSquare(move)),
+      event.on(
+        "pointerenter",
+        decode.success(UserDraggedToTargetSquare(move, position)),
+      ),
+      event.on("pointerleave", decode.success(UserDraggedOutOfTargetSquare)),
     ],
     [
       special_square_marker(square_color, player_color),
@@ -209,6 +246,7 @@ fn square_view(
   is_last_move: Bool,
   checked_king: option.Option(#(cheg.PieceType, shared.PlayerColor)),
   is_premove: Bool,
+  is_dragged: Bool,
 ) -> Element(Message) {
   html.div(
     [
@@ -219,8 +257,6 @@ fn square_view(
           "bg-radial-[at_50%_50%] from-red-500 to-transparent"
         _, _ -> ""
       }),
-      attribute.data("pos", int.to_string(position)),
-      event.on_click(UserPickedUpPiece(piece, position)),
     ],
     [
       special_square_marker(square_color, player_color),
@@ -236,17 +272,50 @@ fn square_view(
         [
           html.div(
             [
-              attribute.class("w-11 md:w-16"),
-              attribute.draggable(True),
-              event.on(
-                "dragstart",
-                decode.success(UserPickedUpPiece(piece, position)),
-              ),
-              event.on("dragend", decode.success(UserCanceledDrag)),
+              attribute.class("w-11 md:w-16 select-none"),
+              attribute.class(case is_dragged {
+                True -> "opacity-20"
+                False -> ""
+              }),
+              event.on_click(UserClickedPiece(piece, position)),
+              event.on("pointerdown", {
+                use pointer_x <- decode.field("clientX", decode.float)
+                use pointer_y <- decode.field("clientY", decode.float)
+                use element <- decode.field("currentTarget", decode.dynamic)
+                use pointer_id <- decode.field("pointerId", decode.int)
+
+                dom.release_pointer_capture(element, pointer_id)
+
+                let pointer_x = float.truncate(pointer_x)
+                let pointer_y = float.truncate(pointer_y)
+                let rect = dom.get_rect(element)
+                let offset_x = pointer_x - rect.x
+                let offset_y = pointer_y - rect.y
+
+                decode.success(UserDraggedPiece(
+                  from: position,
+                  pointer_x:,
+                  pointer_y:,
+                  offset_x:,
+                  offset_y:,
+                  width: rect.width,
+                  height: rect.height,
+                ))
+              }),
             ],
             [piece_view(piece)],
           ),
         ],
+      ),
+      html.div(
+        [
+          attribute.class("absolute inset-0"),
+          attribute.class(case is_dragged {
+            True -> "bg-purple-700/15"
+            False -> ""
+          }),
+        ],
+        [],
       ),
       last_move_indicator(is_last_move),
       premove_indicator(is_premove),
@@ -267,7 +336,7 @@ pub fn square_color_style(square_color: SquareColor) {
   })
 }
 
-fn special_square_marker(
+pub fn special_square_marker(
   square_color: SquareColor,
   player_color: Option(shared.PlayerColor),
 ) -> Element(a) {
@@ -318,9 +387,9 @@ fn premove_indicator(is_premove: Bool) {
   )
 }
 
-fn piece_view(
+pub fn piece_view(
   piece: Option(#(cheg.PieceType, shared.PlayerColor)),
-) -> Element(Message) {
+) -> Element(_) {
   case piece {
     Some(#(cheg.Pawn, shared.White)) -> icon.white_pawn()
     Some(#(cheg.Knight, shared.White)) -> icon.white_knight()
@@ -334,6 +403,38 @@ fn piece_view(
     Some(#(cheg.Rook, shared.Black)) -> icon.black_rook()
     Some(#(cheg.Queen, shared.Black)) -> icon.black_queen()
     Some(#(cheg.King, shared.Black)) -> icon.black_king()
+    None -> element.none()
+  }
+}
+
+pub fn dragged_piece_view(
+  game: cheg.Game,
+  dragged_piece: Option(DraggedPiece),
+) -> Element(a) {
+  case dragged_piece {
+    Some(dragged_piece) -> {
+      let piece =
+        dict.get(cheg.board(game), dragged_piece.from)
+        |> option.from_result()
+      html.div(
+        [
+          attribute.class("fixed z-50 pointer-events-none"),
+          attribute.style(
+            "left",
+            int.to_string(dragged_piece.pointer_x - dragged_piece.offset_x)
+              <> "px",
+          ),
+          attribute.style(
+            "top",
+            int.to_string(dragged_piece.pointer_y - dragged_piece.offset_y)
+              <> "px",
+          ),
+          attribute.style("width", int.to_string(dragged_piece.width) <> "px"),
+          attribute.style("height", int.to_string(dragged_piece.height) <> "px"),
+        ],
+        [piece_view(piece)],
+      )
+    }
     None -> element.none()
   }
 }
@@ -555,6 +656,45 @@ pub fn layout(content: Element(a)) -> Element(a) {
     navbar(static_directory),
     html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
   ])
+}
+
+pub fn game_layout(
+  content: Element(msg),
+  dragged_piece: Option(DraggedPiece),
+  to_msg: fn(Message) -> msg,
+) -> Element(msg) {
+  let location = window.self() |> window.location()
+  let protocol = protocol(location)
+  let static_directory = case protocol {
+    "https:" -> "/static/"
+    _ -> ""
+  }
+
+  html.div(
+    [
+      case dragged_piece {
+        Some(_) ->
+          event.on("pointermove", {
+            use pointer_x <- decode.field("clientX", decode.float)
+            use pointer_y <- decode.field("clientY", decode.float)
+
+            decode.success(
+              to_msg(UserMovedPiece(
+                pointer_x: float.truncate(pointer_x),
+                pointer_y: float.truncate(pointer_y),
+              )),
+            )
+          })
+        None -> attribute.none()
+      },
+      event.on("pointerup", decode.success(to_msg(UserDroppedPiece))),
+      event.on("pointercancel", decode.success(to_msg(UserCancelledDrag))),
+    ],
+    [
+      navbar(static_directory),
+      html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
+    ],
+  )
 }
 
 @external(javascript, "../client.ffi.mjs", "protocol")
