@@ -272,7 +272,7 @@ fn square_view(
         [
           html.div(
             [
-              attribute.class("w-11 md:w-16 select-none"),
+              attribute.class("w-11 md:w-16 select-none touch-none"),
               attribute.class(case is_dragged {
                 True -> "opacity-20"
                 False -> ""
@@ -281,14 +281,15 @@ fn square_view(
               event.on("pointerdown", {
                 use pointer_x <- decode.field("clientX", decode.float)
                 use pointer_y <- decode.field("clientY", decode.float)
-                use element <- decode.field("currentTarget", decode.dynamic)
+                use current <- decode.field("currentTarget", decode.dynamic)
+                use target <- decode.field("target", decode.dynamic)
                 use pointer_id <- decode.field("pointerId", decode.int)
 
-                dom.release_pointer_capture(element, pointer_id)
+                dom.release_pointer_capture(target, pointer_id)
 
                 let pointer_x = float.truncate(pointer_x)
                 let pointer_y = float.truncate(pointer_y)
-                let rect = dom.get_rect(element)
+                let rect = dom.get_rect(current)
                 let offset_x = pointer_x - rect.x
                 let offset_y = pointer_y - rect.y
 
