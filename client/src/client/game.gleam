@@ -42,8 +42,6 @@ pub type Model {
   )
 }
 
-pub type Websocket
-
 pub type Message {
   ComponentProducedMessage(component.Message)
   UserClickedCopyLink(lobby_url: String)

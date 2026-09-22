@@ -17,11 +17,11 @@ cheg = { path = "../cheg" }
 
 [dev_dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
-lustre_dev_tools = { git = "https://github.com/uh-kay/dev-tools", ref = "main" }
+lustre_dev_tools = { git = "https://github.com/lustre-labs/dev-tools.git", ref = "main" }
 
 [tools.lustre.dev]
 host = "0.0.0.0"
-proxy = { from = "/v1", to = "http://localhost:8000/v1" }
+proxy = [{ from = "/v1", to = "http://localhost:8000/v1" }, { from = "/ws", to = "http://localhost:8000/ws" }]
 
 [tools.lustre.build]
 no_html = true

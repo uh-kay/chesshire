@@ -83,7 +83,7 @@ fn init(_) -> #(Model, Effect(Message)) {
     }
     Error(_) -> #(NotFound, None)
   }
-  let ws_url = websocket_url("/ws/")
+  let ws_url = websocket.websocket_url("/ws/")
 
   let websocket = case route {
     Game(id:) -> {
@@ -292,9 +292,6 @@ fn ping_server(duration: Int, websocket: Option(Websocket)) {
 
 @external(javascript, "./client.ffi.mjs", "set_timeout")
 fn set_timeout(delay: Int, callback: fn() -> a) -> Nil
-
-@external(javascript, "./client.ffi.mjs", "websocket_url")
-fn websocket_url(path: String) -> String
 
 // VIEW -----------------------------------------------------------------------
 
