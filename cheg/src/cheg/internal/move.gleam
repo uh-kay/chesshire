@@ -1,12 +1,12 @@
+import cheg/internal/board
+import cheg/internal/game.{type Game, Game}
+import cheg/internal/hash
+import cheg/internal/move/attack
+import cheg/internal/move/direction.{type Direction}
 import gleam/bool
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import internal/board
-import internal/game.{type Game, Game}
-import internal/hash
-import internal/move/attack
-import internal/move/direction.{type Direction}
 
 pub type Move {
   Castle(from: Int, to: Int)
@@ -99,6 +99,7 @@ fn moves_for_piece(
 ) {
   case piece {
     board.Pawn -> pawn_moves(game, position, moves)
+    board.Rabbit -> rabbit_moves(game, position, moves)
     board.Knight ->
       knight_moves(game, position, moves, direction.knight_directions)
     board.King -> king_moves(game, position, moves, direction.queen_directions)
@@ -108,6 +109,244 @@ fn moves_for_piece(
       sliding_moves(game, piece, position, moves, direction.rook_directions)
     board.Queen ->
       sliding_moves(game, piece, position, moves, direction.queen_directions)
+  }
+}
+
+fn rabbit_moves(game: Game, position: Int, moves: List(Move)) -> List(Move) {
+  let #(forward, left, right, promotion_rank) = case game.to_move {
+    board.Black -> #(
+      direction.down,
+      direction.down_left,
+      direction.down_right,
+      0,
+    )
+    board.White -> #(direction.up, direction.up_left, direction.up_right, 8)
+  }
+  let #(two_left, two_right) = case game.to_move {
+    board.Black -> #(direction.Direction(-1, -2), direction.Direction(1, -2))
+    board.White -> #(direction.Direction(-1, 2), direction.Direction(1, 2))
+  }
+  let forward_one = direction.in_direction(position, forward)
+
+  let is_promotion = forward_one / 8 == promotion_rank
+  let rank = board.rank(position)
+
+  let moves = case board.get(game.board, game.river_squares, forward_one) {
+    board.Empty -> {
+      let moves = case
+        can_move(
+          game.river_squares,
+          position,
+          forward_one,
+          game.attack_information,
+        )
+      {
+        False -> moves
+        True if is_promotion ->
+          add_promotions(
+            position,
+            forward_one,
+            None,
+            moves,
+            board.pawn_promotions,
+          )
+        True -> [Move(board.Rabbit, from: position, to: forward_one), ..moves]
+      }
+
+      let can_double_move = case game.to_move, rank {
+        board.White, 1 | board.Black, 7 -> True
+        _, _ -> False
+      }
+
+      use <- bool.guard(!can_double_move, moves)
+
+      let forward_two = direction.in_direction(forward_one, forward)
+      case board.get(game.board, game.river_squares, forward_two) {
+        board.Empty ->
+          case
+            can_move(
+              game.river_squares,
+              position,
+              forward_two,
+              game.attack_information,
+            )
+          {
+            False -> moves
+            True -> [
+              Move(board.Rabbit, from: position, to: forward_two),
+              ..moves
+            ]
+          }
+        board.Occupied(_, _) | board.OffBoard | board.River -> moves
+      }
+    }
+    board.Occupied(_, _) | board.OffBoard -> moves
+    board.River -> {
+      let moves = case
+        can_move(
+          game.river_squares,
+          position,
+          forward_one,
+          game.attack_information,
+        )
+      {
+        False -> moves
+        True -> [
+          Sacrifice(
+            from: position,
+            to: forward_one,
+            sacrificed_piece: board.Rabbit,
+          ),
+          ..moves
+        ]
+      }
+
+      let forward_two = direction.in_direction(forward_one, forward)
+      let moves = case board.get(game.board, game.river_squares, forward_two) {
+        board.Empty ->
+          case
+            can_move(
+              game.river_squares,
+              position,
+              forward_two,
+              game.attack_information,
+            )
+          {
+            False -> moves
+            True -> [
+              Move(board.Rabbit, from: position, to: forward_two),
+              ..moves
+            ]
+          }
+        board.Occupied(_, _) | board.OffBoard | board.River -> moves
+      }
+
+      let new_position = direction.in_direction(position, two_left)
+      case board.get(game.board, game.river_squares, new_position) {
+        board.Occupied(captured_piece, color:) if color != game.to_move ->
+          case
+            can_move(
+              game.river_squares,
+              position,
+              new_position,
+              game.attack_information,
+            )
+          {
+            False -> moves
+            True -> [
+              Capture(
+                board.Rabbit,
+                from: position,
+                to: new_position,
+                captured_piece:,
+              ),
+              ..moves
+            ]
+          }
+        _ -> moves
+      }
+
+      let new_position = direction.in_direction(position, two_right)
+      case board.get(game.board, game.river_squares, new_position) {
+        board.Occupied(captured_piece, color:) if color != game.to_move ->
+          case
+            can_move(
+              game.river_squares,
+              position,
+              new_position,
+              game.attack_information,
+            )
+          {
+            False -> moves
+            True -> [
+              Capture(
+                board.Rabbit,
+                from: position,
+                to: new_position,
+                captured_piece:,
+              ),
+              ..moves
+            ]
+          }
+        _ -> moves
+      }
+    }
+  }
+
+  let new_position = direction.in_direction(position, left)
+  let moves = case board.get(game.board, game.river_squares, new_position) {
+    board.Occupied(piece: captured_piece, color:) if color != game.to_move ->
+      case
+        can_move(
+          game.river_squares,
+          position,
+          new_position,
+          game.attack_information,
+        )
+      {
+        False -> moves
+        True if is_promotion ->
+          add_promotions(
+            position,
+            new_position,
+            Some(captured_piece),
+            moves,
+            board.pawn_promotions,
+          )
+        True -> [
+          Capture(
+            board.Rabbit,
+            from: position,
+            to: new_position,
+            captured_piece:,
+          ),
+          ..moves
+        ]
+      }
+    board.Empty if game.en_passant_square == Some(new_position) ->
+      case en_passant_is_valid(game, position, new_position) {
+        False -> moves
+        True -> [EnPassant(position, new_position), ..moves]
+      }
+    board.Empty | board.OffBoard | board.Occupied(_, _) | board.River -> moves
+  }
+
+  let new_position = direction.in_direction(position, right)
+  case board.get(game.board, game.river_squares, new_position) {
+    board.Occupied(piece: captured_piece, color:) if color != game.to_move ->
+      case
+        can_move(
+          game.river_squares,
+          position,
+          new_position,
+          game.attack_information,
+        )
+      {
+        False -> moves
+        True if is_promotion ->
+          add_promotions(
+            position,
+            new_position,
+            Some(captured_piece),
+            moves,
+            board.pawn_promotions,
+          )
+        True -> [
+          Capture(
+            board.Rabbit,
+            from: position,
+            to: new_position,
+            captured_piece:,
+          ),
+          ..moves
+        ]
+      }
+    board.Empty if game.en_passant_square == Some(new_position) ->
+      case en_passant_is_valid(game, position, new_position) {
+        False -> moves
+        True -> [EnPassant(position, new_position), ..moves]
+      }
+    board.Empty | board.OffBoard | board.Occupied(_, _) | board.River -> moves
   }
 }
 
@@ -923,8 +1162,8 @@ fn do_apply(
   {
     True -> {
       let board = case game.game_variant {
-        game.RiverSacrifice -> board |> dict.delete(from)
-        game.BuildBridge | game.FlemishGiant ->
+        game.RiverSacrifice | game.FlemishGiant -> board |> dict.delete(from)
+        game.BuildBridge ->
           board |> dict.delete(from) |> dict.insert(to, #(piece, our_color))
       }
       let river_squares =

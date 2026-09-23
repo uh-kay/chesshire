@@ -1,7 +1,7 @@
+import cheg/internal/board
+import cheg/internal/generated
 import gleam/dict
 import gleam/int
-import internal/board
-import internal/generated
 
 pub fn hash(board: board.Board, to_move: board.Color) {
   let hash = case to_move {

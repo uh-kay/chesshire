@@ -1,11 +1,11 @@
+import cheg/internal/board.{type Board, type Color}
+import cheg/internal/move/direction.{type Direction}
 import gleam/bool
 import gleam/dict.{type Dict}
 import gleam/dynamic/decode
 import gleam/int
 import gleam/json
 import gleam/list
-import internal/board.{type Board, type Color}
-import internal/move/direction.{type Direction}
 
 pub type AttackInformation {
   AttackInformation(
@@ -316,6 +316,32 @@ fn get_check_block_line(
         True, NoLine -> Single([position])
         _, _ -> Multiple
       }
+    board.Rabbit if attacking == board.Black ->
+      case
+        piece_attacks_square(
+          position,
+          king_position,
+          direction.black_rabbit_captures(position),
+        ),
+        line
+      {
+        False, _ -> line
+        True, NoLine -> Single([position])
+        _, _ -> Multiple
+      }
+    board.Rabbit ->
+      case
+        piece_attacks_square(
+          position,
+          king_position,
+          direction.white_rabbit_captures(position),
+        ),
+        line
+      {
+        False, _ -> line
+        True, NoLine -> Single([position])
+        _, _ -> Multiple
+      }
   }
 }
 
@@ -323,7 +349,7 @@ fn piece_attacks_square(
   position: Int,
   target: Int,
   directions: List(Direction),
-) {
+) -> Bool {
   case directions {
     [] -> False
     [direction, ..directions] ->
@@ -555,6 +581,18 @@ fn get_attacks_for_piece(
         position,
         positions,
         direction.white_pawn_captures,
+      )
+    board.Rabbit if color == board.Black ->
+      get_single_move_attacks(
+        position,
+        positions,
+        direction.black_rabbit_captures(position),
+      )
+    board.Rabbit ->
+      get_single_move_attacks(
+        position,
+        positions,
+        direction.white_rabbit_captures(position),
       )
     board.Knight ->
       get_single_move_attacks(position, positions, direction.knight_directions)

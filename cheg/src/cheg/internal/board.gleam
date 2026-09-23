@@ -33,6 +33,7 @@ pub fn variant_decoder() -> Decoder(Variant) {
 
 pub type Piece {
   Pawn
+  Rabbit
   Knight
   Bishop
   Rook
@@ -44,6 +45,7 @@ pub fn piece_decoder() -> Decoder(Piece) {
   use variant <- decode.then(decode.string)
   case variant {
     "pawn" -> decode.success(Pawn)
+    "rabbit" -> decode.success(Rabbit)
     "knight" -> decode.success(Knight)
     "bishop" -> decode.success(Bishop)
     "rook" -> decode.success(Rook)
@@ -56,6 +58,7 @@ pub fn piece_decoder() -> Decoder(Piece) {
 pub fn piece_to_json(piece: Piece) -> Json {
   case piece {
     Pawn -> json.string("pawn")
+    Rabbit -> json.string("rabbit")
     Knight -> json.string("knight")
     Bishop -> json.string("bishop")
     Rook -> json.string("rook")
@@ -65,8 +68,8 @@ pub fn piece_to_json(piece: Piece) -> Json {
 }
 
 pub type Color {
-  White
   Black
+  White
 }
 
 pub fn color_decoder() -> Decoder(Color) {
@@ -94,7 +97,7 @@ pub type Square {
 
 pub const size = 72
 
-pub fn get(board: Board, river_squares: List(Int), position: Int) {
+pub fn get(board: Board, river_squares: List(Int), position: Int) -> Square {
   use <- bool.guard(position == -1, OffBoard)
   use <- bool.guard(list.contains(river_squares, position), River)
 
@@ -104,8 +107,12 @@ pub fn get(board: Board, river_squares: List(Int), position: Int) {
   }
 }
 
-pub fn initial_position() {
-  dict.from_list(initial_squares)
+pub fn initial_classic_position() {
+  dict.from_list(initial_classic_squares)
+}
+
+pub fn initial_rabbit_position() {
+  dict.from_list(initial_rabbit_squares)
 }
 
 pub fn position(file file: Int, rank rank: Int) {
@@ -123,6 +130,8 @@ pub fn rank(position: Int) {
 pub const pawn_promotions = [Queen, Knight, Bishop, Rook]
 
 pub const pawn_value = 1
+
+pub const rabbit_value = 1
 
 pub const knight_value = 3
 
@@ -151,6 +160,7 @@ pub fn bridge_squares(variant: Variant) {
 pub fn piece_value(piece: Piece) {
   case piece {
     Pawn -> pawn_value
+    Rabbit -> rabbit_value
     Knight -> knight_value
     Bishop -> bishop_value
     Rook -> rook_value
@@ -159,7 +169,7 @@ pub fn piece_value(piece: Piece) {
   }
 }
 
-const initial_squares = [
+const initial_classic_squares = [
   #(0, #(Rook, White)),
   #(1, #(Knight, White)),
   #(2, #(Bishop, White)),
@@ -185,6 +195,42 @@ const initial_squares = [
   #(61, #(Pawn, Black)),
   #(62, #(Pawn, Black)),
   #(63, #(Pawn, Black)),
+  #(64, #(Rook, Black)),
+  #(65, #(Knight, Black)),
+  #(66, #(Bishop, Black)),
+  #(67, #(Queen, Black)),
+  #(68, #(King, Black)),
+  #(69, #(Bishop, Black)),
+  #(70, #(Knight, Black)),
+  #(71, #(Rook, Black)),
+]
+
+const initial_rabbit_squares = [
+  #(0, #(Rook, White)),
+  #(1, #(Knight, White)),
+  #(2, #(Bishop, White)),
+  #(3, #(Queen, White)),
+  #(4, #(King, White)),
+  #(5, #(Bishop, White)),
+  #(6, #(Knight, White)),
+  #(7, #(Rook, White)),
+  #(8, #(Rabbit, White)),
+  #(9, #(Rabbit, White)),
+  #(10, #(Rabbit, White)),
+  #(11, #(Rabbit, White)),
+  #(12, #(Rabbit, White)),
+  #(13, #(Rabbit, White)),
+  #(14, #(Rabbit, White)),
+  #(15, #(Rabbit, White)),
+
+  #(56, #(Rabbit, Black)),
+  #(57, #(Rabbit, Black)),
+  #(58, #(Rabbit, Black)),
+  #(59, #(Rabbit, Black)),
+  #(60, #(Rabbit, Black)),
+  #(61, #(Rabbit, Black)),
+  #(62, #(Rabbit, Black)),
+  #(63, #(Rabbit, Black)),
   #(64, #(Rook, Black)),
   #(65, #(Knight, Black)),
   #(66, #(Bishop, Black)),

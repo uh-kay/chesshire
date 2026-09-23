@@ -1,3 +1,5 @@
+import cheg/internal/board
+
 pub type Direction {
   Direction(file_change: Int, rank_change: Int)
 }
@@ -57,3 +59,21 @@ pub const knight_directions = [
   Direction(-2, -1),
   Direction(-2, 1),
 ]
+
+pub fn white_rabbit_captures(position: Int) -> List(Direction) {
+  let rank = board.rank(position)
+
+  case rank == 4 {
+    True -> [Direction(-1, 2), Direction(1, 2), ..white_pawn_captures]
+    False -> white_pawn_captures
+  }
+}
+
+pub fn black_rabbit_captures(position: Int) -> List(Direction) {
+  let rank = board.rank(position)
+
+  case rank == 6 {
+    True -> [Direction(-1, -2), Direction(1, -2), ..black_pawn_captures]
+    False -> black_pawn_captures
+  }
+}

@@ -1,3 +1,7 @@
+import cheg/internal/board.{type Piece}
+import cheg/internal/game
+import cheg/internal/move
+import cheg/internal/move/attack
 import gleam/bool
 import gleam/dict.{type Dict}
 import gleam/dynamic/decode.{type Decoder}
@@ -5,10 +9,6 @@ import gleam/int
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import internal/board.{type Piece}
-import internal/game
-import internal/move
-import internal/move/attack
 import shared
 
 @internal
@@ -132,6 +132,7 @@ pub fn in_check(game: Game) -> Bool {
 
 pub type PieceType {
   Pawn
+  Rabbit
   Knight
   Bishop
   Rook
@@ -151,6 +152,7 @@ pub fn board(game: Game) -> Dict(Int, #(PieceType, shared.PlayerColor)) {
 pub fn piece_to_piece_type(piece: Piece) -> PieceType {
   case piece {
     board.Pawn -> Pawn
+    board.Rabbit -> Rabbit
     board.Knight -> Knight
     board.Bishop -> Bishop
     board.Rook -> Rook

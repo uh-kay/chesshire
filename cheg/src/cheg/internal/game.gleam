@@ -1,10 +1,10 @@
+import cheg/internal/board
+import cheg/internal/hash
+import cheg/internal/move/attack
 import gleam/dynamic/decode
 import gleam/int
 import gleam/json
 import gleam/option.{type Option, None}
-import internal/board
-import internal/hash
-import internal/move/attack
 
 pub type GameVariant {
   RiverSacrifice
@@ -59,7 +59,10 @@ pub type PieceInfo {
 pub const all_castling = Castling(True, True, True, True)
 
 pub fn new(board_variant: board.Variant, game_variant: GameVariant) -> Game {
-  let board = board.initial_position()
+  let board = case game_variant {
+    FlemishGiant -> board.initial_rabbit_position()
+    _ -> board.initial_classic_position()
+  }
   let white_king_position = 4
   let black_king_position = 68
 

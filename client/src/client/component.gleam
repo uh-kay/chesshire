@@ -393,12 +393,14 @@ pub fn piece_view(
 ) -> Element(_) {
   case piece {
     Some(#(cheg.Pawn, shared.White)) -> icon.white_pawn()
+    Some(#(cheg.Rabbit, shared.White)) -> icon.white_pawn()
     Some(#(cheg.Knight, shared.White)) -> icon.white_knight()
     Some(#(cheg.Bishop, shared.White)) -> icon.white_bishop()
     Some(#(cheg.Rook, shared.White)) -> icon.white_rook()
     Some(#(cheg.Queen, shared.White)) -> icon.white_queen()
     Some(#(cheg.King, shared.White)) -> icon.white_king()
     Some(#(cheg.Pawn, shared.Black)) -> icon.black_pawn()
+    Some(#(cheg.Rabbit, shared.Black)) -> icon.black_pawn()
     Some(#(cheg.Knight, shared.Black)) -> icon.black_knight()
     Some(#(cheg.Bishop, shared.Black)) -> icon.black_bishop()
     Some(#(cheg.Rook, shared.Black)) -> icon.black_rook()
@@ -447,6 +449,15 @@ fn captured_piece_view(
 ) -> Element(Message) {
   case piece {
     cheg.Pawn ->
+      html.div([attribute.class("flex")], [
+        html.div([attribute.class("w-6 h-6")], [
+          icon.pawn(fill_color),
+        ]),
+        html.p([attribute.class("text-lg")], [
+          html.text(int.to_string(pawn_count)),
+        ]),
+      ])
+    cheg.Rabbit ->
       html.div([attribute.class("flex")], [
         html.div([attribute.class("w-6 h-6")], [
           icon.pawn(fill_color),

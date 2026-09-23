@@ -17,7 +17,7 @@ cheg = { path = "../cheg" }
 
 [dev_dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
-lustre_dev_tools = { git = "https://github.com/lustre-labs/dev-tools.git", ref = "main" }
+lustre_dev_tools = ">= 2.4.0 and < 3.0.0"
 
 [tools.lustre.dev]
 host = "0.0.0.0"

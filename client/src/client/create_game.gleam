@@ -194,13 +194,22 @@ pub fn view(model: Model) -> Element(Message) {
       ]),
 
       html.p([attribute.class("mt-3 text-lg")], [html.text("Rule Variant")]),
-      html.button(
-        [
-          event.on_click(UserClickedGameVariant(shared.RiverSacrifice)),
-          ..button_style(model.game_variant == shared.RiverSacrifice)
-        ],
-        [html.text("River Sacrifice")],
-      ),
+      html.div([attribute.class("mt-2 flex gap-2")], [
+        html.button(
+          [
+            event.on_click(UserClickedGameVariant(shared.RiverSacrifice)),
+            ..button_style(model.game_variant == shared.RiverSacrifice)
+          ],
+          [html.text("River Sacrifice")],
+        ),
+        html.button(
+          [
+            event.on_click(UserClickedGameVariant(shared.FlemishGiant)),
+            ..button_style(model.game_variant == shared.FlemishGiant)
+          ],
+          [html.text("Flemish Giant")],
+        ),
+      ]),
 
       html.p([attribute.class("mt-3 text-lg")], [html.text("Side")]),
       html.div([attribute.class("mt-2 flex gap-2")], [
