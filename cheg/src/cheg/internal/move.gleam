@@ -12,11 +12,12 @@ pub type Move {
   Castle(from: Int, to: Int)
   Move(from: Int, to: Int, piece: board.Piece)
   Capture(from: Int, to: Int, piece: board.Piece, captured_piece: board.Piece)
-  EnPassant(from: Int, to: Int)
+  EnPassant(from: Int, to: Int, piece: board.Piece)
   Promotion(
     from: Int,
     to: Int,
     piece: board.Piece,
+    promoted_to: board.Piece,
     captured_piece: Option(board.Piece),
   )
   Sacrifice(from: Int, to: Int, sacrificed_piece: board.Piece)
@@ -26,9 +27,10 @@ pub fn moving_piece(move: Move) {
   case move {
     Capture(piece:, ..)
     | Move(piece:, ..)
-    | Sacrifice(sacrificed_piece: piece, ..) -> piece
+    | Sacrifice(sacrificed_piece: piece, ..)
+    | EnPassant(piece:, ..)
+    | Promotion(piece:, ..) -> piece
     Castle(..) -> board.King
-    EnPassant(..) | Promotion(..) -> board.Pawn
   }
 }
 
@@ -146,6 +148,7 @@ fn rabbit_moves(game: Game, position: Int, moves: List(Move)) -> List(Move) {
           add_promotions(
             position,
             forward_one,
+            board.Rabbit,
             None,
             moves,
             board.pawn_promotions,
@@ -222,7 +225,7 @@ fn rabbit_moves(game: Game, position: Int, moves: List(Move)) -> List(Move) {
       }
 
       let new_position = direction.in_direction(position, two_left)
-      case board.get(game.board, game.river_squares, new_position) {
+      let moves = case board.get(game.board, game.river_squares, new_position) {
         board.Occupied(captured_piece, color:) if color != game.to_move ->
           case
             can_move(
@@ -289,6 +292,7 @@ fn rabbit_moves(game: Game, position: Int, moves: List(Move)) -> List(Move) {
           add_promotions(
             position,
             new_position,
+            board.Rabbit,
             Some(captured_piece),
             moves,
             board.pawn_promotions,
@@ -306,7 +310,7 @@ fn rabbit_moves(game: Game, position: Int, moves: List(Move)) -> List(Move) {
     board.Empty if game.en_passant_square == Some(new_position) ->
       case en_passant_is_valid(game, position, new_position) {
         False -> moves
-        True -> [EnPassant(position, new_position), ..moves]
+        True -> [EnPassant(position, new_position, board.Rabbit), ..moves]
       }
     board.Empty | board.OffBoard | board.Occupied(_, _) | board.River -> moves
   }
@@ -327,6 +331,7 @@ fn rabbit_moves(game: Game, position: Int, moves: List(Move)) -> List(Move) {
           add_promotions(
             position,
             new_position,
+            board.Rabbit,
             Some(captured_piece),
             moves,
             board.pawn_promotions,
@@ -344,7 +349,7 @@ fn rabbit_moves(game: Game, position: Int, moves: List(Move)) -> List(Move) {
     board.Empty if game.en_passant_square == Some(new_position) ->
       case en_passant_is_valid(game, position, new_position) {
         False -> moves
-        True -> [EnPassant(position, new_position), ..moves]
+        True -> [EnPassant(position, new_position, board.Rabbit), ..moves]
       }
     board.Empty | board.OffBoard | board.Occupied(_, _) | board.River -> moves
   }
@@ -380,6 +385,7 @@ fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
           add_promotions(
             position,
             forward_one,
+            board.Pawn,
             None,
             moves,
             board.pawn_promotions,
@@ -450,6 +456,7 @@ fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
           add_promotions(
             position,
             new_position,
+            board.Pawn,
             Some(captured_piece),
             moves,
             board.pawn_promotions,
@@ -462,7 +469,7 @@ fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
     board.Empty if game.en_passant_square == Some(new_position) ->
       case en_passant_is_valid(game, position, new_position) {
         False -> moves
-        True -> [EnPassant(position, new_position), ..moves]
+        True -> [EnPassant(position, new_position, board.Pawn), ..moves]
       }
     board.Empty | board.OffBoard | board.Occupied(_, _) | board.River -> moves
   }
@@ -483,6 +490,7 @@ fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
           add_promotions(
             position,
             new_position,
+            board.Pawn,
             Some(captured_piece),
             moves,
             board.pawn_promotions,
@@ -495,7 +503,7 @@ fn pawn_moves(game: Game, position: Int, moves: List(Move)) {
     board.Empty if game.en_passant_square == Some(new_position) ->
       case en_passant_is_valid(game, position, new_position) {
         False -> moves
-        True -> [EnPassant(position, new_position), ..moves]
+        True -> [EnPassant(position, new_position, board.Pawn), ..moves]
       }
     board.Empty | board.OffBoard | board.Occupied(_, _) | board.River -> moves
   }
@@ -600,6 +608,7 @@ fn in_check_after_en_passant_loop(
 fn add_promotions(
   from: Int,
   to: Int,
+  piece: board.Piece,
   captured_piece: Option(board.Piece),
   moves: List(Move),
   _pieces: List(board.Piece),
@@ -615,7 +624,10 @@ fn add_promotions(
   //       pieces,
   //     )
   // }
-  [Promotion(from:, to:, piece: board.Queen, captured_piece:), ..moves]
+  [
+    Promotion(from:, to:, piece:, captured_piece:, promoted_to: board.Queen),
+    ..moves
+  ]
 }
 
 fn knight_moves(
@@ -902,16 +914,16 @@ pub fn apply(game: Game, move: Move) {
       do_apply(game, piece, from, to, False, None, None, None)
     Capture(from:, to:, piece:, captured_piece:) ->
       do_apply(game, piece, from, to, False, None, Some(captured_piece), None)
-    EnPassant(from:, to:) ->
-      do_apply(game, board.Pawn, from, to, True, None, None, None)
-    Promotion(from:, to:, piece:, captured_piece:) ->
+    EnPassant(from:, to:, piece:) ->
+      do_apply(game, piece, from, to, True, None, None, None)
+    Promotion(from:, to:, piece:, captured_piece:, promoted_to:) ->
       do_apply(
         game,
-        board.Pawn,
+        piece,
         from,
         to,
         False,
-        Some(piece),
+        Some(promoted_to),
         captured_piece,
         None,
       )
@@ -1207,18 +1219,18 @@ fn do_apply(
       let ep_square = square - 8
       #(
         dict.delete(board, ep_square),
-        hash.toggle_piece(zobrist_hash, ep_square, board.Pawn, board.Black),
+        hash.toggle_piece(zobrist_hash, ep_square, piece, board.Black),
         opposing_pawn_material - board.pawn_value,
-        add_captured_pieces(captured_pieces, #(board.Pawn, enemy_color), False),
+        add_captured_pieces(captured_pieces, #(piece, enemy_color), False),
       )
     }
     True, Some(square), board.Black -> {
       let ep_square = square + 8
       #(
         dict.delete(board, ep_square),
-        hash.toggle_piece(zobrist_hash, ep_square, board.Pawn, board.White),
+        hash.toggle_piece(zobrist_hash, ep_square, piece, board.White),
         opposing_pawn_material - board.pawn_value,
-        add_captured_pieces(captured_pieces, #(board.Pawn, enemy_color), False),
+        add_captured_pieces(captured_pieces, #(piece, enemy_color), False),
       )
     }
     _, _, _ -> #(board, zobrist_hash, opposing_pawn_material, captured_pieces)
@@ -1227,6 +1239,8 @@ fn do_apply(
   let en_passant_square = case piece, to - from {
     board.Pawn, 16 -> Some(from + 8)
     board.Pawn, -16 -> Some(from - 8)
+    board.Rabbit, 16 -> Some(from + 8)
+    board.Rabbit, -16 -> Some(from - 8)
     _, _ -> None
   }
 

@@ -586,13 +586,14 @@ pub fn move_to_json(move: Move) -> Json {
         #("piece", board.piece_to_json(piece)),
         #("captured_piece", board.piece_to_json(captured_piece)),
       ])
-    move.EnPassant(from:, to:) ->
+    move.EnPassant(from:, to:, piece:) ->
       json.object([
         #("type", json.string("en_passant")),
         #("from", json.int(from)),
         #("to", json.int(to)),
+        #("piece", board.piece_to_json(piece)),
       ])
-    move.Promotion(from:, to:, piece:, captured_piece:) ->
+    move.Promotion(from:, to:, piece:, captured_piece:, promoted_to:) ->
       json.object([
         #("type", json.string("promotion")),
         #("from", json.int(from)),
@@ -602,6 +603,7 @@ pub fn move_to_json(move: Move) -> Json {
           None -> json.null()
           Some(value) -> board.piece_to_json(value)
         }),
+        #("promoted_to", board.piece_to_json(promoted_to)),
       ])
     move.Sacrifice(from:, to:, sacrificed_piece:) ->
       json.object([
@@ -640,7 +642,8 @@ pub fn move_decoder() -> decode.Decoder(Move) {
     "en_passant" -> {
       use from <- decode.field("from", decode.int)
       use to <- decode.field("to", decode.int)
-      decode.success(Move(move.EnPassant(from:, to:)))
+      use piece <- decode.field("piece", board.piece_decoder())
+      decode.success(Move(move.EnPassant(from:, to:, piece:)))
     }
     "promotion" -> {
       use from <- decode.field("from", decode.int)
@@ -650,7 +653,10 @@ pub fn move_decoder() -> decode.Decoder(Move) {
         "captured_piece",
         decode.optional(board.piece_decoder()),
       )
-      decode.success(Move(move.Promotion(from:, to:, piece:, captured_piece:)))
+      use promoted_to <- decode.field("promoted_to", board.piece_decoder())
+      decode.success(
+        Move(move.Promotion(from:, to:, piece:, captured_piece:, promoted_to:)),
+      )
     }
     "sacrifice" -> {
       use from <- decode.field("from", decode.int)
