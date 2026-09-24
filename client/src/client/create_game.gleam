@@ -1,6 +1,11 @@
+import cheg
 import client/component
+import gleam/dict
 import gleam/dynamic/decode
 import gleam/int
+import gleam/list
+import gleam/option.{None, Some}
+import gleam/set
 import gleam/uri
 import lustre/attribute
 import lustre/effect
@@ -176,22 +181,19 @@ pub fn view(model: Model) -> Element(Message) {
           [html.text("Great Crossing")],
         ),
       ]),
-      html.div([attribute.class("mt-2")], [
-        html.img([
-          attribute.src(static_directory <> "twin_passes.svg"),
-          attribute.hidden(case model.board_variant {
-            shared.TwinPasses -> False
-            shared.GreatCrossing -> True
+
+      html.div(
+        [
+          attribute.class("mt-2 grid grid-cols-8 grid-rows-9 w-full min-h-fit"),
+          attribute.class("outline-1 min-w-fit md:w-fit"),
+          attribute.class(case model.host_side {
+            Black -> "scale-x-[-1]"
+            Random -> "scale-y-[-1]"
+            White -> "scale-y-[-1]"
           }),
-        ]),
-        html.img([
-          attribute.src(static_directory <> "great_crossing.svg"),
-          attribute.hidden(case model.board_variant {
-            shared.TwinPasses -> True
-            shared.GreatCrossing -> False
-          }),
-        ]),
-      ]),
+        ],
+        board_view(model),
+      ),
 
       html.p([attribute.class("mt-3 text-lg")], [html.text("Rule Variant")]),
       html.div([attribute.class("mt-2 flex gap-2")], [
@@ -238,7 +240,7 @@ pub fn view(model: Model) -> Element(Message) {
 
       html.button(
         [
-          attribute.class("p-2 mt-16 w-fit rounded-md cursor-pointer border"),
+          attribute.class("p-2 mt-8 w-fit rounded-md cursor-pointer border"),
           attribute.class("border-blue-500 text-white bg-blue-500"),
           attribute.class("hover:bg-blue-600"),
           event.on_click(UserClickedCreateGame),
@@ -253,4 +255,69 @@ pub fn view(model: Model) -> Element(Message) {
     ])
 
   component.layout(content)
+}
+
+fn board_view(model: Model) {
+  let game = cheg.new(model.board_variant, model.game_variant)
+  let board = cheg.board(game)
+  let bridge_squares = cheg.bridge_squares(game)
+  let river_squares = cheg.river_squares(game)
+  let new_board = dict.map_values(board, fn(_, v) { Some(v) })
+  let current =
+    board
+    |> dict.to_list
+    |> list.map(fn(square) { square.0 })
+    |> set.from_list
+  let new_board =
+    int.range(0, 72, [], list.prepend)
+    |> list.filter(fn(i) { !set.contains(current, i) })
+    |> list.map(fn(pos) { #(pos, None) })
+    |> dict.from_list
+    |> dict.combine(new_board, fn(_, _) { None })
+    |> dict.to_list
+    |> list.sort(fn(a, b) {
+      let #(pos_a, _) = a
+      let #(pos_b, _) = b
+      int.compare(pos_a, pos_b)
+    })
+
+  list.map(new_board, fn(value) {
+    let #(pos, piece) = value
+    let row = pos / 8
+    let col = pos % 8
+
+    let square_color = case { row + col } % 2 == 0 {
+      True -> component.White
+      False -> component.Black
+    }
+    let square_color = case list.contains(river_squares, pos) {
+      True -> component.Blue
+      False ->
+        case list.contains(bridge_squares, pos) {
+          True -> component.Brown
+          False -> square_color
+        }
+    }
+    let square_style = [
+      attribute.class("flex justify-center aspect-square"),
+      attribute.class("items-center relative touch-none w-full md:w-14"),
+      component.square_color_style(square_color),
+    ]
+
+    html.div(square_style, [
+      html.div(
+        [
+          attribute.class("p-1 w-full"),
+          attribute.class(case model.host_side {
+            Black -> "scale-x-[-1]"
+            Random -> "scale-y-[-1]"
+            White -> "scale-y-[-1]"
+          }),
+        ],
+        [
+          component.piece_view(piece),
+        ],
+      ),
+    ])
+  })
 }

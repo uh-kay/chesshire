@@ -443,35 +443,47 @@ pub fn dragged_piece_view(
 }
 
 fn captured_piece_view(
-  piece: cheg.PieceType,
-  pawn_count: Int,
-  rabbit_count: Int,
+  value: #(cheg.PieceType, shared.PlayerColor),
+  side: shared.PlayerColor,
+  list: List(#(cheg.PieceType, shared.PlayerColor)),
   fill_color: String,
 ) -> Element(Message) {
-  case piece {
-    cheg.Pawn ->
-      html.div([attribute.class("flex")], [
-        html.div([attribute.class("w-6 h-6")], [
-          icon.pawn(fill_color),
-        ]),
-        html.p([attribute.class("text-lg")], [
-          html.text(int.to_string(pawn_count)),
-        ]),
-      ])
-    cheg.Rabbit ->
-      html.div([attribute.class("flex")], [
-        html.div([attribute.class("w-6 h-6")], [
-          icon.rabbit(fill_color),
-        ]),
-        html.p([attribute.class("text-lg")], [
-          html.text(int.to_string(rabbit_count)),
-        ]),
-      ])
-    cheg.Knight -> html.div([attribute.class("w-6")], [icon.knight(fill_color)])
-    cheg.Bishop -> html.div([attribute.class("w-6")], [icon.bishop(fill_color)])
-    cheg.Rook -> html.div([attribute.class("w-6")], [icon.rook(fill_color)])
-    cheg.Queen -> html.div([attribute.class("w-6")], [icon.queen(fill_color)])
-    cheg.King -> html.div([attribute.class("w-6")], [element.none()])
+  let #(piece, piece_color) = value
+  let pawn_count = count_piece(cheg.Pawn, side, list)
+  let rabbit_count = count_piece(cheg.Rabbit, side, list)
+
+  case piece_color == side {
+    True ->
+      case piece {
+        cheg.Pawn ->
+          html.div([attribute.class("flex")], [
+            html.div([attribute.class("w-6 h-6")], [
+              icon.pawn(fill_color),
+            ]),
+            html.p([attribute.class("text-lg")], [
+              html.text(int.to_string(pawn_count)),
+            ]),
+          ])
+        cheg.Rabbit ->
+          html.div([attribute.class("flex")], [
+            html.div([attribute.class("w-6 h-6")], [
+              icon.rabbit(fill_color),
+            ]),
+            html.p([attribute.class("text-lg")], [
+              html.text(int.to_string(rabbit_count)),
+            ]),
+          ])
+        cheg.Knight ->
+          html.div([attribute.class("w-6")], [icon.knight(fill_color)])
+        cheg.Bishop ->
+          html.div([attribute.class("w-6")], [icon.bishop(fill_color)])
+        cheg.Rook -> html.div([attribute.class("w-6")], [icon.rook(fill_color)])
+        cheg.Queen ->
+          html.div([attribute.class("w-6")], [icon.queen(fill_color)])
+        cheg.King -> html.div([attribute.class("w-6")], [element.none()])
+      }
+
+    False -> element.none()
   }
 }
 
@@ -484,6 +496,10 @@ pub fn clock_view(
 ) -> Element(_) {
   let black_time = format_time(black_time)
   let white_time = format_time(white_time)
+  let time_style = [
+    attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
+    attribute.class("text-center text-3xl"),
+  ]
 
   let state = case state {
     cheg.Continue -> element.none()
@@ -518,43 +534,17 @@ pub fn clock_view(
           }),
         ],
         [
-          html.p(
-            [
-              attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
-              attribute.class("text-center text-3xl"),
-            ],
-            [html.text(black_time)],
-          ),
+          html.p(time_style, [html.text(black_time)]),
           html.div(
             [attribute.class("flex")],
-            set.filter(set.from_list(captured_pieces.captured), fn(value) {
-              let #(piece_type, color) = value
-              color == shared.White
-              && { piece_type == cheg.Pawn || piece_type == cheg.Rabbit }
-            })
-              |> set.to_list
-              |> list.append(
-                list.filter(captured_pieces.captured, fn(value) {
-                  let #(piece_type, color) = value
-                  color == shared.White
-                  && piece_type != cheg.Pawn
-                  && piece_type != cheg.Rabbit
-                }),
-              )
+            remove_duplicate_piece(shared.White, captured_pieces.captured)
               |> list.map(fn(value) {
-                let #(piece, _) = value
-                let pawn_count =
-                  list.count(captured_pieces.captured, fn(value) {
-                    let #(piece, piece_color) = value
-                    piece == cheg.Pawn && piece_color == shared.White
-                  })
-                let rabbit_count =
-                  list.count(captured_pieces.captured, fn(value) {
-                    let #(piece, piece_color) = value
-                    piece == cheg.Rabbit && piece_color == shared.White
-                  })
-
-                captured_piece_view(piece, pawn_count, rabbit_count, "#6a7282")
+                captured_piece_view(
+                  value,
+                  shared.White,
+                  captured_pieces.captured,
+                  "#6a7282",
+                )
               }),
           ),
         ],
@@ -570,26 +560,15 @@ pub fn clock_view(
               html.div(
                 [attribute.class("flex")],
                 set.map(set.from_list(captured_pieces.sacrificed), fn(value) {
-                  let #(piece, color) = value
-                  let pawn_count =
-                    list.count(captured_pieces.sacrificed, fn(value) {
-                      let #(piece, pawn_color) = value
-                      piece == cheg.Pawn && pawn_color == color
-                    })
-                  let rabbit_count =
-                    list.count(captured_pieces.sacrificed, fn(value) {
-                      let #(piece, rabbit_color) = value
-                      piece == cheg.Rabbit && rabbit_color == color
-                    })
+                  let #(_, color) = value
                   let fill_color = case color {
                     shared.Black -> "#fff"
                     shared.White -> "#000"
                   }
-
                   captured_piece_view(
-                    piece,
-                    pawn_count,
-                    rabbit_count,
+                    value,
+                    color,
+                    captured_pieces.sacrificed,
                     fill_color,
                   )
                 })
@@ -612,43 +591,17 @@ pub fn clock_view(
         [
           html.div(
             [attribute.class("flex")],
-            set.filter(set.from_list(captured_pieces.captured), fn(value) {
-              let #(piece_type, color) = value
-              color == shared.Black
-              && { piece_type == cheg.Pawn || piece_type == cheg.Rabbit }
-            })
-              |> set.to_list
-              |> list.append(
-                list.filter(captured_pieces.captured, fn(value) {
-                  let #(piece_type, color) = value
-                  color == shared.Black
-                  && piece_type != cheg.Pawn
-                  && piece_type != cheg.Rabbit
-                }),
-              )
+            remove_duplicate_piece(shared.Black, captured_pieces.captured)
               |> list.map(fn(value) {
-                let #(piece, _) = value
-                let pawn_count =
-                  list.count(captured_pieces.captured, fn(value) {
-                    let #(piece, piece_color) = value
-                    piece == cheg.Pawn && piece_color == shared.Black
-                  })
-                let rabbit_count =
-                  list.count(captured_pieces.captured, fn(value) {
-                    let #(piece, piece_color) = value
-                    piece == cheg.Rabbit && piece_color == shared.Black
-                  })
-
-                captured_piece_view(piece, pawn_count, rabbit_count, "#6a7282")
+                captured_piece_view(
+                  value,
+                  shared.Black,
+                  captured_pieces.captured,
+                  "#6a7282",
+                )
               }),
           ),
-          html.p(
-            [
-              attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
-              attribute.class("text-center text-3xl"),
-            ],
-            [html.text(white_time)],
-          ),
+          html.p(time_style, [html.text(white_time)]),
         ],
       ),
     ],
@@ -746,6 +699,54 @@ pub fn game_layout(
       html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
     ],
   )
+}
+
+fn remove_duplicate_piece(
+  filtered_color: shared.PlayerColor,
+  list: List(#(cheg.PieceType, shared.PlayerColor)),
+) {
+  skip_until_item(filtered_color, list, [])
+}
+
+fn skip_until_item(
+  filtered_color: shared.PlayerColor,
+  list: List(#(cheg.PieceType, shared.PlayerColor)),
+  acc: List(#(cheg.PieceType, shared.PlayerColor)),
+) {
+  case list {
+    [] -> list.reverse(acc)
+    [first, ..rest]
+      if first.1 == filtered_color
+      && { first.0 == cheg.Pawn || first.0 == cheg.Rabbit }
+    -> remove_piece(filtered_color, rest, [first, ..acc])
+    [first, ..rest] -> skip_until_item(filtered_color, rest, [first, ..acc])
+  }
+}
+
+fn remove_piece(
+  filtered_color: shared.PlayerColor,
+  list: List(#(cheg.PieceType, shared.PlayerColor)),
+  acc: List(#(cheg.PieceType, shared.PlayerColor)),
+) {
+  case list {
+    [] -> list.reverse(acc)
+    [first, ..rest]
+      if first.1 == filtered_color
+      && { first.0 == cheg.Pawn || first.0 == cheg.Rabbit }
+    -> remove_piece(filtered_color, rest, acc)
+    [first, ..rest] -> remove_piece(filtered_color, rest, [first, ..acc])
+  }
+}
+
+fn count_piece(
+  piece_type: cheg.PieceType,
+  piece_color: shared.PlayerColor,
+  list: List(#(cheg.PieceType, shared.PlayerColor)),
+) -> Int {
+  list.count(list, fn(value) {
+    let #(type_, color) = value
+    type_ == piece_type && color == piece_color
+  })
 }
 
 @external(javascript, "../client.ffi.mjs", "protocol")
