@@ -73,9 +73,8 @@ pub fn game_view(model: Model) -> Element(Message) {
   html.div([], [
     html.div(
       [
-        attribute.class(
-          "grid grid-cols-8 grid-rows-9 w-full min-h-108 outline-2",
-        ),
+        attribute.class("grid grid-cols-8 grid-rows-9 w-fit md:w-full"),
+        attribute.class("min-h-fit md:min-h-108 outline-2"),
         case model.player_color {
           Some(shared.White) -> attribute.class("scale-y-[-1]")
           Some(shared.Black) -> attribute.class("scale-x-[-1]")
@@ -272,7 +271,7 @@ fn square_view(
         [
           html.div(
             [
-              attribute.class("w-11 md:w-16 select-none touch-none"),
+              attribute.class("w-full md:w-16 select-none touch-none"),
               attribute.class(case is_dragged {
                 True -> "opacity-20"
                 False -> ""

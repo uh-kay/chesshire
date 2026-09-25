@@ -216,15 +216,16 @@ pub fn view(model: Model) {
       attribute.class("px-2 py-3 bg-blue-500 text-white rounded-md flex"),
       attribute.class("hover:cursor-pointer transition-all gap-1 border-2"),
       attribute.class("border-black font-comic drop-shadow-[4px_4px_0_#000]"),
-      attribute.class("hover:translate-x-[4px] hover:translate-y-[4px] "),
-      attribute.class("hover:drop-shadow-none"),
+      attribute.class("hover:translate-x-[4px] hover:translate-y-[4px]"),
+      attribute.class("hover:drop-shadow-none active:translate-x-[4px]"),
+      attribute.class("active:translate-y-[4px] active:drop-shadow-none"),
       ..attributes
     ]
   }
 
   html.div(
     [
-      attribute.class("pt-4 md:p-8 px-3 max-w-fit mx-auto"),
+      attribute.class("pt-4 pb-8 md:p-8 px-3 max-w-fit mx-auto"),
       attribute.class("flex flex-col"),
     ],
     [
@@ -288,7 +289,9 @@ pub fn view(model: Model) {
 
       html.div(
         [
-          attribute.class("p-6 border-2 rounded-xl bg-blue-200 mt-2 flex"),
+          attribute.class(
+            "p-4 md:p-6 border-2 rounded-xl bg-blue-200 md:mt-2 flex",
+          ),
           attribute.class("flex-col-reverse md:flex-row gap-6"),
         ],
         [
@@ -314,14 +317,14 @@ pub fn view(model: Model) {
                   [
                     attribute.class("flex flex-row md:flex-col mt-2 border-2"),
                     attribute.class("border-black rounded-xl truncate "),
-                    attribute.class("font-comic"),
+                    attribute.class("font-comic w-full divide-x-2"),
+                    attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
                   ],
                   [
                     html.button(
                       [
-                        attribute.class("px-2 py-3 w-fit md:w-full md:h-fit"),
-                        attribute.class("text-nowrap rounded-b-none border-b-2"),
-                        attribute.class("border-black"),
+                        attribute.class("px-2 py-3 w-full md:h-fit"),
+                        attribute.class("text-nowrap rounded-b-none"),
                         attribute.class(case model.board_variant {
                           TwinPasses -> "bg-blue-500 text-white"
                           GreatCrossing -> "hover:bg-blue-300"
@@ -332,7 +335,7 @@ pub fn view(model: Model) {
                     ),
                     html.button(
                       [
-                        attribute.class("px-2 py-3 w-fit md:w-full md:h-fit"),
+                        attribute.class("px-2 py-3 w-full md:h-fit"),
                         attribute.class("text-nowrap"),
                         attribute.class(case model.board_variant {
                           GreatCrossing -> "bg-blue-500 text-white"
@@ -355,14 +358,14 @@ pub fn view(model: Model) {
                   [
                     attribute.class("flex flex-row md:flex-col mt-2 border-2"),
                     attribute.class("border-black rounded-xl truncate"),
-                    attribute.class("font-comic"),
+                    attribute.class("font-comic w-full divide-x-2 divide-black"),
+                    attribute.class("md:divide-x-0 md:divide-y-2"),
                   ],
                   [
                     html.button(
                       [
-                        attribute.class("px-2 py-3 w-fit md:w-full md:h-fit"),
-                        attribute.class("text-nowrap rounded-b-none border-b-2"),
-                        attribute.class("border-black"),
+                        attribute.class("px-2 py-3 w-full md:h-fit"),
+                        attribute.class("text-nowrap rounded-b-none"),
                         attribute.class(case model.rule_variant {
                           shared.RiverSacrifice -> "bg-blue-500 text-white"
                           shared.FlemishGiant -> "hover:bg-blue-300"
@@ -375,7 +378,7 @@ pub fn view(model: Model) {
                     ),
                     html.button(
                       [
-                        attribute.class("px-2 py-3 w-fit md:w-full md:h-fit"),
+                        attribute.class("px-2 py-3 w-full md:h-fit"),
                         attribute.class("text-nowrap"),
                         attribute.class(case model.rule_variant {
                           shared.FlemishGiant -> "bg-blue-500 text-white"
