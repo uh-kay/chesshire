@@ -15,7 +15,7 @@ pub type Model {
   Model(
     game: cheg.Game,
     board_variant: shared.BoardVariant,
-    game_variant: shared.GameVariant,
+    rule_variant: shared.GameVariant,
     current_piece_moves: List(cheg.Move),
     dragged_over_square: Option(Int),
     dragged_piece: Option(component.DraggedPiece),
@@ -30,13 +30,14 @@ pub type Message {
   UserClickedCreatePrivateGame
   UserClickedReset
   UserClickedChangeBoardVariant(board_variant: shared.BoardVariant)
+  UserClickedChangeRuleVariant(rule_variant: shared.GameVariant)
 }
 
 pub fn init() -> Model {
   Model(
     game: cheg.new(TwinPasses, shared.FlemishGiant),
     board_variant: TwinPasses,
-    game_variant: shared.RiverSacrifice,
+    rule_variant: shared.FlemishGiant,
     current_piece_moves: [],
     dragged_over_square: None,
     dragged_piece: None,
@@ -179,7 +180,7 @@ pub fn update(model: Model, message: Message) {
       let model =
         Model(
           ..model,
-          game: cheg.new(model.board_variant, model.game_variant),
+          game: cheg.new(model.board_variant, model.rule_variant),
           current_piece_moves: [],
         )
 
@@ -190,8 +191,18 @@ pub fn update(model: Model, message: Message) {
       let model =
         Model(
           ..model,
-          game: cheg.new(board_variant, model.game_variant),
+          game: cheg.new(board_variant, model.rule_variant),
           board_variant:,
+        )
+
+      #(model, effect.none())
+    }
+    UserClickedChangeRuleVariant(rule_variant:) -> {
+      let model =
+        Model(
+          ..model,
+          game: cheg.new(model.board_variant, rule_variant),
+          rule_variant:,
         )
 
       #(model, effect.none())
@@ -302,9 +313,8 @@ pub fn view(model: Model) {
                 html.div(
                   [
                     attribute.class("flex flex-row md:flex-col mt-2 border-2"),
-                    attribute.class(
-                      "border-black rounded-xl truncate font-comic",
-                    ),
+                    attribute.class("border-black rounded-xl truncate "),
+                    attribute.class("font-comic"),
                   ],
                   [
                     html.button(
@@ -323,7 +333,7 @@ pub fn view(model: Model) {
                     html.button(
                       [
                         attribute.class("px-2 py-3 w-fit md:w-full md:h-fit"),
-                        attribute.class("text-nowrap "),
+                        attribute.class("text-nowrap"),
                         attribute.class(case model.board_variant {
                           GreatCrossing -> "bg-blue-500 text-white"
                           TwinPasses -> "hover:bg-blue-300"
@@ -333,6 +343,49 @@ pub fn view(model: Model) {
                         )),
                       ],
                       [html.text("Great Crossing")],
+                    ),
+                  ],
+                ),
+              ]),
+              html.div([], [
+                html.label([attribute.class("font-comic text-xl")], [
+                  html.text("Rule Variant"),
+                ]),
+                html.div(
+                  [
+                    attribute.class("flex flex-row md:flex-col mt-2 border-2"),
+                    attribute.class("border-black rounded-xl truncate"),
+                    attribute.class("font-comic"),
+                  ],
+                  [
+                    html.button(
+                      [
+                        attribute.class("px-2 py-3 w-fit md:w-full md:h-fit"),
+                        attribute.class("text-nowrap rounded-b-none border-b-2"),
+                        attribute.class("border-black"),
+                        attribute.class(case model.rule_variant {
+                          shared.RiverSacrifice -> "bg-blue-500 text-white"
+                          shared.FlemishGiant -> "hover:bg-blue-300"
+                        }),
+                        event.on_click(UserClickedChangeRuleVariant(
+                          shared.RiverSacrifice,
+                        )),
+                      ],
+                      [html.text("Classic")],
+                    ),
+                    html.button(
+                      [
+                        attribute.class("px-2 py-3 w-fit md:w-full md:h-fit"),
+                        attribute.class("text-nowrap"),
+                        attribute.class(case model.rule_variant {
+                          shared.FlemishGiant -> "bg-blue-500 text-white"
+                          shared.RiverSacrifice -> "hover:bg-blue-300"
+                        }),
+                        event.on_click(UserClickedChangeRuleVariant(
+                          shared.FlemishGiant,
+                        )),
+                      ],
+                      [html.text("Flemish Giant")],
                     ),
                   ],
                 ),
