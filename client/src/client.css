@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-    --font-sans: "Comic Relief", sans-serif;
+    --font-comic: "Comic Relief", sans-serif;
+    --font-josefin: "Josefin Sans", sans-serif;
 }
 
 .ellipsis {

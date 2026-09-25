@@ -13,8 +13,6 @@ import lustre/element.{type Element}
 import lustre/element/html
 import lustre/event
 import modem
-import plinth/browser/location
-import plinth/browser/window
 import rsvp
 import shared
 
@@ -137,20 +135,8 @@ fn create_game(
   rsvp.post(url, body, handler)
 }
 
-// EXTERNAL -------------------------------------------------------------------
-@external(javascript, "../client.ffi.mjs", "protocol")
-fn protocol(location: location.Location) -> String
-
 // VIEW -----------------------------------------------------------------------
 pub fn view(model: Model) -> Element(Message) {
-  let location = window.self() |> window.location()
-  let protocol = protocol(location)
-
-  let static_directory = case protocol {
-    "https:" -> "/static/"
-    _ -> "/"
-  }
-
   let button_style = fn(selected_variant: Bool) {
     [
       attribute.class("p-2 w-fit rounded-md cursor-pointer border-2"),

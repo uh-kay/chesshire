@@ -34,7 +34,7 @@ pub type Message {
 
 pub fn init() -> Model {
   Model(
-    game: cheg.new(TwinPasses, shared.RiverSacrifice),
+    game: cheg.new(TwinPasses, shared.FlemishGiant),
     board_variant: TwinPasses,
     game_variant: shared.RiverSacrifice,
     current_piece_moves: [],
@@ -200,133 +200,145 @@ pub fn update(model: Model, message: Message) {
 }
 
 pub fn view(model: Model) {
-  let button_style = [
-    attribute.class("px-2 py-3 w-fit bg-blue-500 text-white rounded-md"),
-    attribute.class("hover:bg-blue-600 hover:cursor-pointer flex"),
-    attribute.class("gap-1"),
-  ]
+  let button_style = fn(attributes: List(attribute.Attribute(a))) {
+    [
+      attribute.class("px-2 py-3 bg-blue-500 text-white rounded-md flex"),
+      attribute.class("hover:cursor-pointer transition-all gap-1 border-2"),
+      attribute.class("border-black font-comic drop-shadow-[4px_4px_0_#000]"),
+      attribute.class("hover:translate-x-[4px] hover:translate-y-[4px] "),
+      attribute.class("hover:drop-shadow-none"),
+      ..attributes
+    ]
+  }
 
   html.div(
     [
-      attribute.class("pt-4 md:pt-8 px-3 md:p-8 max-w-fit mx-auto"),
+      attribute.class("pt-4 md:p-8 px-3 max-w-fit mx-auto"),
       attribute.class("flex flex-col"),
     ],
     [
-      html.p([attribute.class("text-2xl")], [html.text("Create")]),
+      html.p([attribute.class("text-3xl font-josefin font-bold")], [
+        html.text("Create"),
+      ]),
 
       // Big screen layout
-      html.div(
-        [
-          attribute.class("mt-2 flex gap-4 pb-8 border-gray-400 border-b"),
-          attribute.class("hidden md:flex"),
-        ],
-        [
-          html.a([event.on_click(UserClickedCreatePublicGame), ..button_style], [
+      html.div([attribute.class("mt-2 flex gap-4 pb-8 hidden md:flex")], [
+        html.a(
+          [event.on_click(UserClickedCreatePublicGame), ..button_style([])],
+          [
             icon.plus(),
             html.text("Public Match"),
-          ]),
-          html.button([event.on_click(UserClickedFindGame), ..button_style], [
-            icon.search(),
-            html.text("Find Match"),
-          ]),
-          html.button(
-            [event.on_click(UserClickedCreatePrivateGame), ..button_style],
-            [icon.globe_lock(), html.text("Private Match")],
-          ),
-        ],
-      ),
+          ],
+        ),
+        html.button([event.on_click(UserClickedFindGame), ..button_style([])], [
+          icon.search(),
+          html.text("Find Match"),
+        ]),
+        html.button(
+          [event.on_click(UserClickedCreatePrivateGame), ..button_style([])],
+          [icon.globe_lock(), html.text("Private Match")],
+        ),
+      ]),
 
       // Small screen layout
-      html.div(
-        [
-          attribute.class("mt-2 gap-4 pb-8 border-gray-400 border-b"),
-          attribute.class("flex flex-col md:hidden"),
-        ],
-        [
-          html.div([attribute.class("flex gap-3")], [
-            html.a(
-              [
-                event.on_click(UserClickedCreatePublicGame),
-                attribute.class("w-full justify-center"),
-                ..button_style
-              ],
-              [icon.plus(), html.text("Public Match")],
-            ),
-
-            html.button(
-              [
-                event.on_click(UserClickedCreatePrivateGame),
-                attribute.class("w-full justify-center"),
-                ..button_style
-              ],
-              [icon.globe_lock(), html.text("Private Match")],
-            ),
-          ]),
+      html.div([attribute.class("mt-2 gap-4 pb-8 flex flex-col md:hidden")], [
+        html.div([attribute.class("flex gap-3")], [
+          html.a(
+            [
+              event.on_click(UserClickedCreatePublicGame),
+              attribute.class("w-full justify-center"),
+              ..button_style([])
+            ],
+            [icon.plus(), html.text("Public Match")],
+          ),
 
           html.button(
             [
-              event.on_click(UserClickedFindGame),
+              event.on_click(UserClickedCreatePrivateGame),
               attribute.class("w-full justify-center"),
-              ..button_style
+              ..button_style([])
             ],
-            [
-              icon.search(),
-              html.text("Find Match"),
-            ],
+            [icon.globe_lock(), html.text("Private Match")],
           ),
-        ],
-      ),
+        ]),
 
-      html.p([attribute.class("text-2xl mt-6")], [html.text("Sandbox")]),
+        html.button(
+          [
+            event.on_click(UserClickedFindGame),
+            attribute.class("w-full justify-center"),
+            ..button_style([])
+          ],
+          [
+            icon.search(),
+            html.text("Find Match"),
+          ],
+        ),
+      ]),
+
       html.div(
-        [attribute.class("mt-2 flex flex-col-reverse md:flex-row gap-4")],
         [
-          html.div([attribute.class("flex flex-col gap-4")], [
-            html.button(
-              [
-                attribute.class(
-                  "p-2 w-32 md:h-fit bg-blue-500 text-white rounded-md",
-                ),
-                event.on_click(UserClickedReset),
-              ],
-              [html.text("Reset")],
-            ),
-            html.div([], [
-              html.label([], [html.text("Board Variant")]),
-              html.div(
-                [attribute.class("flex flex-row md:flex-col mt-2 gap-2")],
+          attribute.class("p-6 border-2 rounded-xl bg-blue-200 mt-2 flex"),
+          attribute.class("flex-col-reverse md:flex-row gap-6"),
+        ],
+        [
+          html.div([], [
+            html.p([attribute.class("text-3xl font-josefin font-bold mb-4")], [
+              html.text("Sandbox"),
+            ]),
+            html.div([attribute.class("flex flex-col gap-4")], [
+              html.button(
                 [
-                  html.button(
-                    [
-                      attribute.class("p-2 w-fit md:w-full md:h-fit rounded-md"),
-                      attribute.class("text-nowrap border-2 border-blue-500"),
-                      attribute.class(case model.board_variant {
-                        TwinPasses -> "bg-blue-500 text-white"
-                        GreatCrossing -> ""
-                      }),
-                      event.on_click(UserClickedChangeBoardVariant(TwinPasses)),
-                    ],
-                    [html.text("Twin Passes")],
-                  ),
-                  html.button(
-                    [
-                      attribute.class("p-2 w-fit md:w-full md:h-fit rounded-md"),
-                      attribute.class("text-nowrap border-2 border-blue-500"),
-                      attribute.class(case model.board_variant {
-                        GreatCrossing -> "bg-blue-500 text-white"
-                        TwinPasses -> ""
-                      }),
-                      event.on_click(UserClickedChangeBoardVariant(
-                        GreatCrossing,
-                      )),
-                    ],
-                    [html.text("Great Crossing")],
-                  ),
+                  event.on_click(UserClickedReset),
+                  ..button_style([
+                    attribute.class("w-32 justify-center"),
+                  ])
                 ],
+                [html.text("Reset")],
               ),
+              html.div([], [
+                html.label([attribute.class("font-comic text-xl")], [
+                  html.text("Board Variant"),
+                ]),
+                html.div(
+                  [
+                    attribute.class("flex flex-row md:flex-col mt-2 border-2"),
+                    attribute.class(
+                      "border-black rounded-xl truncate font-comic",
+                    ),
+                  ],
+                  [
+                    html.button(
+                      [
+                        attribute.class("px-2 py-3 w-fit md:w-full md:h-fit"),
+                        attribute.class("text-nowrap rounded-b-none border-b-2"),
+                        attribute.class("border-black"),
+                        attribute.class(case model.board_variant {
+                          TwinPasses -> "bg-blue-500 text-white"
+                          GreatCrossing -> "hover:bg-blue-300"
+                        }),
+                        event.on_click(UserClickedChangeBoardVariant(TwinPasses)),
+                      ],
+                      [html.text("Twin Passes")],
+                    ),
+                    html.button(
+                      [
+                        attribute.class("px-2 py-3 w-fit md:w-full md:h-fit"),
+                        attribute.class("text-nowrap "),
+                        attribute.class(case model.board_variant {
+                          GreatCrossing -> "bg-blue-500 text-white"
+                          TwinPasses -> "hover:bg-blue-300"
+                        }),
+                        event.on_click(UserClickedChangeBoardVariant(
+                          GreatCrossing,
+                        )),
+                      ],
+                      [html.text("Great Crossing")],
+                    ),
+                  ],
+                ),
+              ]),
             ]),
           ]),
-
           component.game_view(component.Model(
             game: model.game,
             moves: model.current_piece_moves,
@@ -336,11 +348,11 @@ pub fn view(model: Model) {
             dragged_piece: model.dragged_piece,
           ))
             |> element.map(ComponentProducedMessage),
-
-          component.dragged_piece_view(model.game, model.dragged_piece)
-            |> element.map(ComponentProducedMessage),
         ],
       ),
+
+      component.dragged_piece_view(model.game, model.dragged_piece)
+        |> element.map(ComponentProducedMessage),
     ],
   )
   |> component.game_layout(model.dragged_piece, ComponentProducedMessage)

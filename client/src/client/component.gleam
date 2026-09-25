@@ -74,7 +74,7 @@ pub fn game_view(model: Model) -> Element(Message) {
     html.div(
       [
         attribute.class(
-          "grid grid-cols-8 grid-rows-9 w-full min-h-108 outline-1",
+          "grid grid-cols-8 grid-rows-9 w-full min-h-108 outline-2",
         ),
         case model.player_color {
           Some(shared.White) -> attribute.class("scale-y-[-1]")
@@ -610,13 +610,16 @@ pub fn clock_view(
 
 pub fn navbar(static_directory: String) -> Element(_) {
   html.nav(
-    [attribute.class("p-4 h-[60px] border-b bg-blue-200 border-blue-500")],
+    [attribute.class("p-4 h-[60px] border-b-2 bg-blue-200 border-black")],
     [
       html.div(
         [attribute.class("flex justify-between items-center max-w-4xl mx-auto")],
         [
           html.a(
-            [attribute.class("flex items-center text-2xl"), attribute.href("/")],
+            [
+              attribute.class("flex items-center text-2xl font-comic"),
+              attribute.href("/"),
+            ],
             [
               html.img([
                 attribute.class("w-8 mr-2"),
@@ -627,7 +630,7 @@ pub fn navbar(static_directory: String) -> Element(_) {
           ),
           html.a(
             [
-              attribute.class("hover:text-blue-500 text-lg"),
+              attribute.class("hover:text-blue-500 text-lg font-comic"),
               attribute.href("/learn"),
             ],
             [html.text("Learn")],
@@ -656,9 +659,9 @@ pub fn layout(content: Element(a)) -> Element(a) {
     _ -> ""
   }
 
-  element.fragment([
+  html.div([attribute.class("bg-blue-100 min-h-dvh")], [
     navbar(static_directory),
-    html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
+    html.main([], [content]),
   ])
 }
 
@@ -693,10 +696,11 @@ pub fn game_layout(
       },
       event.on("pointerup", decode.success(to_msg(UserDroppedPiece))),
       event.on("pointercancel", decode.success(to_msg(UserCancelledDrag))),
+      attribute.class("bg-blue-100 min-h-dvh"),
     ],
     [
       navbar(static_directory),
-      html.main([attribute.class("bg-blue-100 min-h-dvh")], [content]),
+      html.main([], [content]),
     ],
   )
 }

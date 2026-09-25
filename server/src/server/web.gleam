@@ -24,6 +24,10 @@ pub fn middleware(
   handle_request(req)
 }
 
+// <link rel="preconnect" href="https://fonts.googleapis.com">
+// <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+// <link href="https://fonts.googleapis.com/css2?family=Comic+Relief:wght@400;700&family=Josefin+Sans:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+
 pub fn serve_index() -> Response {
   html.html([], [
     html.head([], [
@@ -45,6 +49,21 @@ pub fn serve_index() -> Response {
       html.link([
         attribute.rel("stylesheet"),
         attribute.href("/static/client.css"),
+      ]),
+      html.link([
+        attribute.rel("preconnect"),
+        attribute.href("https://fonts.googleapis.com"),
+      ]),
+      html.link([
+        attribute.rel("preconnect"),
+        attribute.href("https://fonts.gstatic.com"),
+        attribute.crossorigin("anonymous"),
+      ]),
+      html.link([
+        attribute.href(
+          "https://fonts.googleapis.com/css2?family=Comic+Relief:wght@400;700&family=Josefin+Sans:ital,wght@0,100..700;1,100..700&display=swap",
+        ),
+        attribute.rel("stylesheet"),
       ]),
       html.script(
         [attribute.type_("module"), attribute.src("/static/client.js")],

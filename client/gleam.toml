@@ -34,5 +34,5 @@ links = [
     { rel = "preconnect", href = "https://fonts.gstatic.com", crossorigin = "anonymous"},
 ]
 stylesheets = [
-    { href="https://fonts.googleapis.com/css2?family=Comic+Relief:wght@400;700&display=swap" },
+    { href="https://fonts.googleapis.com/css2?family=Comic+Relief:wght@400;700&family=Josefin+Sans:ital,wght@0,100..700;1,100..700&display=swap" },
 ]
