@@ -388,7 +388,7 @@ pub fn view(model: Model) {
                           shared.FlemishGiant,
                         )),
                       ],
-                      [html.text("Flemish Giant")],
+                      [html.text("Default")],
                     ),
                   ],
                 ),

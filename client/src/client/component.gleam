@@ -664,6 +664,23 @@ pub fn layout(content: Element(a)) -> Element(a) {
   ])
 }
 
+pub fn button_group(label_text: String, buttons: List(Element(a))) {
+  html.div([], [
+    html.label([attribute.class("font-comic text-xl")], [
+      html.text(label_text),
+    ]),
+    html.div(
+      [
+        attribute.class("flex flex-row md:flex-col mt-2 border-2"),
+        attribute.class("border-black rounded-xl truncate "),
+        attribute.class("font-comic w-full divide-x-2"),
+        attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
+      ],
+      buttons,
+    ),
+  ])
+}
+
 pub fn game_layout(
   content: Element(msg),
   dragged_piece: Option(DraggedPiece),

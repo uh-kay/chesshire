@@ -47,7 +47,7 @@ pub fn init(is_public: Bool) -> Model {
       is_public:,
       host_side: Random,
       board_variant: shared.TwinPasses,
-      game_variant: shared.RiverSacrifice,
+      game_variant: shared.FlemishGiant,
     )
 
   model
@@ -137,107 +137,195 @@ fn create_game(
 
 // VIEW -----------------------------------------------------------------------
 pub fn view(model: Model) -> Element(Message) {
-  let button_style = fn(selected_variant: Bool) {
-    [
-      attribute.class("p-2 w-fit rounded-md cursor-pointer border-2"),
-      attribute.class("border-blue-500"),
-      attribute.class(case selected_variant {
-        True -> "text-white bg-blue-500"
-        False -> "hover:bg-blue-500 hover:text-white"
-      }),
-    ]
-  }
-
   let content =
     html.div([attribute.class("p-8 max-w-2xl mx-auto flex flex-col")], [
-      html.p([attribute.class("text-lg")], [html.text("Board Variant")]),
-      html.div([attribute.class("mt-2 flex gap-2")], [
-        html.button(
-          [
-            event.on_click(UserClickedBoardVariant(shared.TwinPasses)),
-            ..button_style(model.board_variant == shared.TwinPasses)
-          ],
-          [html.text("Twin Passes")],
-        ),
-        html.button(
-          [
-            event.on_click(UserClickedBoardVariant(shared.GreatCrossing)),
-            ..button_style(model.board_variant == shared.GreatCrossing)
-          ],
-          [html.text("Great Crossing")],
-        ),
+      html.h1([attribute.class("font-josefin text-3xl font-bold mb-4")], [
+        html.text(case model.is_public {
+          True -> "Create Game"
+          False -> "Create Private Game"
+        }),
       ]),
 
-      html.div(
-        [
-          attribute.class("mt-2 grid grid-cols-8 grid-rows-9 w-full min-h-fit"),
-          attribute.class("outline-1 min-w-fit md:w-fit"),
-          attribute.class(case model.host_side {
-            Black -> "scale-x-[-1]"
-            Random -> "scale-y-[-1]"
-            White -> "scale-y-[-1]"
-          }),
-        ],
-        board_view(model),
-      ),
+      html.div([attribute.class("flex flex-col items-center")], [
+        html.div(
+          [attribute.class("flex flex-col-reverse md:flex-row gap-4 md:gap-8")],
+          [
+            html.div([], [
+              html.label(
+                [attribute.class("font-comic text-xl flex md:justify-center")],
+                [html.text("Board Variant")],
+              ),
+              html.div(
+                [
+                  attribute.class("flex flex-row md:flex-col mt-2 border-2"),
+                  attribute.class("border-black rounded-xl truncate "),
+                  attribute.class("font-comic w-full divide-x-2"),
+                  attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
+                ],
+                [
+                  html.button(
+                    [
+                      attribute.class("px-2 py-3 w-full md:h-fit"),
+                      attribute.class("text-nowrap rounded-b-none"),
+                      attribute.class(case model.board_variant {
+                        shared.TwinPasses -> "bg-blue-500 text-white"
+                        shared.GreatCrossing -> "hover:bg-blue-300"
+                      }),
+                      event.on_click(UserClickedBoardVariant(shared.TwinPasses)),
+                    ],
+                    [html.text("Twin Passes")],
+                  ),
+                  html.button(
+                    [
+                      attribute.class("px-2 py-3 w-full md:h-fit"),
+                      attribute.class("text-nowrap"),
+                      attribute.class(case model.board_variant {
+                        shared.GreatCrossing -> "bg-blue-500 text-white"
+                        shared.TwinPasses -> "hover:bg-blue-300"
+                      }),
+                      event.on_click(UserClickedBoardVariant(
+                        shared.GreatCrossing,
+                      )),
+                    ],
+                    [html.text("Great Crossing")],
+                  ),
+                ],
+              ),
 
-      html.p([attribute.class("mt-3 text-lg")], [html.text("Rule Variant")]),
-      html.div([attribute.class("mt-2 flex gap-2")], [
-        html.button(
-          [
-            event.on_click(UserClickedGameVariant(shared.RiverSacrifice)),
-            ..button_style(model.game_variant == shared.RiverSacrifice)
+              html.label(
+                [
+                  attribute.class("mt-2 md:mt-4 font-comic text-xl flex"),
+                  attribute.class("md:justify-center"),
+                ],
+                [html.text("Rule Variant")],
+              ),
+              html.div(
+                [
+                  attribute.class("flex flex-row md:flex-col mt-2 border-2"),
+                  attribute.class("border-black rounded-xl truncate "),
+                  attribute.class("font-comic w-full divide-x-2"),
+                  attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
+                ],
+                [
+                  html.button(
+                    [
+                      attribute.class("px-2 py-3 w-full md:h-fit"),
+                      attribute.class("text-nowrap rounded-b-none"),
+                      attribute.class(case model.game_variant {
+                        shared.RiverSacrifice -> "bg-blue-500 text-white"
+                        shared.FlemishGiant -> "hover:bg-blue-300"
+                      }),
+                      event.on_click(UserClickedGameVariant(
+                        shared.RiverSacrifice,
+                      )),
+                    ],
+                    [html.text("Classic")],
+                  ),
+                  html.button(
+                    [
+                      attribute.class("px-2 py-3 w-full md:h-fit"),
+                      attribute.class("text-nowrap"),
+                      attribute.class(case model.game_variant {
+                        shared.FlemishGiant -> "bg-blue-500 text-white"
+                        shared.RiverSacrifice -> "hover:bg-blue-300"
+                      }),
+                      event.on_click(UserClickedGameVariant(shared.FlemishGiant)),
+                    ],
+                    [html.text("Default")],
+                  ),
+                ],
+              ),
+
+              html.label(
+                [
+                  attribute.class("mt-2 md:mt-4 font-comic text-xl flex"),
+                  attribute.class("md:justify-center"),
+                ],
+                [html.text("Side")],
+              ),
+              html.div(
+                [
+                  attribute.class("flex flex-row md:flex-col mt-2 border-2"),
+                  attribute.class("border-black rounded-xl truncate "),
+                  attribute.class("font-comic w-full divide-x-2"),
+                  attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
+                ],
+                [
+                  html.button(
+                    [
+                      attribute.class("px-2 py-3 w-full md:h-fit"),
+                      attribute.class("text-nowrap rounded-b-none"),
+                      attribute.class(case model.host_side {
+                        Black -> "bg-blue-500 text-white"
+                        _ -> "hover:bg-blue-300"
+                      }),
+                      event.on_click(UserClickedPlayingSide(Black)),
+                    ],
+                    [html.text("Black")],
+                  ),
+                  html.button(
+                    [
+                      attribute.class("px-2 py-3 w-full md:h-fit"),
+                      attribute.class("text-nowrap rounded-b-none"),
+                      attribute.class(case model.host_side {
+                        Random -> "bg-blue-500 text-white"
+                        _ -> "hover:bg-blue-300"
+                      }),
+                      event.on_click(UserClickedPlayingSide(Random)),
+                    ],
+                    [html.text("Random")],
+                  ),
+                  html.button(
+                    [
+                      attribute.class("px-2 py-3 w-full md:h-fit"),
+                      attribute.class("text-nowrap"),
+                      attribute.class(case model.host_side {
+                        White -> "bg-blue-500 text-white"
+                        _ -> "hover:bg-blue-300"
+                      }),
+                      event.on_click(UserClickedPlayingSide(White)),
+                    ],
+                    [html.text("White")],
+                  ),
+                ],
+              ),
+            ]),
+
+            html.div(
+              [
+                attribute.class("md:mt-2 grid grid-cols-8 grid-rows-9"),
+                attribute.class("outline-2"),
+                attribute.class("w-xs min-h-fit min-w-fit h-full md:w-fit"),
+                attribute.class(case model.host_side {
+                  Black -> "scale-x-[-1]"
+                  Random -> "scale-y-[-1]"
+                  White -> "scale-y-[-1]"
+                }),
+              ],
+              board_view(model),
+            ),
           ],
-          [html.text("River Sacrifice")],
         ),
+
         html.button(
           [
-            event.on_click(UserClickedGameVariant(shared.FlemishGiant)),
-            ..button_style(model.game_variant == shared.FlemishGiant)
+            attribute.class("px-2 py-3 bg-blue-500 text-white rounded-md"),
+            attribute.class("hover:cursor-pointer transition-all gap-1"),
+            attribute.class("border-black font-comic w-48 mt-8 border-2"),
+            attribute.class("drop-shadow-[4px_4px_0_#000] flex justify-center"),
+            attribute.class("hover:translate-x-[4px] hover:translate-y-[4px]"),
+            attribute.class("hover:drop-shadow-none active:translate-x-[4px]"),
+            attribute.class("active:translate-y-[4px] active:drop-shadow-none"),
+            event.on_click(UserClickedCreateGame),
           ],
-          [html.text("Flemish Giant")],
+          [
+            html.text(case model.is_public {
+              True -> "Create Game"
+              False -> "Create Private Game"
+            }),
+          ],
         ),
       ]),
-
-      html.p([attribute.class("mt-3 text-lg")], [html.text("Side")]),
-      html.div([attribute.class("mt-2 flex gap-2")], [
-        html.button(
-          [
-            event.on_click(UserClickedPlayingSide(Black)),
-            ..button_style(model.host_side == Black)
-          ],
-          [html.text("Black")],
-        ),
-        html.button(
-          [
-            event.on_click(UserClickedPlayingSide(Random)),
-            ..button_style(model.host_side == Random)
-          ],
-          [html.text("Random")],
-        ),
-        html.button(
-          [
-            event.on_click(UserClickedPlayingSide(White)),
-            ..button_style(model.host_side == White)
-          ],
-          [html.text("White")],
-        ),
-      ]),
-
-      html.button(
-        [
-          attribute.class("p-2 mt-8 w-fit rounded-md cursor-pointer border"),
-          attribute.class("border-blue-500 text-white bg-blue-500"),
-          attribute.class("hover:bg-blue-600"),
-          event.on_click(UserClickedCreateGame),
-        ],
-        [
-          html.text(case model.is_public {
-            True -> "Create Game"
-            False -> "Create Private Game"
-          }),
-        ],
-      ),
     ])
 
   component.layout(content)
@@ -304,6 +392,13 @@ fn board_view(model: Model) {
           component.piece_view(piece),
         ],
       ),
+      html.div([attribute.class("hidden md:block")], [
+        component.special_square_marker(square_color, case model.host_side {
+          Black -> Some(shared.Black)
+          Random -> None
+          White -> Some(shared.White)
+        }),
+      ]),
     ])
   })
 }
