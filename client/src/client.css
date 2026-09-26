@@ -3,6 +3,14 @@
 @theme {
     --font-comic: "Comic Relief", sans-serif;
     --font-josefin: "Josefin Sans", sans-serif;
+    --color-dark-base: hsl(219 45 4);
+    --color-dark-secondary: hsl(217 44 10);
+    --color-dark: hsl(217 100 90);
+    --drop-shadow-dark: drop-shadow(4px 4px 0 hsl(217 100 90));
+    --color-river-square: hsl(220 83 52);
+    --color-bridge-square: hsl(19 24 45);
+    --color-black-square: hsl(156 46 42);
+    --color-white-square: hsl(176 52 82);
 }
 
 .ellipsis {

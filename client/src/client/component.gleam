@@ -70,7 +70,7 @@ pub type SquareColor {
 }
 
 pub fn game_view(model: Model) -> Element(Message) {
-  html.div([], [
+  html.div([attribute.class("")], [
     html.div(
       [
         attribute.class("grid grid-cols-8 grid-rows-9 w-fit md:w-full"),
@@ -329,10 +329,10 @@ fn square_style() {
 
 pub fn square_color_style(square_color: SquareColor) {
   attribute.class(case square_color {
-    White -> "bg-green-200/50"
-    Black -> "bg-green-700/70"
-    Blue -> "bg-[#1861eb]"
-    Brown -> "bg-amber-900/70"
+    White -> "bg-white-square"
+    Black -> "bg-black-square"
+    Blue -> "bg-river-square"
+    Brown -> "bg-bridge-square"
   })
 }
 
@@ -609,7 +609,10 @@ pub fn clock_view(
 
 pub fn navbar(static_directory: String) -> Element(_) {
   html.nav(
-    [attribute.class("p-4 h-[60px] border-b-2 bg-blue-200 border-black")],
+    [
+      attribute.class("p-4 h-[60px] border-b-2 bg-blue-200 border-black"),
+      attribute.class("dark:bg-dark-secondary dark:border-dark"),
+    ],
     [
       html.div(
         [attribute.class("flex justify-between items-center max-w-4xl mx-auto")],
@@ -712,7 +715,7 @@ pub fn game_layout(
       },
       event.on("pointerup", decode.success(to_msg(UserDroppedPiece))),
       event.on("pointercancel", decode.success(to_msg(UserCancelledDrag))),
-      attribute.class("bg-blue-100 min-h-dvh"),
+      attribute.class("bg-blue-100 min-h-dvh dark:bg-dark-base dark:text-dark"),
     ],
     [
       navbar(static_directory),
