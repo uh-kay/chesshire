@@ -321,15 +321,19 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
           let game = game_view.game
 
-          case model.premove {
+          let premove = case model.premove {
             Some(move) -> {
+              let to_move = cheg.to_move(game)
               let message = cheg.move_to_json(move) |> json.to_string
-              case model.websocket {
-                Some(ws) -> websocket.send_message(ws, message)
-                None -> Nil
+              case model.websocket, model.player_color {
+                Some(ws), Some(player_color) if player_color == to_move -> {
+                  websocket.send_message(ws, message)
+                  None
+                }
+                _, _ -> model.premove
               }
             }
-            None -> Nil
+            None -> None
           }
 
           let effect =
@@ -355,7 +359,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
               game_state: game_view.game_state,
               player_color: game_view.player_color,
               is_public: game_view.is_public,
-              premove: None,
+              premove:,
             )
 
           #(model, effect)
@@ -471,6 +475,7 @@ fn listen(ws: Option(websocket.Websocket)) -> Effect(Message) {
     Some(ws) ->
       effect.from(fn(dispatch) {
         promise.tap(websocket.receive_message(ws), fn(msg) {
+          echo msg
           dispatch(ServerUpdatedGame(body: msg))
         })
 

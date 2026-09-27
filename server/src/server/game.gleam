@@ -272,8 +272,25 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
           actor.continue(new_state)
         }
 
+        Online(#(host_session, _)), _ if host_session == session -> {
+          let new_state = GameActor(..state, host: Online(#(session, socket)))
+          broadcast_payload(state, new_state)
+          actor.send(
+            reply_to,
+            JoinOk(
+              Host,
+              new_state.model,
+              state.guest != Empty,
+              host_color: state.host_color,
+              guest_color: state.guest_color,
+              is_public: state.is_public,
+            ),
+          )
+          actor.continue(new_state)
+        }
+
         // There's already a host, join as guest
-        Online(_), Empty -> {
+        _, Empty -> {
           let new_state = GameActor(..state, guest: Online(#(session, socket)))
           broadcast_payload(state, new_state)
 
@@ -296,6 +313,23 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
           let new_state = GameActor(..state, guest: Online(#(session, socket)))
           broadcast_payload(state, new_state)
 
+          actor.send(
+            reply_to,
+            JoinOk(
+              Guest,
+              new_state.model,
+              state.guest != Empty,
+              host_color: state.host_color,
+              guest_color: state.guest_color,
+              is_public: state.is_public,
+            ),
+          )
+          actor.continue(new_state)
+        }
+
+        _, Online(#(guest_session, _)) if guest_session == session -> {
+          let new_state = GameActor(..state, guest: Online(#(session, socket)))
+          broadcast_payload(state, new_state)
           actor.send(
             reply_to,
             JoinOk(
@@ -339,8 +373,8 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
     }
     Move(session:, move:, reply_to:) -> {
       let role = case state.host, state.guest {
-        Online(#(s, _)), _ if s == session -> Some(Host)
-        _, Online(#(s, _)) if s == session -> Some(Guest)
+        Online(#(host_session, _)), _ if host_session == session -> Some(Host)
+        _, Online(#(guest_session, _)) if guest_session == session -> Some(Guest)
         _, _ -> None
       }
 

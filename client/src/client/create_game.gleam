@@ -158,9 +158,10 @@ pub fn view(model: Model) -> Element(Message) {
               html.div(
                 [
                   attribute.class("flex flex-row md:flex-col mt-2 border-2"),
-                  attribute.class("border-black rounded-xl truncate "),
+                  attribute.class("border-black rounded-xl truncate"),
                   attribute.class("font-comic w-full divide-x-2"),
                   attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
+                  attribute.class("dark:border-dark dark:divide-dark"),
                 ],
                 [
                   html.button(
@@ -168,8 +169,10 @@ pub fn view(model: Model) -> Element(Message) {
                       attribute.class("px-2 py-3 w-full md:h-fit"),
                       attribute.class("text-nowrap rounded-b-none"),
                       attribute.class(case model.board_variant {
-                        shared.TwinPasses -> "bg-blue-500 text-white"
-                        shared.GreatCrossing -> "hover:bg-blue-300"
+                        shared.TwinPasses ->
+                          "bg-blue-500 dark:bg-blue-600 text-white"
+                        shared.GreatCrossing ->
+                          "hover:bg-blue-300 dark:hover:bg-blue-500"
                       }),
                       event.on_click(UserClickedBoardVariant(shared.TwinPasses)),
                     ],
@@ -180,8 +183,10 @@ pub fn view(model: Model) -> Element(Message) {
                       attribute.class("px-2 py-3 w-full md:h-fit"),
                       attribute.class("text-nowrap"),
                       attribute.class(case model.board_variant {
-                        shared.GreatCrossing -> "bg-blue-500 text-white"
-                        shared.TwinPasses -> "hover:bg-blue-300"
+                        shared.GreatCrossing ->
+                          "bg-blue-500 dark:bg-blue-600 text-white"
+                        shared.TwinPasses ->
+                          "hover:bg-blue-300 dark:hover:bg-blue-500"
                       }),
                       event.on_click(UserClickedBoardVariant(
                         shared.GreatCrossing,
@@ -205,6 +210,7 @@ pub fn view(model: Model) -> Element(Message) {
                   attribute.class("border-black rounded-xl truncate "),
                   attribute.class("font-comic w-full divide-x-2"),
                   attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
+                  attribute.class("dark:border-dark dark:divide-dark"),
                 ],
                 [
                   html.button(
@@ -212,8 +218,10 @@ pub fn view(model: Model) -> Element(Message) {
                       attribute.class("px-2 py-3 w-full md:h-fit"),
                       attribute.class("text-nowrap rounded-b-none"),
                       attribute.class(case model.game_variant {
-                        shared.RiverSacrifice -> "bg-blue-500 text-white"
-                        shared.FlemishGiant -> "hover:bg-blue-300"
+                        shared.RiverSacrifice ->
+                          "bg-blue-500 dark:bg-blue-600 text-white"
+                        shared.FlemishGiant ->
+                          "hover:bg-blue-300 dark:hover:bg-blue-500"
                       }),
                       event.on_click(UserClickedGameVariant(
                         shared.RiverSacrifice,
@@ -226,8 +234,10 @@ pub fn view(model: Model) -> Element(Message) {
                       attribute.class("px-2 py-3 w-full md:h-fit"),
                       attribute.class("text-nowrap"),
                       attribute.class(case model.game_variant {
-                        shared.FlemishGiant -> "bg-blue-500 text-white"
-                        shared.RiverSacrifice -> "hover:bg-blue-300"
+                        shared.FlemishGiant ->
+                          "bg-blue-500 dark:bg-blue-600 text-white"
+                        shared.RiverSacrifice ->
+                          "hover:bg-blue-300 dark:hover:bg-blue-500"
                       }),
                       event.on_click(UserClickedGameVariant(shared.FlemishGiant)),
                     ],
@@ -249,6 +259,7 @@ pub fn view(model: Model) -> Element(Message) {
                   attribute.class("border-black rounded-xl truncate "),
                   attribute.class("font-comic w-full divide-x-2"),
                   attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
+                  attribute.class("dark:border-dark dark:divide-dark"),
                 ],
                 [
                   html.button(
@@ -256,8 +267,8 @@ pub fn view(model: Model) -> Element(Message) {
                       attribute.class("px-2 py-3 w-full md:h-fit"),
                       attribute.class("text-nowrap rounded-b-none"),
                       attribute.class(case model.host_side {
-                        Black -> "bg-blue-500 text-white"
-                        _ -> "hover:bg-blue-300"
+                        Black -> "bg-blue-500 dark:bg-blue-600 text-white"
+                        _ -> "hover:bg-blue-300 dark:hover:bg-blue-500"
                       }),
                       event.on_click(UserClickedPlayingSide(Black)),
                     ],
@@ -268,8 +279,8 @@ pub fn view(model: Model) -> Element(Message) {
                       attribute.class("px-2 py-3 w-full md:h-fit"),
                       attribute.class("text-nowrap rounded-b-none"),
                       attribute.class(case model.host_side {
-                        Random -> "bg-blue-500 text-white"
-                        _ -> "hover:bg-blue-300"
+                        Random -> "bg-blue-500 dark:bg-blue-600 text-white"
+                        _ -> "hover:bg-blue-300 dark:hover:bg-blue-500"
                       }),
                       event.on_click(UserClickedPlayingSide(Random)),
                     ],
@@ -280,8 +291,8 @@ pub fn view(model: Model) -> Element(Message) {
                       attribute.class("px-2 py-3 w-full md:h-fit"),
                       attribute.class("text-nowrap"),
                       attribute.class(case model.host_side {
-                        White -> "bg-blue-500 text-white"
-                        _ -> "hover:bg-blue-300"
+                        White -> "bg-blue-500 dark:bg-blue-600 text-white"
+                        _ -> "hover:bg-blue-300 dark:hover:bg-blue-500"
                       }),
                       event.on_click(UserClickedPlayingSide(White)),
                     ],
@@ -294,7 +305,7 @@ pub fn view(model: Model) -> Element(Message) {
             html.div(
               [
                 attribute.class("md:mt-2 grid grid-cols-8 grid-rows-9"),
-                attribute.class("outline-2"),
+                attribute.class("outline-2 bg-current"),
                 attribute.class("w-xs min-h-fit min-w-fit h-full md:w-fit"),
                 attribute.class(case model.host_side {
                   Black -> "scale-x-[-1]"
@@ -316,6 +327,8 @@ pub fn view(model: Model) -> Element(Message) {
             attribute.class("hover:translate-x-[4px] hover:translate-y-[4px]"),
             attribute.class("hover:drop-shadow-none active:translate-x-[4px]"),
             attribute.class("active:translate-y-[4px] active:drop-shadow-none"),
+            attribute.class("dark:drop-shadow-[4px_4px_0_hsl(217_100_90)]"),
+            attribute.class("dark:border-dark"),
             event.on_click(UserClickedCreateGame),
           ],
           [

@@ -256,6 +256,7 @@ fn square_view(
           "bg-radial-[at_50%_50%] from-red-500 to-transparent"
         _, _ -> ""
       }),
+      attribute.value("pos-" <> int.to_string(position)),
     ],
     [
       special_square_marker(square_color, player_color),
@@ -496,8 +497,8 @@ pub fn clock_view(
   let black_time = format_time(black_time)
   let white_time = format_time(white_time)
   let time_style = [
-    attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3"),
-    attribute.class("text-center text-3xl"),
+    attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3 border-2"),
+    attribute.class("text-center text-3xl dark:bg-blue-600 dark:border-dark"),
   ]
 
   let state = case state {
@@ -661,10 +662,13 @@ pub fn layout(content: Element(a)) -> Element(a) {
     _ -> ""
   }
 
-  html.div([attribute.class("bg-blue-100 min-h-dvh")], [
-    navbar(static_directory),
-    html.main([], [content]),
-  ])
+  html.div(
+    [attribute.class("bg-blue-100 min-h-dvh dark:bg-dark-base dark:text-dark")],
+    [
+      navbar(static_directory),
+      html.main([], [content]),
+    ],
+  )
 }
 
 pub fn button_group(label_text: String, buttons: List(Element(a))) {
