@@ -2,10 +2,12 @@ import cheg
 import client/component
 import client/icon
 import client/websocket
+import gleam/bool
 import gleam/dict
 import gleam/int
 import gleam/javascript/promise.{type Promise}
 import gleam/json
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/uri
 import lustre/attribute
@@ -323,6 +325,9 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
           let premove = case model.premove {
             Some(move) -> {
+              let legal_moves = cheg.legal_moves(game)
+              use <- bool.guard(!list.contains(legal_moves, move), None)
+
               let to_move = cheg.to_move(game)
               let message = cheg.move_to_json(move) |> json.to_string
               case model.websocket, model.player_color {
