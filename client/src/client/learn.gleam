@@ -190,64 +190,7 @@ pub fn init() {
 pub fn update(model: Model, message: Message) {
   case message {
     UserClickedPiece(for:, from:) -> {
-      let model = case for {
-        RiverKnight -> {
-          let moves = case model.river_knight_model.can_move {
-            True -> [#(from, 7), #(from, 9)]
-            False -> []
-          }
-
-          Model(
-            ..model,
-            river_knight_model: RiverKnightModel(
-              ..model.river_knight_model,
-              moves:,
-            ),
-          )
-        }
-        PawnSacrifice -> {
-          let moves = case model.pawn_sacrifice_model.can_move {
-            True -> [#(from, 5)]
-            False -> []
-          }
-
-          Model(
-            ..model,
-            pawn_sacrifice_model: PawnSacrificeModel(
-              ..model.pawn_sacrifice_model,
-              moves:,
-            ),
-          )
-        }
-        BridgeMovement -> {
-          let moves = case model.bridge_movement_model.can_move {
-            True -> [#(from, 5), #(from, 9)]
-            False -> []
-          }
-
-          Model(
-            ..model,
-            bridge_movement_model: BridgeMovementModel(
-              ..model.bridge_movement_model,
-              moves:,
-            ),
-          )
-        }
-        RabbitPiece -> {
-          let moves = case model.rabbit_piece_model.can_move {
-            True -> [#(from, 5), #(from, 7), #(from, 8)]
-            False -> []
-          }
-
-          Model(
-            ..model,
-            rabbit_piece_model: RabbitPieceModel(
-              ..model.rabbit_piece_model,
-              moves:,
-            ),
-          )
-        }
-      }
+      let model = get_piece_moves(model, for, from)
 
       #(model, effect.none())
     }
@@ -288,64 +231,7 @@ pub fn update(model: Model, message: Message) {
       width:,
       height:,
     ) -> {
-      let model = case for {
-        RiverKnight -> {
-          let moves = case model.river_knight_model.can_move {
-            True -> [#(from, 7), #(from, 9)]
-            False -> []
-          }
-
-          Model(
-            ..model,
-            river_knight_model: RiverKnightModel(
-              ..model.river_knight_model,
-              moves:,
-            ),
-          )
-        }
-        PawnSacrifice -> {
-          let moves = case model.pawn_sacrifice_model.can_move {
-            True -> [#(from, 5)]
-            False -> []
-          }
-
-          Model(
-            ..model,
-            pawn_sacrifice_model: PawnSacrificeModel(
-              ..model.pawn_sacrifice_model,
-              moves:,
-            ),
-          )
-        }
-        BridgeMovement -> {
-          let moves = case model.bridge_movement_model.can_move {
-            True -> [#(from, 5), #(from, 9)]
-            False -> []
-          }
-
-          Model(
-            ..model,
-            bridge_movement_model: BridgeMovementModel(
-              ..model.bridge_movement_model,
-              moves:,
-            ),
-          )
-        }
-        RabbitPiece -> {
-          let moves = case model.rabbit_piece_model.can_move {
-            True -> [#(from, 5), #(from, 7), #(from, 8)]
-            False -> []
-          }
-
-          Model(
-            ..model,
-            rabbit_piece_model: RabbitPieceModel(
-              ..model.rabbit_piece_model,
-              moves:,
-            ),
-          )
-        }
-      }
+      let model = get_piece_moves(model, for, from)
 
       let model =
         Model(
@@ -512,12 +398,62 @@ pub fn update(model: Model, message: Message) {
   }
 }
 
-// TODO: maybe also explain that pieces cannot attack across river?
+fn get_piece_moves(model: Model, for, from: Int) -> Model {
+  case for {
+    RiverKnight -> {
+      let moves = case model.river_knight_model.can_move {
+        True -> [#(from, 7), #(from, 9)]
+        False -> []
+      }
+
+      Model(
+        ..model,
+        river_knight_model: RiverKnightModel(..model.river_knight_model, moves:),
+      )
+    }
+    PawnSacrifice -> {
+      let moves = case model.pawn_sacrifice_model.can_move {
+        True -> [#(from, 5)]
+        False -> []
+      }
+
+      Model(
+        ..model,
+        pawn_sacrifice_model: PawnSacrificeModel(
+          ..model.pawn_sacrifice_model,
+          moves:,
+        ),
+      )
+    }
+    BridgeMovement -> {
+      let moves = case model.bridge_movement_model.can_move {
+        True -> [#(from, 5), #(from, 9)]
+        False -> []
+      }
+
+      Model(
+        ..model,
+        bridge_movement_model: BridgeMovementModel(
+          ..model.bridge_movement_model,
+          moves:,
+        ),
+      )
+    }
+    RabbitPiece -> {
+      let moves = case model.rabbit_piece_model.can_move {
+        True -> [#(from, 5), #(from, 7), #(from, 8)]
+        False -> []
+      }
+
+      Model(
+        ..model,
+        rabbit_piece_model: RabbitPieceModel(..model.rabbit_piece_model, moves:),
+      )
+    }
+  }
+}
+
 pub fn view(model: Model) {
-  let board_style = [
-    attribute.class("grid grid-cols-3 grid-rows-3 scale-y-[-1] shrink-0"),
-    attribute.class("border-2 dark:border-dark-text"),
-  ]
   let dragged_over_square = fn(board_type) {
     case model.dragged_over_square {
       Some(dragged_square) if dragged_square.0 == board_type ->
@@ -544,6 +480,18 @@ pub fn view(model: Model) {
     }
     None -> None
   }
+  let board_style = [
+    attribute.class("grid grid-cols-3 grid-rows-3 scale-y-[-1] shrink-0"),
+    attribute.class("border-2 dark:border-dark-text"),
+  ]
+  let rule_heading_style = attribute.class("text-2xl font-bold font-josefin")
+  let rule_text_style = attribute.class("text-lg font-comic")
+  let rule_box_style = [
+    attribute.class("border-2 dark:border-dark p-4 mb-4 rounded-lg"),
+    attribute.class("dark:bg-dark-secondary bg-blue-200"),
+  ]
+  let rule_text_container_style =
+    attribute.class("flex justify-between items-center")
 
   html.div(
     [
@@ -559,154 +507,102 @@ pub fn view(model: Model) {
     ],
     [
       html.div(
-        [
-          attribute.class("flex flex-col max-w-2xl min-h-screen mx-auto"),
-        ],
+        [attribute.class("flex flex-col max-w-2xl min-h-screen mx-auto")],
         [
           html.h1(
             [attribute.class("text-3xl pt-8 mb-8 font-bold font-josefin")],
             [html.text("Learn Chesshire")],
           ),
-          html.p([attribute.class("text-lg mb-4 font-comic")], [
+          html.p([rule_text_style, attribute.class("mb-4")], [
             html.text("Normal chess rule applies but with these additions:"),
           ]),
 
-          html.div(
-            [
-              attribute.class("border-2 dark:border-dark p-4 mb-4 rounded-lg"),
-              attribute.class("dark:bg-dark-secondary bg-blue-200"),
-            ],
-            [
-              html.h2([attribute.class("text-2xl font-bold font-josefin")], [
-                html.text("River Square"),
+          html.div(rule_box_style, [
+            html.h2([rule_heading_style], [html.text("River Square")]),
+            html.div([rule_text_container_style, attribute.class("mb-4")], [
+              html.p([rule_text_style], [
+                html.text("Knight can jump over the river."),
               ]),
               html.div(
-                [
-                  attribute.class("flex justify-between items-center"),
-                  attribute.class("mb-4"),
-                ],
-                [
-                  html.p([attribute.class("text-lg font-comic")], [
-                    html.text("Knight can jump over the river."),
-                  ]),
-                  html.div(
-                    board_style,
-                    demo_view(
-                      RiverKnight,
-                      model.river_knight_model.board,
-                      [4, 5, 6],
-                      [],
-                      model.river_knight_model.moves,
-                      dragged_over_square(RiverKnight),
-                      model.dragged_piece,
-                    ),
-                  ),
-                ],
+                board_style,
+                demo_view(
+                  RiverKnight,
+                  model.river_knight_model.board,
+                  [4, 5, 6],
+                  [],
+                  model.river_knight_model.moves,
+                  dragged_over_square(RiverKnight),
+                  model.dragged_piece,
+                ),
               ),
-              html.div(
-                [
-                  attribute.class("flex gap-8 items-center justify-between"),
-                ],
-                [
-                  html.p([attribute.class("text-lg font-comic")], [
-                    html.text(
-                      "Any piece can be sacrificed at the river to create ",
-                    ),
-                    html.text("a bridge square."),
-                  ]),
-                  html.div(
-                    board_style,
-                    demo_view(
-                      PawnSacrifice,
-                      model.pawn_sacrifice_model.board,
-                      model.pawn_sacrifice_model.river_squares,
-                      model.pawn_sacrifice_model.bridge_squares,
-                      model.pawn_sacrifice_model.moves,
-                      dragged_over_square(PawnSacrifice),
-                      model.dragged_piece,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          html.div(
-            [
-              attribute.class("border-2 p-4 dark:border-dark mb-4 rounded-lg"),
-              attribute.class("dark:bg-dark-secondary bg-blue-200"),
-            ],
-            [
-              html.h2([attribute.class("text-2xl font-bold font-josefin")], [
-                html.text("Bridge Square"),
+            ]),
+            html.div([rule_text_container_style], [
+              html.p([rule_text_style], [
+                html.text("Any piece can be sacrificed at the river to "),
+                html.text("create a bridge square."),
               ]),
               html.div(
-                [
-                  attribute.class(
-                    "flex justify-between gap-8 items-center mb-4",
-                  ),
-                ],
-                [
-                  html.p([attribute.class("text-lg font-comic")], [
-                    html.text("Any piece can use the bridge to move to the "),
-                    html.text("other side and attack pieces on the other side."),
-                  ]),
-                  html.div(
-                    board_style,
-                    demo_view(
-                      BridgeMovement,
-                      model.bridge_movement_model.board,
-                      model.bridge_movement_model.river_squares,
-                      model.bridge_movement_model.bridge_squares,
-                      model.bridge_movement_model.moves,
-                      dragged_over_square(BridgeMovement),
-                      model.dragged_piece,
-                    ),
-                  ),
-                ],
+                board_style,
+                demo_view(
+                  PawnSacrifice,
+                  model.pawn_sacrifice_model.board,
+                  model.pawn_sacrifice_model.river_squares,
+                  model.pawn_sacrifice_model.bridge_squares,
+                  model.pawn_sacrifice_model.moves,
+                  dragged_over_square(PawnSacrifice),
+                  model.dragged_piece,
+                ),
               ),
-            ],
-          ),
+            ]),
+          ]),
 
-          html.div(
-            [
-              attribute.class("border-2 p-4 dark:border-dark rounded-lg mb-4"),
-              attribute.class("dark:bg-dark-secondary bg-blue-200"),
-            ],
-            [
-              html.h2(
-                [attribute.class("mb-4 text-2xl font-bold font-josefin")],
-                [html.text("Rabbit Piece")],
-              ),
+          html.div(rule_box_style, [
+            html.h2([rule_heading_style], [html.text("Bridge Square")]),
+            html.div([rule_text_container_style], [
+              html.p([rule_text_style], [
+                html.text("Any piece can use the bridge to move to the "),
+                html.text("other side and attack pieces on the other side."),
+              ]),
               html.div(
-                [
-                  attribute.class("flex justify-between gap-8 items-center"),
-                ],
-                [
-                  html.p([attribute.class("text-lg font-comic")], [
-                    html.text("Rabbit can jump across the river and capture "),
-                    html.text(" pieces across the river to the left and right "),
-                    html.text(" (just like normal pawn capture)."),
-                  ]),
-                  html.div(
-                    board_style,
-                    demo_view(
-                      RabbitPiece,
-                      model.rabbit_piece_model.board,
-                      model.rabbit_piece_model.river_squares,
-                      model.rabbit_piece_model.bridge_squares,
-                      model.rabbit_piece_model.moves,
-                      dragged_over_square(RabbitPiece),
-                      model.dragged_piece,
-                    ),
-                  ),
-                ],
+                board_style,
+                demo_view(
+                  BridgeMovement,
+                  model.bridge_movement_model.board,
+                  model.bridge_movement_model.river_squares,
+                  model.bridge_movement_model.bridge_squares,
+                  model.bridge_movement_model.moves,
+                  dragged_over_square(BridgeMovement),
+                  model.dragged_piece,
+                ),
               ),
-            ],
-          ),
+            ]),
+          ]),
+
+          html.div(rule_box_style, [
+            html.h2([rule_heading_style], [html.text("Rabbit Piece")]),
+            html.div([rule_text_container_style, attribute.class("gap-4")], [
+              html.p([rule_text_style], [
+                html.text("Rabbit can jump across the river and capture "),
+                html.text(" pieces across the river to the left and right "),
+                html.text(" (just like normal pawn capture)."),
+              ]),
+              html.div(
+                board_style,
+                demo_view(
+                  RabbitPiece,
+                  model.rabbit_piece_model.board,
+                  model.rabbit_piece_model.river_squares,
+                  model.rabbit_piece_model.bridge_squares,
+                  model.rabbit_piece_model.moves,
+                  dragged_over_square(RabbitPiece),
+                  model.dragged_piece,
+                ),
+              ),
+            ]),
+          ]),
 
           case model.dragged_piece {
-            Some(dragged_piece) -> {
+            Some(dragged_piece) ->
               html.div(
                 [
                   attribute.class("fixed z-50 pointer-events-none"),
@@ -735,7 +631,6 @@ pub fn view(model: Model) {
                 ],
                 [component.piece_view(piece)],
               )
-            }
             None -> element.none()
           },
         ],
