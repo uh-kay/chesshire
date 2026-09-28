@@ -137,6 +137,15 @@ fn create_game(
 
 // VIEW -----------------------------------------------------------------------
 pub fn view(model: Model) -> Element(Message) {
+  let variant_box_style = [
+    attribute.class("flex flex-row md:flex-col mt-2 border-2"),
+    attribute.class("border-black rounded-xl truncate"),
+    attribute.class("font-comic w-full divide-x-2"),
+    attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
+    attribute.class("dark:border-dark dark:divide-dark mb-4"),
+  ]
+  let variant_label_style =
+    attribute.class("font-comic text-xl flex md:justify-center")
   let content =
     html.div([attribute.class("p-8 max-w-2xl mx-auto flex flex-col")], [
       html.h1([attribute.class("font-josefin text-3xl font-bold mb-4")], [
@@ -151,155 +160,59 @@ pub fn view(model: Model) -> Element(Message) {
           [attribute.class("flex flex-col-reverse md:flex-row gap-4 md:gap-8")],
           [
             html.div([], [
-              html.label(
-                [attribute.class("font-comic text-xl flex md:justify-center")],
-                [html.text("Board Variant")],
-              ),
-              html.div(
-                [
-                  attribute.class("flex flex-row md:flex-col mt-2 border-2"),
-                  attribute.class("border-black rounded-xl truncate"),
-                  attribute.class("font-comic w-full divide-x-2"),
-                  attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
-                  attribute.class("dark:border-dark dark:divide-dark"),
-                ],
-                [
-                  html.button(
-                    [
-                      attribute.class("px-2 py-3 w-full md:h-fit"),
-                      attribute.class("text-nowrap rounded-b-none"),
-                      attribute.class(case model.board_variant {
-                        shared.TwinPasses ->
-                          "bg-blue-500 dark:bg-blue-600 text-white"
-                        shared.GreatCrossing ->
-                          "hover:bg-blue-300 dark:hover:bg-blue-500"
-                      }),
-                      event.on_click(UserClickedBoardVariant(shared.TwinPasses)),
-                    ],
-                    [html.text("Twin Passes")],
-                  ),
-                  html.button(
-                    [
-                      attribute.class("px-2 py-3 w-full md:h-fit"),
-                      attribute.class("text-nowrap"),
-                      attribute.class(case model.board_variant {
-                        shared.GreatCrossing ->
-                          "bg-blue-500 dark:bg-blue-600 text-white"
-                        shared.TwinPasses ->
-                          "hover:bg-blue-300 dark:hover:bg-blue-500"
-                      }),
-                      event.on_click(UserClickedBoardVariant(
-                        shared.GreatCrossing,
-                      )),
-                    ],
-                    [html.text("Great Crossing")],
-                  ),
-                ],
-              ),
+              html.label([variant_label_style], [html.text("Board Variant")]),
+              html.div(variant_box_style, [
+                component.variant_button_view(
+                  model.board_variant,
+                  shared.TwinPasses,
+                  UserClickedBoardVariant(shared.TwinPasses),
+                  "Twin Passes",
+                ),
+                component.variant_button_view(
+                  model.board_variant,
+                  shared.GreatCrossing,
+                  UserClickedBoardVariant(shared.GreatCrossing),
+                  "Great Crossing",
+                ),
+              ]),
 
-              html.label(
-                [
-                  attribute.class("mt-2 md:mt-4 font-comic text-xl flex"),
-                  attribute.class("md:justify-center"),
-                ],
-                [html.text("Rule Variant")],
-              ),
-              html.div(
-                [
-                  attribute.class("flex flex-row md:flex-col mt-2 border-2"),
-                  attribute.class("border-black rounded-xl truncate "),
-                  attribute.class("font-comic w-full divide-x-2"),
-                  attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
-                  attribute.class("dark:border-dark dark:divide-dark"),
-                ],
-                [
-                  html.button(
-                    [
-                      attribute.class("px-2 py-3 w-full md:h-fit"),
-                      attribute.class("text-nowrap rounded-b-none"),
-                      attribute.class(case model.game_variant {
-                        shared.RiverSacrifice ->
-                          "bg-blue-500 dark:bg-blue-600 text-white"
-                        shared.FlemishGiant ->
-                          "hover:bg-blue-300 dark:hover:bg-blue-500"
-                      }),
-                      event.on_click(UserClickedGameVariant(
-                        shared.RiverSacrifice,
-                      )),
-                    ],
-                    [html.text("Classic")],
-                  ),
-                  html.button(
-                    [
-                      attribute.class("px-2 py-3 w-full md:h-fit"),
-                      attribute.class("text-nowrap"),
-                      attribute.class(case model.game_variant {
-                        shared.FlemishGiant ->
-                          "bg-blue-500 dark:bg-blue-600 text-white"
-                        shared.RiverSacrifice ->
-                          "hover:bg-blue-300 dark:hover:bg-blue-500"
-                      }),
-                      event.on_click(UserClickedGameVariant(shared.FlemishGiant)),
-                    ],
-                    [html.text("Default")],
-                  ),
-                ],
-              ),
+              html.label([variant_label_style], [html.text("Rule Variant")]),
+              html.div(variant_box_style, [
+                component.variant_button_view(
+                  model.game_variant,
+                  shared.RiverSacrifice,
+                  UserClickedGameVariant(shared.RiverSacrifice),
+                  "Classic",
+                ),
+                component.variant_button_view(
+                  model.game_variant,
+                  shared.FlemishGiant,
+                  UserClickedGameVariant(shared.FlemishGiant),
+                  "Default",
+                ),
+              ]),
 
-              html.label(
-                [
-                  attribute.class("mt-2 md:mt-4 font-comic text-xl flex"),
-                  attribute.class("md:justify-center"),
-                ],
-                [html.text("Side")],
-              ),
-              html.div(
-                [
-                  attribute.class("flex flex-row md:flex-col mt-2 border-2"),
-                  attribute.class("border-black rounded-xl truncate "),
-                  attribute.class("font-comic w-full divide-x-2"),
-                  attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
-                  attribute.class("dark:border-dark dark:divide-dark"),
-                ],
-                [
-                  html.button(
-                    [
-                      attribute.class("px-2 py-3 w-full md:h-fit"),
-                      attribute.class("text-nowrap rounded-b-none"),
-                      attribute.class(case model.host_side {
-                        Black -> "bg-blue-500 dark:bg-blue-600 text-white"
-                        _ -> "hover:bg-blue-300 dark:hover:bg-blue-500"
-                      }),
-                      event.on_click(UserClickedPlayingSide(Black)),
-                    ],
-                    [html.text("Black")],
-                  ),
-                  html.button(
-                    [
-                      attribute.class("px-2 py-3 w-full md:h-fit"),
-                      attribute.class("text-nowrap rounded-b-none"),
-                      attribute.class(case model.host_side {
-                        Random -> "bg-blue-500 dark:bg-blue-600 text-white"
-                        _ -> "hover:bg-blue-300 dark:hover:bg-blue-500"
-                      }),
-                      event.on_click(UserClickedPlayingSide(Random)),
-                    ],
-                    [html.text("Random")],
-                  ),
-                  html.button(
-                    [
-                      attribute.class("px-2 py-3 w-full md:h-fit"),
-                      attribute.class("text-nowrap"),
-                      attribute.class(case model.host_side {
-                        White -> "bg-blue-500 dark:bg-blue-600 text-white"
-                        _ -> "hover:bg-blue-300 dark:hover:bg-blue-500"
-                      }),
-                      event.on_click(UserClickedPlayingSide(White)),
-                    ],
-                    [html.text("White")],
-                  ),
-                ],
-              ),
+              html.label([variant_label_style], [html.text("Side")]),
+              html.div(variant_box_style, [
+                component.variant_button_view(
+                  model.host_side,
+                  Black,
+                  UserClickedPlayingSide(Black),
+                  "Black",
+                ),
+                component.variant_button_view(
+                  model.host_side,
+                  Random,
+                  UserClickedPlayingSide(Random),
+                  "Random",
+                ),
+                component.variant_button_view(
+                  model.host_side,
+                  White,
+                  UserClickedPlayingSide(White),
+                  "White",
+                ),
+              ]),
             ]),
 
             html.div(
@@ -319,18 +232,10 @@ pub fn view(model: Model) -> Element(Message) {
         ),
 
         html.button(
-          [
-            attribute.class("px-2 py-3 bg-blue-500 text-white rounded-md"),
-            attribute.class("hover:cursor-pointer transition-all gap-1"),
-            attribute.class("border-black font-comic w-48 mt-8 border-2"),
-            attribute.class("drop-shadow-[4px_4px_0_#000] flex justify-center"),
-            attribute.class("hover:translate-x-[4px] hover:translate-y-[4px]"),
-            attribute.class("hover:drop-shadow-none active:translate-x-[4px]"),
-            attribute.class("active:translate-y-[4px] active:drop-shadow-none"),
-            attribute.class("dark:drop-shadow-[4px_4px_0_hsl(217_100_90)]"),
-            attribute.class("dark:border-dark"),
+          component.button_style([
+            attribute.class("mt-8"),
             event.on_click(UserClickedCreateGame),
-          ],
+          ]),
           [
             html.text(case model.is_public {
               True -> "Create Game"

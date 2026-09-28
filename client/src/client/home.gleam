@@ -211,19 +211,14 @@ pub fn update(model: Model, message: Message) {
 }
 
 pub fn view(model: Model) {
-  let button_style = fn(attributes: List(attribute.Attribute(a))) {
-    [
-      attribute.class("px-2 py-3 bg-blue-600 text-white rounded-md flex"),
-      attribute.class("hover:cursor-pointer transition-all gap-1 border-2"),
-      attribute.class("border-black font-comic drop-shadow-[4px_4px_0_#000]"),
-      attribute.class("hover:translate-x-[4px] hover:translate-y-[4px]"),
-      attribute.class("hover:drop-shadow-none active:translate-x-[4px]"),
-      attribute.class("active:translate-y-[4px] active:drop-shadow-none"),
-      attribute.class("dark:border-dark"),
-      attribute.class("dark:drop-shadow-[4px_4px_0_hsl(217_100_90)]"),
-      ..attributes
-    ]
-  }
+  let small_screen_button_style = attribute.class("w-full justify-center")
+  let variant_box_style = [
+    attribute.class("flex flex-row md:flex-col mt-2 border-2"),
+    attribute.class("border-black rounded-xl truncate w-full"),
+    attribute.class("font-comic divide-x-2 dark:divide-dark"),
+    attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
+    attribute.class("dark:border-dark"),
+  ]
 
   html.div(
     [
@@ -237,19 +232,16 @@ pub fn view(model: Model) {
 
       // Big screen layout
       html.div([attribute.class("mt-2 flex gap-4 pb-8 hidden md:flex")], [
-        html.a(
-          [event.on_click(UserClickedCreatePublicGame), ..button_style([])],
-          [
-            icon.plus(),
-            html.text("Public Match"),
-          ],
-        ),
-        html.button([event.on_click(UserClickedFindGame), ..button_style([])], [
-          icon.search(),
-          html.text("Find Match"),
-        ]),
         html.button(
-          [event.on_click(UserClickedCreatePrivateGame), ..button_style([])],
+          component.button_style([event.on_click(UserClickedCreatePublicGame)]),
+          [icon.plus(), html.text("Public Match")],
+        ),
+        html.button(
+          component.button_style([event.on_click(UserClickedFindGame)]),
+          [icon.search(), html.text("Find Match")],
+        ),
+        html.button(
+          component.button_style([event.on_click(UserClickedCreatePrivateGame)]),
           [icon.globe_lock(), html.text("Private Match")],
         ),
       ]),
@@ -257,35 +249,29 @@ pub fn view(model: Model) {
       // Small screen layout
       html.div([attribute.class("mt-2 gap-4 pb-8 flex flex-col md:hidden")], [
         html.div([attribute.class("flex gap-3")], [
-          html.a(
-            [
+          html.button(
+            component.button_style([
               event.on_click(UserClickedCreatePublicGame),
-              attribute.class("w-full justify-center"),
-              ..button_style([])
-            ],
+              small_screen_button_style,
+            ]),
             [icon.plus(), html.text("Public Match")],
           ),
 
           html.button(
-            [
+            component.button_style([
               event.on_click(UserClickedCreatePrivateGame),
-              attribute.class("w-full justify-center"),
-              ..button_style([])
-            ],
+              small_screen_button_style,
+            ]),
             [icon.globe_lock(), html.text("Private Match")],
           ),
         ]),
 
         html.button(
-          [
+          component.button_style([
             event.on_click(UserClickedFindGame),
-            attribute.class("w-full justify-center"),
-            ..button_style([])
-          ],
-          [
-            icon.search(),
-            html.text("Find Match"),
-          ],
+            small_screen_button_style,
+          ]),
+          [icon.search(), html.text("Find Match")],
         ),
       ]),
 
@@ -302,107 +288,49 @@ pub fn view(model: Model) {
             ]),
             html.div([attribute.class("flex flex-col gap-4")], [
               html.button(
-                [
+                component.button_style([
                   event.on_click(UserClickedReset),
-                  ..button_style([
-                    attribute.class("w-32 justify-center"),
-                  ])
-                ],
+                  attribute.class("w-32 justify-center"),
+                ]),
                 [html.text("Reset")],
               ),
               html.div([], [
                 html.label([attribute.class("font-comic text-xl")], [
                   html.text("Board Variant"),
                 ]),
-                html.div(
-                  [
-                    attribute.class("flex flex-row md:flex-col mt-2 border-2"),
-                    attribute.class("border-black rounded-xl truncate w-full"),
-                    attribute.class("font-comic divide-x-2 dark:divide-dark"),
-                    attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
-                    attribute.class("dark:border-dark"),
-                  ],
-                  [
-                    html.button(
-                      [
-                        attribute.class("px-2 py-3 w-full md:h-fit"),
-                        attribute.class("text-nowrap rounded-b-none"),
-                        attribute.class(case model.board_variant {
-                          TwinPasses ->
-                            "bg-blue-500 dark:bg-blue-600 text-white"
-                          GreatCrossing ->
-                            "hover:bg-blue-300 dark:hover:bg-blue-500"
-                        }),
-                        event.on_click(UserClickedChangeBoardVariant(TwinPasses)),
-                      ],
-                      [html.text("Twin Passes")],
-                    ),
-                    html.button(
-                      [
-                        attribute.class("px-2 py-3 w-full md:h-fit"),
-                        attribute.class("text-nowrap"),
-                        attribute.class(case model.board_variant {
-                          GreatCrossing ->
-                            "bg-blue-500 dark:bg-blue-600 text-white"
-                          TwinPasses ->
-                            "hover:bg-blue-300 dark:hover:bg-blue-500"
-                        }),
-                        event.on_click(UserClickedChangeBoardVariant(
-                          GreatCrossing,
-                        )),
-                      ],
-                      [html.text("Great Crossing")],
-                    ),
-                  ],
-                ),
+                html.div(variant_box_style, [
+                  component.variant_button_view(
+                    model.board_variant,
+                    TwinPasses,
+                    UserClickedChangeBoardVariant(shared.TwinPasses),
+                    "Twin Passes",
+                  ),
+                  component.variant_button_view(
+                    model.board_variant,
+                    GreatCrossing,
+                    UserClickedChangeBoardVariant(GreatCrossing),
+                    "Great Crossing",
+                  ),
+                ]),
               ]),
               html.div([], [
                 html.label([attribute.class("font-comic text-xl")], [
                   html.text("Rule Variant"),
                 ]),
-                html.div(
-                  [
-                    attribute.class("flex flex-row md:flex-col mt-2 border-2"),
-                    attribute.class("border-black rounded-xl truncate"),
-                    attribute.class("font-comic w-full divide-x-2 divide-black"),
-                    attribute.class("md:divide-x-0 md:divide-y-2"),
-                    attribute.class("dark:divide-dark dark:border-dark"),
-                  ],
-                  [
-                    html.button(
-                      [
-                        attribute.class("px-2 py-3 w-full md:h-fit"),
-                        attribute.class("text-nowrap rounded-b-none"),
-                        attribute.class(case model.rule_variant {
-                          shared.RiverSacrifice ->
-                            "bg-blue-500 dark:bg-blue-600 text-white"
-                          shared.FlemishGiant ->
-                            "hover:bg-blue-300 dark:hover:bg-blue-500"
-                        }),
-                        event.on_click(UserClickedChangeRuleVariant(
-                          shared.RiverSacrifice,
-                        )),
-                      ],
-                      [html.text("Classic")],
-                    ),
-                    html.button(
-                      [
-                        attribute.class("px-2 py-3 w-full md:h-fit"),
-                        attribute.class("text-nowrap"),
-                        attribute.class(case model.rule_variant {
-                          shared.FlemishGiant ->
-                            "bg-blue-500 dark:bg-blue-600 text-white"
-                          shared.RiverSacrifice ->
-                            "hover:bg-blue-300 dark:hover:bg-blue-500"
-                        }),
-                        event.on_click(UserClickedChangeRuleVariant(
-                          shared.FlemishGiant,
-                        )),
-                      ],
-                      [html.text("Default")],
-                    ),
-                  ],
-                ),
+                html.div(variant_box_style, [
+                  component.variant_button_view(
+                    model.rule_variant,
+                    shared.RiverSacrifice,
+                    UserClickedChangeRuleVariant(shared.RiverSacrifice),
+                    "Classic",
+                  ),
+                  component.variant_button_view(
+                    model.rule_variant,
+                    shared.FlemishGiant,
+                    UserClickedChangeRuleVariant(shared.FlemishGiant),
+                    "Default",
+                  ),
+                ]),
               ]),
             ]),
           ]),

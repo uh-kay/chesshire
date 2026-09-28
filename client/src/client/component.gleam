@@ -776,5 +776,41 @@ fn count_piece(
   })
 }
 
+pub fn button_style(
+  attributes: List(attribute.Attribute(a)),
+) -> List(attribute.Attribute(a)) {
+  [
+    attribute.class("px-2 py-3 bg-blue-600 text-white rounded-md flex"),
+    attribute.class("hover:cursor-pointer transition-all gap-1 border-2"),
+    attribute.class("border-black font-comic drop-shadow-[4px_4px_0_#000]"),
+    attribute.class("hover:translate-x-[4px] hover:translate-y-[4px]"),
+    attribute.class("hover:drop-shadow-none active:translate-x-[4px]"),
+    attribute.class("active:translate-y-[4px] active:drop-shadow-none"),
+    attribute.class("dark:drop-shadow-[4px_4px_0_hsl(217_100_90)]"),
+    attribute.class("dark:border-dark"),
+    ..attributes
+  ]
+}
+
+pub fn variant_button_view(
+  current_variant: a,
+  active_variant: a,
+  on_click: b,
+  label: String,
+) -> Element(b) {
+  html.button(
+    [
+      attribute.class("px-2 py-3 w-full md:h-fit"),
+      attribute.class("text-nowrap rounded-b-none"),
+      attribute.class(case current_variant == active_variant {
+        True -> "bg-blue-500 dark:bg-blue-600 text-white"
+        False -> "hover:bg-blue-300 dark:hover:bg-blue-500"
+      }),
+      event.on_click(on_click),
+    ],
+    [html.text(label)],
+  )
+}
+
 @external(javascript, "../client.ffi.mjs", "protocol")
 fn protocol(location: location.Location) -> String
