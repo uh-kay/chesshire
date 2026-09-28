@@ -621,8 +621,10 @@ pub fn update(model: Model, message: Message) {
 
 // TODO: maybe also explain that pieces cannot attack across river?
 pub fn view(model: Model) {
-  let board_style =
-    attribute.class("border grid grid-cols-3 grid-rows-3 scale-y-[-1] shrink-0")
+  let board_style = [
+    attribute.class("grid grid-cols-3 grid-rows-3 scale-y-[-1] shrink-0"),
+    attribute.class("border-2 dark:border-dark-text"),
+  ]
   let dragged_over_square = fn(board_type) {
     case model.dragged_over_square {
       Some(dragged_square) if dragged_square.0 == board_type ->
@@ -679,7 +681,7 @@ pub fn view(model: Model) {
           html.div(
             [
               attribute.class("border-2 dark:border-dark p-4 mb-4 rounded-lg"),
-              attribute.class("dark:bg-dark-secondary"),
+              attribute.class("dark:bg-dark-secondary bg-blue-200"),
             ],
             [
               html.h2([attribute.class("text-2xl font-bold font-josefin")], [
@@ -687,7 +689,7 @@ pub fn view(model: Model) {
               ]),
               html.div(
                 [
-                  attribute.class("flex justify-between gap-8 items-center"),
+                  attribute.class("flex justify-between items-center"),
                   attribute.class("mb-4"),
                 ],
                 [
@@ -695,7 +697,7 @@ pub fn view(model: Model) {
                     html.text("Knight can jump over the river."),
                   ]),
                   html.div(
-                    [board_style],
+                    board_style,
                     demo_view(
                       RiverKnight,
                       model.river_knight_model.board,
@@ -703,6 +705,7 @@ pub fn view(model: Model) {
                       [],
                       model.river_knight_model.moves,
                       dragged_over_square(RiverKnight),
+                      model.dragged_piece,
                     ),
                   ),
                 ],
@@ -719,7 +722,7 @@ pub fn view(model: Model) {
                     html.text("a bridge square."),
                   ]),
                   html.div(
-                    [board_style],
+                    board_style,
                     demo_view(
                       PawnSacrifice,
                       model.pawn_sacrifice_model.board,
@@ -727,6 +730,7 @@ pub fn view(model: Model) {
                       model.pawn_sacrifice_model.bridge_squares,
                       model.pawn_sacrifice_model.moves,
                       dragged_over_square(PawnSacrifice),
+                      model.dragged_piece,
                     ),
                   ),
                 ],
@@ -737,7 +741,7 @@ pub fn view(model: Model) {
           html.div(
             [
               attribute.class("border-2 p-4 dark:border-dark mb-4 rounded-lg"),
-              attribute.class("dark:bg-dark-secondary"),
+              attribute.class("dark:bg-dark-secondary bg-blue-200"),
             ],
             [
               html.h2([attribute.class("text-2xl font-bold font-josefin")], [
@@ -755,7 +759,7 @@ pub fn view(model: Model) {
                     html.text("other side and attack pieces on the other side."),
                   ]),
                   html.div(
-                    [board_style],
+                    board_style,
                     demo_view(
                       BridgeMovement,
                       model.bridge_movement_model.board,
@@ -763,6 +767,7 @@ pub fn view(model: Model) {
                       model.bridge_movement_model.bridge_squares,
                       model.bridge_movement_model.moves,
                       dragged_over_square(BridgeMovement),
+                      model.dragged_piece,
                     ),
                   ),
                 ],
@@ -773,7 +778,7 @@ pub fn view(model: Model) {
           html.div(
             [
               attribute.class("border-2 p-4 dark:border-dark rounded-lg mb-4"),
-              attribute.class("dark:bg-dark-secondary"),
+              attribute.class("dark:bg-dark-secondary bg-blue-200"),
             ],
             [
               html.h2(
@@ -791,7 +796,7 @@ pub fn view(model: Model) {
                     html.text(" (just like normal pawn capture)."),
                   ]),
                   html.div(
-                    [board_style],
+                    board_style,
                     demo_view(
                       RabbitPiece,
                       model.rabbit_piece_model.board,
@@ -799,6 +804,7 @@ pub fn view(model: Model) {
                       model.rabbit_piece_model.bridge_squares,
                       model.rabbit_piece_model.moves,
                       dragged_over_square(RabbitPiece),
+                      model.dragged_piece,
                     ),
                   ),
                 ],
@@ -853,6 +859,7 @@ fn demo_view(
   bridge_squares: List(Int),
   moves: List(#(Int, Int)),
   dragover_square: Option(Int),
+  dragged_piece: Option(DraggedPiece),
 ) -> List(Element(Message)) {
   let board =
     dict.to_list(board)
@@ -888,8 +895,18 @@ fn demo_view(
       },
     ]
 
-    let square_view =
+    let square_view = fn(is_dragged: Bool) {
       html.div(square_style, [
+        html.div(
+          [
+            attribute.class("absolute inset-0"),
+            attribute.class(case is_dragged {
+              True -> "bg-purple-700/15"
+              False -> ""
+            }),
+          ],
+          [],
+        ),
         html.div(
           [
             attribute.class("w-18 scale-y-[-1]"),
@@ -918,11 +935,16 @@ fn demo_view(
                 height: rect.height,
               ))
             }),
+            attribute.class(case is_dragged {
+              True -> "opacity-20"
+              False -> ""
+            }),
           ],
           [component.piece_view(piece)],
         ),
         component.special_square_marker(square_color, Some(shared.White)),
       ])
+    }
 
     let has_piece = option.is_some(piece)
     let target_square_view = fn(move, is_dragover) {
@@ -964,6 +986,18 @@ fn demo_view(
         let #(_, to) = value
         to
       })
+    let dragged_piece_pos = case dragged_piece {
+      Some(dragged_piece) -> {
+        dragged_piece.from
+      }
+      None -> -1
+    }
+    let dragged_piece_for = case dragged_piece {
+      Some(dragged_piece) -> {
+        Some(dragged_piece.for)
+      }
+      None -> None
+    }
 
     case list.contains(to_moves, pos) {
       True ->
@@ -974,7 +1008,8 @@ fn demo_view(
           },
           dragover_square == Some(pos),
         )
-      False -> square_view
+      False ->
+        square_view(dragged_piece_pos == pos && Some(for) == dragged_piece_for)
     }
   })
 }
