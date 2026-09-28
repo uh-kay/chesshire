@@ -87,7 +87,6 @@ pub type RabbitPieceModel {
 
 pub type Message {
   UserClickedPiece(for: BoardType, from: Int)
-  UserClickedTargetSquare(for: BoardType, move: #(Int, Int))
   UserDraggedPiece(
     for: BoardType,
     from: Int,
@@ -245,112 +244,6 @@ pub fn update(model: Model, message: Message) {
             rabbit_piece_model: RabbitPieceModel(
               ..model.rabbit_piece_model,
               moves:,
-            ),
-          )
-        }
-      }
-
-      #(model, effect.none())
-    }
-
-    UserClickedTargetSquare(move:, for:) -> {
-      let model = case for {
-        RiverKnight -> {
-          let piece = case dict.get(model.river_knight_model.board, move.0) {
-            Ok(piece) -> piece
-            Error(_) -> None
-          }
-          let board =
-            model.river_knight_model.board
-            |> dict.insert(move.0, None)
-            |> dict.insert(move.1, piece)
-          let moves = []
-          let can_move = False
-
-          Model(
-            ..model,
-            river_knight_model: RiverKnightModel(board:, moves:, can_move:),
-          )
-        }
-        PawnSacrifice -> {
-          let board =
-            model.pawn_sacrifice_model.board
-            |> dict.insert(move.0, None)
-
-          let moves = []
-          let can_move = False
-          let river_squares =
-            list.filter(model.pawn_sacrifice_model.river_squares, fn(pos) {
-              pos != move.1
-            })
-          let bridge_squares = [move.1]
-
-          Model(
-            ..model,
-            pawn_sacrifice_model: PawnSacrificeModel(
-              board:,
-              moves:,
-              can_move:,
-              river_squares:,
-              bridge_squares:,
-            ),
-          )
-        }
-        BridgeMovement -> {
-          let piece = case dict.get(model.bridge_movement_model.board, move.0) {
-            Ok(piece) -> piece
-            Error(_) -> None
-          }
-          let board =
-            model.bridge_movement_model.board
-            |> dict.insert(move.0, None)
-            |> dict.insert(move.1, piece)
-          let moves = []
-          let can_move = False
-
-          Model(
-            ..model,
-            bridge_movement_model: BridgeMovementModel(
-              ..model.bridge_movement_model,
-              board:,
-              moves:,
-              can_move:,
-            ),
-          )
-        }
-        RabbitPiece -> {
-          let piece = case dict.get(model.rabbit_piece_model.board, move.0) {
-            Ok(piece) -> piece
-            Error(_) -> None
-          }
-          let #(board, river_squares, bridge_squares) = case
-            list.contains(model.rabbit_piece_model.river_squares, move.1)
-          {
-            True -> #(
-              model.rabbit_piece_model.board |> dict.insert(move.0, None),
-              list.filter(model.rabbit_piece_model.river_squares, fn(square) {
-                square != move.1
-              }),
-              [move.1, ..model.rabbit_piece_model.bridge_squares],
-            )
-            False -> #(
-              model.rabbit_piece_model.board
-                |> dict.insert(move.0, None)
-                |> dict.insert(move.1, piece),
-              model.rabbit_piece_model.river_squares,
-              model.rabbit_piece_model.bridge_squares,
-            )
-          }
-          let moves = []
-
-          Model(
-            ..model,
-            rabbit_piece_model: RabbitPieceModel(
-              board:,
-              moves:,
-              can_move: False,
-              river_squares:,
-              bridge_squares:,
             ),
           )
         }
@@ -954,7 +847,7 @@ fn demo_view(
             True -> "inset-ring-2 inset-ring-red-500"
             False -> ""
           }),
-          event.on_click(UserClickedTargetSquare(for, move)),
+          event.on_click(UserDroppedPiece),
           event.on(
             "pointerenter",
             decode.success(UserDraggedToTargetSquare(move, for)),
