@@ -1,4 +1,3 @@
-import client/accordion
 import client/create_game
 import client/game
 import client/home
@@ -28,7 +27,6 @@ type Model {
     route: Route,
     error: Option(String),
     websocket: Option(Websocket),
-    faq: accordion.Model,
     uri: option.Option(uri.Uri),
     page_model: PageModel,
   )
@@ -43,8 +41,6 @@ type PageModel {
 }
 
 pub type Message {
-  AccordionProducedMessage(accordion.Message)
-
   HomePageMessage(home.Message)
   LearnPageMessage(learn.Message)
   CreatePageMessage(create_game.Message)
@@ -94,21 +90,9 @@ fn init(_) -> #(Model, Effect(Message)) {
     _ -> None
   }
 
-  let accordion_items = [
-    accordion.Item(id: 1, title: "What is Chesshire?", body: element.none()),
-  ]
-
   let #(page_model, page_effect) = init_page(route, websocket, uri)
 
-  let model =
-    Model(
-      route:,
-      error: None,
-      websocket:,
-      faq: accordion.init(accordion_items),
-      uri:,
-      page_model:,
-    )
+  let model = Model(route:, error: None, websocket:, uri:, page_model:)
   let effect =
     effect.batch([
       modem.init(on_url_change),
@@ -152,13 +136,6 @@ fn on_url_change(uri: uri.Uri) -> Message {
 
 fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
   case message {
-    AccordionProducedMessage(message) -> {
-      let model = Model(..model, faq: accordion.update(model.faq, message))
-      let effect = effect.none()
-
-      #(model, effect)
-    }
-
     UserNavigatedTo(route) -> {
       let #(page_model, page_effect) = case route {
         Game(id:) ->
