@@ -8,6 +8,7 @@ import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
+import gleam/string
 import lustre/attribute
 import lustre/effect
 import lustre/element.{type Element}
@@ -97,6 +98,7 @@ pub type Message {
     offset_x: Int,
     offset_y: Int,
   )
+  UserClickedTargetSquare(for: BoardType, move: #(Int, Int))
   UserDraggedToTargetSquare(move: #(Int, Int), for: BoardType)
   UserDraggedOutOfTargetSquare
   UserMovedPiece(pointer_x: Int, pointer_y: Int)
@@ -395,6 +397,157 @@ pub fn update(model: Model, message: Message) {
 
       #(model, effect.none())
     }
+    UserClickedTargetSquare(for:, move:) -> {
+      let model =
+        Model(
+          ..model,
+          dragged_over_square: Some(#(for, move.1)),
+          move: Some(move),
+        )
+
+      let result = {
+        use dragged_over_square <- result.try(option.to_result(
+          model.dragged_over_square,
+          Nil,
+        ))
+        use move <- result.try(option.to_result(model.move, Nil))
+        let for = dragged_over_square.0
+
+        let get_piece = fn(board, can_move) {
+          case can_move {
+            True ->
+              case dict.get(board, move.0) {
+                Ok(piece) -> piece
+                Error(_) -> None
+              }
+            False ->
+              case dict.get(board, move.1) {
+                Ok(piece) -> piece
+                Error(_) -> None
+              }
+          }
+        }
+
+        let apply = fn(
+          board: Dict(Int, Option(#(cheg.PieceType, shared.PlayerColor))),
+          for: BoardType,
+        ) -> Dict(Int, Option(#(cheg.PieceType, shared.PlayerColor))) {
+          let piece = case for {
+            RiverKnight -> get_piece(board, model.river_knight_model.can_move)
+            PawnSacrifice ->
+              get_piece(board, model.pawn_sacrifice_model.can_move)
+            BridgeMovement ->
+              get_piece(board, model.bridge_movement_model.can_move)
+            RabbitPiece -> get_piece(board, model.rabbit_piece_model.can_move)
+          }
+
+          board
+          |> dict.insert(move.0, None)
+          |> dict.insert(move.1, piece)
+        }
+        let model = case for {
+          RiverKnight -> {
+            let board = apply(model.river_knight_model.board, for)
+            Model(
+              ..model,
+              river_knight_model: RiverKnightModel(
+                board:,
+                moves: [],
+                can_move: False,
+              ),
+            )
+          }
+          PawnSacrifice -> {
+            let board =
+              model.pawn_sacrifice_model.board
+              |> dict.insert(move.0, None)
+
+            let moves = []
+            let can_move = False
+            let river_squares =
+              list.filter(model.pawn_sacrifice_model.river_squares, fn(pos) {
+                pos != move.1
+              })
+            let bridge_squares = [move.1]
+            Model(
+              ..model,
+              pawn_sacrifice_model: PawnSacrificeModel(
+                board:,
+                moves:,
+                can_move:,
+                river_squares:,
+                bridge_squares:,
+              ),
+            )
+          }
+          BridgeMovement -> {
+            let board = apply(model.bridge_movement_model.board, for)
+            Model(
+              ..model,
+              bridge_movement_model: BridgeMovementModel(
+                ..model.bridge_movement_model,
+                board:,
+                moves: [],
+                can_move: False,
+              ),
+            )
+          }
+          RabbitPiece -> {
+            let piece =
+              get_piece(
+                model.rabbit_piece_model.board,
+                model.rabbit_piece_model.can_move,
+              )
+            let #(board, river_squares, bridge_squares) = case
+              list.contains(model.rabbit_piece_model.river_squares, move.1)
+            {
+              True -> #(
+                model.rabbit_piece_model.board |> dict.insert(move.0, None),
+                list.filter(model.rabbit_piece_model.river_squares, fn(square) {
+                  square != move.1
+                }),
+                [move.1, ..model.rabbit_piece_model.bridge_squares],
+              )
+              False -> #(
+                model.rabbit_piece_model.board
+                  |> dict.insert(move.0, None)
+                  |> dict.insert(move.1, piece),
+                model.rabbit_piece_model.river_squares,
+                model.rabbit_piece_model.bridge_squares,
+              )
+            }
+            let moves = []
+
+            Model(
+              ..model,
+              rabbit_piece_model: RabbitPieceModel(
+                board:,
+                moves:,
+                can_move: False,
+                river_squares:,
+                bridge_squares:,
+              ),
+            )
+          }
+        }
+
+        Ok(model)
+      }
+
+      let model = case result {
+        Ok(model) -> model
+        Error(_) -> model
+      }
+      let model =
+        Model(
+          ..model,
+          dragged_over_square: None,
+          dragged_piece: None,
+          move: None,
+        )
+
+      #(model, effect.none())
+    }
   }
 }
 
@@ -640,7 +793,7 @@ pub fn view(model: Model) {
   |> component.layout
 }
 
-fn demo_view(
+pub fn demo_view(
   for: BoardType,
   board: Dict(Int, Option(#(cheg.PieceType, shared.PlayerColor))),
   river_squares: List(Int),
@@ -673,6 +826,14 @@ fn demo_view(
           False -> square_color
         }
     }
+    let board_id = case for {
+      RiverKnight -> "river_knight"
+      PawnSacrifice -> "pawn_sacrifice"
+      BridgeMovement -> "bridge_movement"
+      RabbitPiece -> "rabbit_piece"
+    }
+    let pos_id = int.to_string(pos)
+    let square_id = string.join([board_id, pos_id], "_")
     let square_style = [
       attribute.class("flex justify-center aspect-square"),
       attribute.class("items-center relative touch-none"),
@@ -681,6 +842,7 @@ fn demo_view(
         Some(_) -> event.on_click(UserClickedPiece(for:, from: pos))
         None -> attribute.none()
       },
+      attribute.id(square_id),
     ]
 
     let square_view = fn(is_dragged: Bool) {
@@ -697,6 +859,7 @@ fn demo_view(
         ),
         html.div(
           [
+            attribute.id("pointer_" <> square_id),
             attribute.class("w-18 scale-y-[-1]"),
             event.on("pointerdown", {
               use pointer_x <- decode.field("clientX", decode.float)
@@ -738,11 +901,12 @@ fn demo_view(
     let target_square_view = fn(move, is_dragover) {
       html.div(
         [
+          attribute.id(square_id),
           attribute.class(case list.contains(river_squares, pos) || has_piece {
             True -> "inset-ring-2 inset-ring-red-500"
             False -> ""
           }),
-          event.on_click(UserDroppedPiece),
+          event.on_click(UserClickedTargetSquare(for, move)),
           event.on(
             "pointerenter",
             decode.success(UserDraggedToTargetSquare(move, for)),
