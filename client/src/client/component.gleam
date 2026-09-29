@@ -497,23 +497,37 @@ pub fn clock_view(
   let black_time = format_time(black_time)
   let white_time = format_time(white_time)
   let time_style = [
-    attribute.class("min-w-28 rounded-md bg-blue-300 px-4 py-3 border-2"),
+    attribute.class("w-30 rounded-md bg-blue-300 px-4 py-3 border-2"),
     attribute.class("text-center text-3xl dark:bg-blue-600 dark:border-dark"),
+    attribute.class("truncate font-comic"),
+  ]
+  let text_box_style = [
+    attribute.class("max-w-30 font-comic dark:bg-blue-600"),
+    attribute.class("bg-blue-300 p-2 text-wrap text-center"),
+    attribute.class(case state == cheg.Continue {
+      True -> ""
+      False -> "rounded-b-none"
+    }),
   ]
 
-  let state = case state {
+  let state_view = case state {
     cheg.Continue -> element.none()
     cheg.Draw(reason:) ->
-      html.p([], [
-        html.text(case reason {
-          cheg.ThreefoldRepetition -> "🤝 Draw: threefold repetition"
-          cheg.InsufficientMaterial -> "🤝 Draw: insufficient material"
-          cheg.Stalemate -> "🤝 Draw: stalemate"
-          cheg.FiftyMoves -> "🤝 Draw: fifty move rule"
-        }),
+      html.div(text_box_style, [
+        html.p([], [
+          html.text(case reason {
+            cheg.ThreefoldRepetition -> "Draw: threefold repetition"
+            cheg.InsufficientMaterial -> "Draw: insufficient material"
+            cheg.Stalemate -> "Draw: stalemate"
+            cheg.FiftyMoves -> "Draw: fifty move rule"
+          }),
+        ]),
       ])
-    cheg.WhiteWin -> html.p([], [html.text("White wins 🎉")])
-    cheg.BlackWin -> html.p([], [html.text("Black wins 🎉")])
+
+    cheg.WhiteWin ->
+      html.div(text_box_style, [html.p([], [html.text("White wins")])])
+    cheg.BlackWin ->
+      html.div(text_box_style, [html.p([], [html.text("Black wins")])])
   }
 
   html.div(
@@ -536,7 +550,7 @@ pub fn clock_view(
         [
           html.p(time_style, [html.text(black_time)]),
           html.div(
-            [attribute.class("flex")],
+            [attribute.class("flex max-w-30 flex-wrap")],
             remove_duplicate_piece(shared.White, captured_pieces.captured)
               |> list.map(fn(value) {
                 captured_piece_view(
@@ -550,35 +564,61 @@ pub fn clock_view(
         ],
       ),
 
-      case list.is_empty(captured_pieces.sacrificed) {
-        True -> element.none()
-        False ->
-          html.div(
-            [attribute.class("flex flex-col bg-blue-300 px-4 py-3 rounded-md")],
-            [
-              html.p([], [html.text("Sacrificed:")]),
-              html.div(
-                [attribute.class("flex")],
-                set.map(set.from_list(captured_pieces.sacrificed), fn(value) {
-                  let #(_, color) = value
-                  let fill_color = case color {
-                    shared.Black -> "#fff"
-                    shared.White -> "#000"
-                  }
-                  captured_piece_view(
-                    value,
-                    color,
-                    captured_pieces.sacrificed,
-                    fill_color,
-                  )
-                })
-                  |> set.to_list,
-              ),
-            ],
-          )
-      },
+      html.div(
+        [
+          attribute.class("rounded-lg border-black dark:border-dark"),
+          attribute.class("divide-y-2 divide-black dark:divide-dark w-full"),
+          attribute.class("truncate"),
+          attribute.class(case state == cheg.Continue {
+            True -> ""
+            False -> "border-2"
+          }),
+        ],
+        [
+          state_view,
 
-      state,
+          case list.is_empty(captured_pieces.sacrificed) {
+            True -> element.none()
+            False ->
+              html.div(
+                [
+                  attribute.class("flex flex-col bg-blue-300 p-2"),
+                  attribute.class("dark:bg-blue-600 dark:border-dark-text"),
+                  attribute.class("max-w-30 rounded-lg text-center"),
+                  attribute.class(case state == cheg.Continue {
+                    True -> "border-2"
+                    False -> "rounded-t-none"
+                  }),
+                ],
+                [
+                  html.p([attribute.class("mb-2 text-md font-comic")], [
+                    html.text("Sacrificed:"),
+                  ]),
+                  html.div(
+                    [attribute.class("flex flex-wrap")],
+                    set.map(
+                      set.from_list(captured_pieces.sacrificed),
+                      fn(value) {
+                        let #(_, color) = value
+                        let fill_color = case color {
+                          shared.Black -> "#fff"
+                          shared.White -> "#000"
+                        }
+                        captured_piece_view(
+                          value,
+                          color,
+                          captured_pieces.sacrificed,
+                          fill_color,
+                        )
+                      },
+                    )
+                      |> set.to_list,
+                  ),
+                ],
+              )
+          },
+        ],
+      ),
 
       html.div(
         [
@@ -679,7 +719,7 @@ pub fn button_group(label_text: String, buttons: List(Element(a))) {
     html.div(
       [
         attribute.class("flex flex-row md:flex-col mt-2 border-2"),
-        attribute.class("border-black rounded-xl truncate "),
+        attribute.class("border-black rounded-xl truncate"),
         attribute.class("font-comic w-full divide-x-2"),
         attribute.class("md:divide-x-0 md:divide-y-2 divide-black"),
       ],

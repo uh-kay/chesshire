@@ -480,7 +480,6 @@ fn listen(ws: Option(websocket.Websocket)) -> Effect(Message) {
     Some(ws) ->
       effect.from(fn(dispatch) {
         promise.tap(websocket.receive_message(ws), fn(msg) {
-          echo msg
           dispatch(ServerUpdatedGame(body: msg))
         })
 

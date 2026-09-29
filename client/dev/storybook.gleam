@@ -64,7 +64,6 @@ fn rabbit_story() -> story.Story {
           attribute.class("grid grid-cols-3 grid-rows-3 scale-y-[-1] shrink-0"),
           attribute.class("border-2 dark:border-dark-text"),
         ]
-        echo model.dragged_piece
 
         html.div(
           [
