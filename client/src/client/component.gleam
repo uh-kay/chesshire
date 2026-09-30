@@ -672,6 +672,7 @@ pub fn navbar(static_directory: String) -> Element(_) {
               html.img([
                 attribute.class("w-8 mr-2"),
                 attribute.src(static_directory <> "chesshire_favicon.svg"),
+                attribute.alt("Chesshire logo"),
               ]),
               html.text("Chesshire"),
             ],

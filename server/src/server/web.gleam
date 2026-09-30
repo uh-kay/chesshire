@@ -29,7 +29,9 @@ pub fn middleware(
 // <link href="https://fonts.googleapis.com/css2?family=Comic+Relief:wght@400;700&family=Josefin+Sans:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
 
 pub fn serve_index() -> Response {
-  html.html([], [
+  let description = "Free online chess server for various chess variants."
+
+  html.html([attribute.lang("en")], [
     html.head([], [
       html.meta([
         attribute.name("viewport"),
@@ -37,10 +39,8 @@ pub fn serve_index() -> Response {
       ]),
       html.title([], "Chesshire"),
       meta_og("title", "Play new chess variants for free"),
-      meta_og(
-        "description",
-        "Free online chess server for various chess variants.",
-      ),
+      meta_og("description", description),
+      html.meta([attribute.name("description"), attribute.content(description)]),
       html.link([
         attribute.rel("icon"),
         attribute.href("/static/chesshire_favicon.svg"),
