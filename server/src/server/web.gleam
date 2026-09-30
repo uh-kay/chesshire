@@ -38,8 +38,8 @@ pub fn serve_index() -> Response {
         attribute.content("width=device-width, initial-scale=1"),
       ]),
       html.title([], "Chesshire"),
-      meta_og("title", "Play new chess variants for free"),
-      meta_og("description", description),
+      meta_og("og:title", "Chesshire"),
+      meta_og("og:description", description),
       html.meta([attribute.name("description"), attribute.content(description)]),
       html.link([
         attribute.rel("icon"),
