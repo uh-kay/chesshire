@@ -13,8 +13,6 @@ import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html
 import lustre/event
-import plinth/browser/location
-import plinth/browser/window
 import shared
 
 pub type Message {
@@ -653,7 +651,7 @@ pub fn clock_view(
   )
 }
 
-pub fn navbar(static_directory: String) -> Element(_) {
+pub fn navbar() -> Element(_) {
   html.nav(
     [
       attribute.class("p-4 h-[60px] border-b-2 bg-blue-200 border-black"),
@@ -671,7 +669,7 @@ pub fn navbar(static_directory: String) -> Element(_) {
             [
               html.img([
                 attribute.class("w-8 mr-2"),
-                attribute.src(static_directory <> "chesshire_favicon.svg"),
+                attribute.src("/chesshire_favicon.svg"),
                 attribute.alt("Chesshire logo"),
               ]),
               html.text("Chesshire"),
@@ -701,17 +699,10 @@ fn format_time(time: Int) {
 }
 
 pub fn layout(content: Element(a)) -> Element(a) {
-  let location = window.self() |> window.location()
-  let protocol = protocol(location)
-  let static_directory = case protocol {
-    "https:" -> "/static/"
-    _ -> ""
-  }
-
   html.div(
     [attribute.class("bg-blue-100 min-h-dvh dark:bg-dark-base dark:text-dark")],
     [
-      navbar(static_directory),
+      navbar(),
       html.main([], [content]),
     ],
   )
@@ -739,13 +730,6 @@ pub fn game_layout(
   dragged_piece: Option(DraggedPiece),
   to_msg: fn(Message) -> msg,
 ) -> Element(msg) {
-  let location = window.self() |> window.location()
-  let protocol = protocol(location)
-  let static_directory = case protocol {
-    "https:" -> "/static/"
-    _ -> ""
-  }
-
   html.div(
     [
       case dragged_piece {
@@ -768,7 +752,7 @@ pub fn game_layout(
       attribute.class("bg-blue-100 min-h-dvh dark:bg-dark-base dark:text-dark"),
     ],
     [
-      navbar(static_directory),
+      navbar(),
       html.main([], [content]),
     ],
   )
@@ -857,6 +841,3 @@ pub fn variant_button_view(
     [html.text(label)],
   )
 }
-
-@external(javascript, "../client.ffi.mjs", "protocol")
-fn protocol(location: location.Location) -> String
