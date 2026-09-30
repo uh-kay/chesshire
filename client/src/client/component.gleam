@@ -37,6 +37,7 @@ pub type Message {
   UserMovedPiece(pointer_x: Int, pointer_y: Int)
   UserDroppedPiece
   UserCancelledDrag
+  UserClickedEmptySquare
 }
 
 pub type Model {
@@ -257,6 +258,10 @@ fn square_view(
         _, _ -> ""
       }),
       attribute.value("pos-" <> int.to_string(position)),
+      case option.is_none(piece) {
+        True -> event.on_click(UserClickedEmptySquare)
+        False -> attribute.none()
+      },
     ],
     [
       special_square_marker(square_color, player_color),

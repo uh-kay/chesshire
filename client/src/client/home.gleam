@@ -149,6 +149,11 @@ pub fn update(model: Model, message: Message) {
       #(model, effect.none())
     }
 
+    ComponentProducedMessage(component.UserClickedEmptySquare) -> #(
+      model,
+      effect.none(),
+    )
+
     UserClickedCreatePublicGame -> {
       let effect = case uri.parse("/create") {
         Ok(uri) -> modem.load(uri)

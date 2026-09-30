@@ -300,6 +300,12 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       #(model, effect)
     }
 
+    ComponentProducedMessage(component.UserClickedEmptySquare) -> {
+      let model = Model(..model, premove: None)
+
+      #(model, effect.none())
+    }
+
     UserClickedCopyLink(lobby_url:) -> {
       let model = Model(..model, link_copied: True)
       let effect = effect.batch([copy_link(lobby_url), reset_timer(1000)])
