@@ -324,21 +324,25 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
           let game = game_view.game
 
           let premove = case model.premove {
+            None -> None
             Some(move) -> {
-              let legal_moves = cheg.legal_moves(game)
-              use <- bool.guard(!list.contains(legal_moves, move), None)
+              use <- bool.guard(game_view.game_state != cheg.Continue, None)
 
               let to_move = cheg.to_move(game)
               let message = cheg.move_to_json(move) |> json.to_string
               case model.websocket, model.player_color {
                 Some(ws), Some(player_color) if player_color == to_move -> {
-                  websocket.send_message(ws, message)
-                  None
+                  case list.contains(cheg.legal_moves(game), move) {
+                    True -> {
+                      websocket.send_message(ws, message)
+                      None
+                    }
+                    False -> None
+                  }
                 }
                 _, _ -> model.premove
               }
             }
-            None -> None
           }
 
           let effect =
@@ -428,6 +432,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
             started: False,
           ),
           game_state:,
+          premove: None,
         )
       let effect = effect.none()
 
