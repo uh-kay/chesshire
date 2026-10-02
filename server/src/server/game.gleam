@@ -8,12 +8,18 @@ import gleam/option.{None, Some}
 import gleam/otp/actor.{type Next, type StartError, type Started}
 import gleam/result
 import gleam/string
+import repeatedly
 import shared
 import wisp.{type Request, type Response, Signed}
 import wisp/websocket
 
 type ConnState {
-  Ready(session: String, role: cheg.Role, game: Subject(GameMsg))
+  Ready(
+    session: String,
+    role: cheg.Role,
+    repeater: repeatedly.Repeater(Nil),
+    game: Subject(GameMsg),
+  )
   Rejected(reason: String)
 }
 
@@ -73,7 +79,14 @@ pub fn handle_ws(
 
             let _ = websocket.send_text(connection, payload)
 
-            #(Ready(session:, role:, game: game_subject), Some(selector))
+            let repeater =
+              repeatedly.call(10_000, Nil, fn(_, _) {
+                actor.send(outgoing, Ping)
+              })
+            #(
+              Ready(session:, role:, repeater:, game: game_subject),
+              Some(selector),
+            )
           }
           JoinRejected(reason:) -> {
             wisp.log_info(reason)
@@ -91,29 +104,29 @@ pub fn handle_ws(
 
             websocket.Stop
           }
-          Ready(session:, game:, role: _) ->
+          Ready(session:, game:, role: _, repeater: _) ->
             case message {
               websocket.Text(text) -> {
-                case text {
-                  "ping" -> websocket.Continue(state)
-                  _ ->
-                    case json.parse(text, cheg.move_decoder()) {
-                      Ok(move) ->
+                case echo json.parse(text, cheg.client_message_decoder()) {
+                  Ok(message) -> {
+                    case message {
+                      cheg.PlayerMove(move) ->
                         case actor.call(game, 1000, Move(session, move, _)) {
                           MoveOk -> websocket.Continue(state)
                           MoveRejected(reason:) -> {
                             wisp.log_info(reason)
-                            let json =
+                            let payload =
                               json.object([#("error", json.string(reason))])
                               |> json.to_string
-                            let _ = websocket.send_text(connection, json)
+                            let _ = websocket.send_text(connection, payload)
 
                             websocket.Continue(state)
                           }
                         }
-
-                      Error(_) -> websocket.Continue(state)
+                      cheg.Pong -> websocket.Continue(state)
                     }
+                  }
+                  Error(_) -> websocket.Continue(state)
                 }
               }
 
@@ -123,10 +136,23 @@ pub fn handle_ws(
                   Error(_) -> websocket.StopWithError("Failed to send message")
                 }
               }
+
               websocket.Custom(Close(reason:)) -> {
                 wisp.log_info(reason)
                 websocket.Stop
               }
+
+              websocket.Custom(Ping) -> {
+                let payload =
+                  json.object([
+                    #("type", json.string("message")),
+                    #("message", json.string("ping")),
+                  ])
+                  |> json.to_string
+                let _ = websocket.send_text(connection, payload)
+                websocket.Continue(state)
+              }
+
               websocket.Binary(_) | websocket.Closed | websocket.Shutdown -> {
                 websocket.Stop
               }
@@ -135,7 +161,8 @@ pub fn handle_ws(
       },
       on_close: fn(state) {
         case state {
-          Ready(session:, role: _, game:) -> {
+          Ready(session:, role: _, game:, repeater:) -> {
+            repeatedly.stop(repeater)
             actor.send(game, Disconnect(session))
 
             Nil
@@ -200,6 +227,7 @@ pub type DisconnectReply {
 }
 
 pub type OutgoingMsg {
+  Ping
   StateUpdate(json: String)
   Close(reason: String)
 }

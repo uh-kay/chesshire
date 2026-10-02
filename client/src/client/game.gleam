@@ -48,7 +48,7 @@ pub type Message {
   ComponentProducedMessage(component.Message)
   UserClickedCopyLink(lobby_url: String)
   TimerExpired
-  ServerUpdatedGame(body: String)
+  ServerSentMessage(body: String)
   ClockTickedForward
   ClockStoppedTicking
 }
@@ -183,7 +183,12 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
     ComponentProducedMessage(component.UserDroppedPiece) -> {
       let #(game, premove) = case model.current_move {
         Some(move) -> {
-          let message = cheg.move_to_json(move) |> json.to_string
+          let payload =
+            json.object([
+              #("type", json.string("move")),
+              #("move", cheg.move_to_json(move)),
+            ])
+            |> json.to_string
 
           let to_move = cheg.to_move(model.game)
           let #(game, premove) = case model.player_color {
@@ -199,7 +204,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
             Some(_) -> Nil
             None ->
               case model.websocket {
-                Some(ws) -> websocket.send_message(ws, message)
+                Some(ws) -> websocket.send_message(ws, payload)
                 None -> Nil
               }
           }
@@ -265,7 +270,12 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
     }
 
     ComponentProducedMessage(component.UserClickedTargetSquare(move:)) -> {
-      let message = cheg.move_to_json(move) |> json.to_string
+      let payload =
+        json.object([
+          #("type", json.string("move")),
+          #("move", cheg.move_to_json(move)),
+        ])
+        |> json.to_string
 
       let to_move = cheg.to_move(model.game)
       let #(game, premove) = case model.player_color {
@@ -281,7 +291,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         Some(_) -> Nil
         None ->
           case model.websocket {
-            Some(ws) -> websocket.send_message(ws, message)
+            Some(ws) -> websocket.send_message(ws, payload)
             None -> Nil
           }
       }
@@ -315,70 +325,99 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
     TimerExpired -> #(Model(..model, link_copied: False), effect.none())
 
-    ServerUpdatedGame(body:) -> {
-      case json.parse(body, cheg.game_view_decoder()) {
-        Ok(game_view) -> {
-          let black_tick = case cheg.to_move(game_view.game) {
-            shared.Black -> shared.monotonic_time()
-            shared.White -> model.time.black_tick
-          }
-          let white_tick = case cheg.to_move(game_view.game) {
-            shared.Black -> model.time.white_tick
-            shared.White -> shared.monotonic_time()
-          }
+    ServerSentMessage(body:) -> {
+      case json.parse(body, cheg.server_message_decoder()) {
+        Ok(message) ->
+          case message {
+            cheg.ServerReturnedGame(game_view) -> {
+              let black_tick = case cheg.to_move(game_view.game) {
+                shared.Black -> shared.monotonic_time()
+                shared.White -> model.time.black_tick
+              }
+              let white_tick = case cheg.to_move(game_view.game) {
+                shared.Black -> model.time.white_tick
+                shared.White -> shared.monotonic_time()
+              }
 
-          let game = game_view.game
+              let game = game_view.game
 
-          let premove = case model.premove {
-            None -> None
-            Some(move) -> {
-              use <- bool.guard(game_view.game_state != cheg.Continue, None)
+              let premove = case model.premove {
+                None -> None
+                Some(move) -> {
+                  use <- bool.guard(game_view.game_state != cheg.Continue, None)
 
-              let to_move = cheg.to_move(game)
-              let message = cheg.move_to_json(move) |> json.to_string
-              case model.websocket, model.player_color {
-                Some(ws), Some(player_color) if player_color == to_move -> {
-                  case list.contains(cheg.legal_moves(game), move) {
-                    True -> {
-                      websocket.send_message(ws, message)
-                      None
+                  let to_move = cheg.to_move(game)
+                  let payload =
+                    json.object([
+                      #("type", json.string("move")),
+                      #("move", cheg.move_to_json(move)),
+                    ])
+                    |> json.to_string
+
+                  case model.websocket, model.player_color {
+                    Some(ws), Some(player_color) if player_color == to_move -> {
+                      case list.contains(cheg.legal_moves(game), move) {
+                        True -> {
+                          websocket.send_message(ws, payload)
+                          None
+                        }
+                        False -> None
+                      }
                     }
-                    False -> None
+                    _, _ -> model.premove
                   }
                 }
-                _, _ -> model.premove
               }
+
+              let effect =
+                effect.batch([
+                  case game_view.game_state != cheg.Continue {
+                    True -> stop_clock()
+                    False -> listen(model.websocket)
+                  },
+                  case game_view.guest_joined {
+                    False -> {
+                      modem.push("/game/" <> game_view.lobby_id, None, None)
+                    }
+                    _ -> effect.none()
+                  },
+                ])
+              let model =
+                Model(
+                  ..model,
+                  game:,
+                  time: shared.Time(..game_view.time, black_tick:, white_tick:),
+                  guest_joined: game_view.guest_joined,
+                  role: Some(game_view.role),
+                  game_state: game_view.game_state,
+                  player_color: game_view.player_color,
+                  is_public: game_view.is_public,
+                  premove:,
+                )
+
+              #(model, effect)
+            }
+            cheg.Ping -> {
+              let payload =
+                json.object([
+                  #("type", json.string("message")),
+                  #("message", json.string("pong")),
+                ])
+                |> json.to_string
+
+              case model.websocket {
+                Some(ws) -> websocket.send_message(ws, payload)
+                None -> Nil
+              }
+
+              let effect = case model.game_state != cheg.Continue {
+                True -> effect.none()
+                False -> listen(model.websocket)
+              }
+
+              #(model, effect)
             }
           }
-
-          let effect =
-            effect.batch([
-              case game_view.game_state != cheg.Continue {
-                True -> stop_clock()
-                False -> listen(model.websocket)
-              },
-              case game_view.guest_joined {
-                False -> {
-                  modem.push("/game/" <> game_view.lobby_id, None, None)
-                }
-                _ -> effect.none()
-              },
-            ])
-          let model =
-            Model(
-              ..model,
-              game:,
-              time: shared.Time(..game_view.time, black_tick:, white_tick:),
-              guest_joined: game_view.guest_joined,
-              role: Some(game_view.role),
-              game_state: game_view.game_state,
-              player_color: game_view.player_color,
-              is_public: game_view.is_public,
-              premove:,
-            )
-
-          #(model, effect)
-        }
         Error(_) -> #(model, effect.none())
       }
     }
@@ -473,8 +512,8 @@ fn get_game_view(init_msg: Option(Promise(String))) -> Effect(Message) {
     case init_msg {
       Some(init_msg) -> {
         promise.tap(init_msg, fn(msg) {
-          case json.parse(msg, cheg.game_view_decoder()) {
-            Ok(_) -> dispatch(ServerUpdatedGame(msg))
+          case json.parse(msg, cheg.server_message_decoder()) {
+            Ok(_) -> dispatch(ServerSentMessage(msg))
             Error(_) -> Nil
           }
         })
@@ -491,7 +530,7 @@ fn listen(ws: Option(websocket.Websocket)) -> Effect(Message) {
     Some(ws) ->
       effect.from(fn(dispatch) {
         promise.tap(websocket.receive_message(ws), fn(msg) {
-          dispatch(ServerUpdatedGame(body: msg))
+          dispatch(ServerSentMessage(body: msg))
         })
 
         Nil

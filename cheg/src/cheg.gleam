@@ -527,7 +527,9 @@ pub fn game_view_to_json(game_view: GameView) -> Json {
     lobby_id:,
     is_public:,
   ) = game_view
+
   json.object([
+    #("type", json.string("game")),
     #("game", game_to_json(game)),
     #("role", role_to_json(role)),
     #("game_state", game_state_to_json(game_state)),
@@ -668,5 +670,135 @@ pub fn move_decoder() -> decode.Decoder(Move) {
       decode.success(Move(move.Sacrifice(from:, to:, sacrificed_piece:)))
     }
     _ -> decode.failure(Move(move.Castle(from: 0, to: 0)), "Move")
+  }
+}
+
+pub type ClientMessage {
+  PlayerMove(Move)
+  Pong
+}
+
+pub fn client_message_decoder() {
+  use variant <- decode.field("type", decode.string)
+  case variant {
+    "move" -> {
+      use move <- decode.field("move", {
+        use variant <- decode.field("type", decode.string)
+        case variant {
+          "castle" -> {
+            use from <- decode.field("from", decode.int)
+            use to <- decode.field("to", decode.int)
+            decode.success(PlayerMove(Move(move.Castle(from:, to:))))
+          }
+          "move" -> {
+            use from <- decode.field("from", decode.int)
+            use to <- decode.field("to", decode.int)
+            use piece <- decode.field("piece", board.piece_decoder())
+            decode.success(PlayerMove(Move(move.Move(from:, to:, piece:))))
+          }
+          "capture" -> {
+            use from <- decode.field("from", decode.int)
+            use to <- decode.field("to", decode.int)
+            use piece <- decode.field("piece", board.piece_decoder())
+            use captured_piece <- decode.field(
+              "captured_piece",
+              board.piece_decoder(),
+            )
+            decode.success(
+              PlayerMove(
+                Move(move.Capture(from:, to:, piece:, captured_piece:)),
+              ),
+            )
+          }
+          "en_passant" -> {
+            use from <- decode.field("from", decode.int)
+            use to <- decode.field("to", decode.int)
+            use piece <- decode.field("piece", board.piece_decoder())
+            decode.success(PlayerMove(Move(move.EnPassant(from:, to:, piece:))))
+          }
+          "promotion" -> {
+            use from <- decode.field("from", decode.int)
+            use to <- decode.field("to", decode.int)
+            use piece <- decode.field("piece", board.piece_decoder())
+            use captured_piece <- decode.field(
+              "captured_piece",
+              decode.optional(board.piece_decoder()),
+            )
+            use promoted_to <- decode.field(
+              "promoted_to",
+              board.piece_decoder(),
+            )
+            decode.success(
+              PlayerMove(
+                Move(move.Promotion(
+                  from:,
+                  to:,
+                  piece:,
+                  captured_piece:,
+                  promoted_to:,
+                )),
+              ),
+            )
+          }
+          "sacrifice" -> {
+            use from <- decode.field("from", decode.int)
+            use to <- decode.field("to", decode.int)
+            use sacrificed_piece <- decode.field(
+              "sacrificed_piece",
+              board.piece_decoder(),
+            )
+            decode.success(
+              PlayerMove(Move(move.Sacrifice(from:, to:, sacrificed_piece:))),
+            )
+          }
+          _ ->
+            decode.failure(
+              PlayerMove(Move(move.Castle(from: 0, to: 0))),
+              "Move",
+            )
+        }
+      })
+      decode.success(move)
+    }
+    "message" -> decode.success(Pong)
+    _ -> decode.failure(PlayerMove(Move(move.Castle(from: 0, to: 0))), "Move")
+  }
+}
+
+pub type ServerMessage {
+  ServerReturnedGame(GameView)
+  Ping
+}
+
+pub fn server_message_decoder() {
+  use variant <- decode.field("type", decode.string)
+  case variant {
+    "game" -> {
+      use game <- decode.field("game", game_decoder())
+      use role <- decode.field("role", role_decoder())
+      use game_state <- decode.field("game_state", game_state_decoder())
+      use time <- decode.field("time", shared.time_decoder())
+      use guest_joined <- decode.field("guest_joined", decode.bool)
+      use player_color <- decode.field(
+        "player_color",
+        decode.optional(shared.player_color_decoder()),
+      )
+      use lobby_id <- decode.field("lobby_id", decode.string)
+      use is_public <- decode.field("is_public", decode.bool)
+      decode.success(
+        ServerReturnedGame(GameView(
+          game:,
+          role:,
+          game_state:,
+          time:,
+          guest_joined:,
+          player_color:,
+          lobby_id:,
+          is_public:,
+        )),
+      )
+    }
+    "message" -> decode.success(Ping)
+    _ -> decode.failure(Ping, "ServerMessage")
   }
 }

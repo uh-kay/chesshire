@@ -49,8 +49,6 @@ pub type Message {
   UserNavigatedTo(Route)
 
   ServerCreatedSession(Result(Response(String), rsvp.Error(String)))
-
-  ClientPingedServer
 }
 
 pub type Route {
@@ -98,7 +96,6 @@ fn init(_) -> #(Model, Effect(Message)) {
       modem.init(on_url_change),
       create_session(),
       page_effect,
-      ping_server(60_000, model.websocket),
     ])
 
   #(model, effect)
@@ -162,8 +159,6 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
       #(model, effect)
     }
-
-    ClientPingedServer -> #(model, ping_server(60_000, model.websocket))
 
     CreatePageMessage(message) -> {
       case model.page_model {
@@ -252,23 +247,6 @@ fn create_session() -> Effect(Message) {
 
   rsvp.post(url, body, handler)
 }
-
-fn ping_server(duration: Int, websocket: Option(Websocket)) {
-  use dispatch <- effect.from
-  use <- set_timeout(duration)
-
-  case websocket {
-    Some(websocket) -> websocket.send_message(websocket, "ping")
-    None -> Nil
-  }
-
-  dispatch(ClientPingedServer)
-}
-
-// EXTERNALS ------------------------------------------------------------------
-
-@external(javascript, "./client.ffi.mjs", "set_timeout")
-fn set_timeout(delay: Int, callback: fn() -> a) -> Nil
 
 // VIEW -----------------------------------------------------------------------
 
