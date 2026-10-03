@@ -107,7 +107,7 @@ pub fn handle_ws(
           Ready(session:, game:, role: _, repeater: _) ->
             case message {
               websocket.Text(text) -> {
-                case echo json.parse(text, cheg.client_message_decoder()) {
+                case json.parse(text, cheg.client_message_decoder()) {
                   Ok(message) -> {
                     case message {
                       cheg.PlayerMove(move) ->

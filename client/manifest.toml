@@ -38,13 +38,14 @@ packages = [
   { name = "hpack_erl", version = "0.3.0", build_tools = ["rebar3"], requirements = [], otp_app = "hpack", source = "hex", outer_checksum = "D6137D7079169D8C485C6962DFE261AF5B9EF60FBC557344511C1E65E3D95FB0" },
   { name = "justin", version = "1.1.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "justin", source = "hex", outer_checksum = "8B1C62269E8607D0A0ED698B7903984CE0BF7B6B3C0DEA3C6C8302B39402837B" },
   { name = "logging", version = "1.5.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "logging", source = "hex", outer_checksum = "BC5F18CE5DD9686100229FE5409BDC3DD5C46D5A7DF2F804AD2D8F0DD6C5060E" },
-  { name = "lustre", version = "5.7.1", build_tools = ["gleam"], requirements = ["exception", "gleam_erlang", "gleam_json", "gleam_otp", "gleam_stdlib", "houdini"], source = "git", repo = "https://github.com/lustre-labs/lustre.git", commit = "e555ac001cbc11c326e7c551fcb6dc4806495dad" },
+  { name = "lustre", version = "5.7.1", build_tools = ["gleam"], requirements = ["exception", "gleam_erlang", "gleam_json", "gleam_otp", "gleam_stdlib", "houdini"], source = "git", repo = "https://github.com/lustre-labs/lustre.git", commit = "291e22d3d95d9b92d9ff93f1671d0c96af0deaa5" },
   { name = "lustre_dev_tools", version = "2.4.0", build_tools = ["gleam"], requirements = ["argv", "booklet", "collie", "filepath", "gleam_community_ansi", "gleam_crypto", "gleam_erlang", "gleam_http", "gleam_httpc", "gleam_json", "gleam_otp", "gleam_regexp", "gleam_stdlib", "glint", "group_registry", "justin", "lustre", "mist", "polly", "simplifile", "tom", "wisp"], otp_app = "lustre_dev_tools", source = "hex", outer_checksum = "3DC97379F0E8DC414E271FAB4F826EE9C935FD0BE9E009F410F8487A12C808A9" },
   { name = "lustre_fable", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_json", "gleam_stdlib", "justin", "lustre", "lustre_portal", "modem", "pprint"], source = "git", repo = "https://github.com/lustre-labs/fable.git", commit = "0ad4725095b35232eb7b9f9f8781eb500c9c24f8" },
   { name = "lustre_portal", version = "1.0.1", build_tools = ["gleam"], requirements = ["gleam_stdlib", "lustre"], otp_app = "lustre_portal", source = "hex", outer_checksum = "7531667B9321B644E139F5BE42077932829431BE74BC7239471CEFC68943A661" },
   { name = "marceau", version = "1.3.0", build_tools = ["gleam"], requirements = [], otp_app = "marceau", source = "hex", outer_checksum = "2D1C27504BEF45005F5DFB18591F8610FB4BFA91744878210BDC464412EC44E9" },
   { name = "mist", version = "6.0.3", build_tools = ["gleam"], requirements = ["exception", "gleam_erlang", "gleam_http", "gleam_otp", "gleam_stdlib", "glisten", "gramps", "hpack_erl", "logging"], otp_app = "mist", source = "hex", outer_checksum = "1B07F321D5FA0CB162D81496F2DE96AEB6EF8980F4F38230A4CC3F849497E020" },
   { name = "modem", version = "2.1.3", build_tools = ["gleam"], requirements = ["gleam_stdlib", "lustre"], otp_app = "modem", source = "hex", outer_checksum = "F03560273C4E857025E7628BCE1EBA8B7E9A1A81A73CA998FC29FD1CED188968" },
+  { name = "off_topic", version = "1.0.0-rc3", build_tools = ["gleam"], requirements = ["gleam_json", "gleam_stdlib", "gleam_time", "lustre"], otp_app = "off_topic", source = "hex", outer_checksum = "6E0B3F5BE82391A1C7BA3E1D0B2E03C24F3D41B9148E568265E67E9ADF0E4E30" },
   { name = "platform", version = "1.0.0", build_tools = ["gleam"], requirements = [], otp_app = "platform", source = "hex", outer_checksum = "8339420A95AD89AAC0F82F4C3DB8DD401041742D6C3F46132A8739F6AEB75391" },
   { name = "plinth", version = "0.11.0", build_tools = ["gleam"], requirements = ["gleam_javascript", "gleam_json", "gleam_stdlib"], otp_app = "plinth", source = "hex", outer_checksum = "D30FDE8FC11EB76538AB498ACFF5399D0AE27993C74D63BE05AFE8CE80C4C839" },
   { name = "polly", version = "3.1.0", build_tools = ["gleam"], requirements = ["filepath", "gleam_erlang", "gleam_otp", "gleam_stdlib", "simplifile"], otp_app = "polly", source = "hex", outer_checksum = "51FB565D81FF6212FDF3306D44419601F2A7C4EDD1F00FC9DA5C376A00AED4FE" },
@@ -65,11 +66,13 @@ gleam_http = { version = ">= 4.3.0 and < 5.0.0" }
 gleam_javascript = { version = ">= 1.0.1 and < 2.0.0" }
 gleam_json = { version = ">= 3.1.0 and < 4.0.0" }
 gleam_stdlib = { version = ">= 1.0.0 and < 2.0.0" }
+gleam_time = { version = ">= 1.11.0 and < 2.0.0" }
 gleeunit = { version = ">= 1.0.0 and < 2.0.0" }
 lustre = { version = ">= 5.7.0 and < 6.0.0" }
 lustre_dev_tools = { version = ">= 2.4.0 and < 3.0.0" }
 lustre_fable = { git = "https://github.com/lustre-labs/fable.git", ref = "main" }
 modem = { version = ">= 2.1.3 and < 3.0.0" }
+off_topic = { version = ">= 1.0.0-rc3 and < 2.0.0" }
 plinth = { version = ">= 0.10.2 and < 1.0.0" }
 rsvp = { version = ">= 2.0.0 and < 3.0.0" }
 shared = { path = "../shared" }

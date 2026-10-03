@@ -1,14 +1,15 @@
 import cheg
 import client/component
 import client/icon
-import client/websocket
 import gleam/bool
 import gleam/dict
 import gleam/int
-import gleam/javascript/promise.{type Promise}
-import gleam/json
+import gleam/javascript/promise
+import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/time/duration
+import gleam/time/timestamp.{type Timestamp}
 import gleam/uri
 import lustre/attribute
 import lustre/effect.{type Effect}
@@ -16,6 +17,7 @@ import lustre/element.{type Element}
 import lustre/element/html
 import lustre/event
 import modem
+import off_topic.{type Subscription, type WebsocketMessage}
 import plinth/browser/clipboard
 import shared
 
@@ -32,7 +34,7 @@ pub type Model {
     role: Option(cheg.Role),
     game_state: cheg.GameState,
     current_page_uri: Option(uri.Uri),
-    websocket: Option(websocket.Websocket),
+    websocket_url: Option(String),
     current_piece: Option(#(Int, Option(#(cheg.PieceType, shared.PlayerColor)))),
     offset: Int,
     lobby_id: String,
@@ -48,26 +50,20 @@ pub type Message {
   ComponentProducedMessage(component.Message)
   UserClickedCopyLink(lobby_url: String)
   TimerExpired
-  ServerSentMessage(body: String)
-  ClockTickedForward
   ClockStoppedTicking
+  ClientConnected
+  ClientFailedToConnect(reason: String)
+  ServerSentMessage(message: WebsocketMessage)
+  ClockTickedForward(Timestamp)
 }
 
 pub fn init(
   current_page_uri: Option(uri.Uri),
-  websocket: Option(websocket.Websocket),
+  websocket_url: Option(String),
   lobby_id: String,
 ) -> #(Model, Effect(Message)) {
   let game = cheg.new(shared.TwinPasses, shared.RiverSacrifice)
   let time = shared.new_time(shared.monotonic_time())
-
-  let init_message = case websocket {
-    Some(websocket) -> {
-      let message = websocket.receive_message(websocket)
-      Some(message)
-    }
-    None -> None
-  }
 
   let model =
     Model(
@@ -80,7 +76,6 @@ pub fn init(
       role: None,
       game_state: cheg.Continue,
       current_page_uri:,
-      websocket:,
       current_piece: None,
       // in the future calculate offset based on latency
       offset: 0,
@@ -90,10 +85,10 @@ pub fn init(
       dragged_over_square: None,
       dragged_piece: None,
       current_move: None,
+      websocket_url:,
     )
-  let effect = effect.batch([get_game_view(init_message), tick()])
 
-  #(model, effect)
+  #(model, effect.none())
 }
 
 // UPDATE ---------------------------------------------------------------------
@@ -140,9 +135,8 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         ))
 
       let model = Model(..model, current_piece_moves:, dragged_piece:)
-      let effect = effect.none()
 
-      #(model, effect)
+      #(model, effect.none())
     }
 
     ComponentProducedMessage(component.UserDraggedOutOfTargetSquare) -> {
@@ -181,37 +175,9 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
     }
 
     ComponentProducedMessage(component.UserDroppedPiece) -> {
-      let #(game, premove) = case model.current_move {
-        Some(move) -> {
-          let payload =
-            json.object([
-              #("type", json.string("move")),
-              #("move", cheg.move_to_json(move)),
-            ])
-            |> json.to_string
-
-          let to_move = cheg.to_move(model.game)
-          let #(game, premove) = case model.player_color {
-            Some(player_color) ->
-              case player_color != to_move {
-                True -> #(model.game, Some(move))
-                False -> #(cheg.apply_move(model.game, move), None)
-              }
-            None -> #(model.game, model.premove)
-          }
-
-          case premove {
-            Some(_) -> Nil
-            None ->
-              case model.websocket {
-                Some(ws) -> websocket.send_message(ws, payload)
-                None -> Nil
-              }
-          }
-
-          #(game, premove)
-        }
-        None -> #(model.game, model.premove)
+      let #(game, premove, effect) = case model.current_move {
+        Some(move) -> apply_move(move, model)
+        None -> #(model.game, model.premove, effect.none())
       }
 
       let model =
@@ -225,7 +191,6 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
           dragged_over_square: None,
           current_move: None,
         )
-      let effect = effect.none()
 
       #(model, effect)
     }
@@ -264,38 +229,12 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       }
 
       let model = Model(..model, current_piece_moves:)
-      let effect = effect.none()
 
-      #(model, effect)
+      #(model, effect.none())
     }
 
     ComponentProducedMessage(component.UserClickedTargetSquare(move:)) -> {
-      let payload =
-        json.object([
-          #("type", json.string("move")),
-          #("move", cheg.move_to_json(move)),
-        ])
-        |> json.to_string
-
-      let to_move = cheg.to_move(model.game)
-      let #(game, premove) = case model.player_color {
-        Some(player_color) ->
-          case player_color != to_move {
-            True -> #(model.game, Some(move))
-            False -> #(cheg.apply_move(model.game, move), None)
-          }
-        None -> #(model.game, model.premove)
-      }
-
-      case premove {
-        Some(_) -> Nil
-        None ->
-          case model.websocket {
-            Some(ws) -> websocket.send_message(ws, payload)
-            None -> Nil
-          }
-      }
-
+      let #(game, premove, effect) = apply_move(move, model)
       let model =
         Model(
           ..model,
@@ -305,155 +244,26 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
           premove:,
           dragged_over_square: None,
         )
-      let effect = effect.none()
 
       #(model, effect)
     }
 
     ComponentProducedMessage(component.UserClickedEmptySquare) -> {
-      let model = Model(..model, premove: None)
-
-      #(model, effect.none())
+      #(Model(..model, premove: None), effect.none())
     }
 
     UserClickedCopyLink(lobby_url:) -> {
       let model = Model(..model, link_copied: True)
-      let effect = effect.batch([copy_link(lobby_url), reset_timer(1000)])
+      let effect =
+        effect.batch([
+          copy_link(lobby_url),
+          off_topic.after(duration.seconds(1), TimerExpired),
+        ])
 
       #(model, effect)
     }
 
     TimerExpired -> #(Model(..model, link_copied: False), effect.none())
-
-    ServerSentMessage(body:) -> {
-      case json.parse(body, cheg.server_message_decoder()) {
-        Ok(message) ->
-          case message {
-            cheg.ServerReturnedGame(game_view) -> {
-              let black_tick = case cheg.to_move(game_view.game) {
-                shared.Black -> shared.monotonic_time()
-                shared.White -> model.time.black_tick
-              }
-              let white_tick = case cheg.to_move(game_view.game) {
-                shared.Black -> model.time.white_tick
-                shared.White -> shared.monotonic_time()
-              }
-
-              let game = game_view.game
-
-              let premove = case model.premove {
-                None -> None
-                Some(move) -> {
-                  use <- bool.guard(game_view.game_state != cheg.Continue, None)
-
-                  let to_move = cheg.to_move(game)
-                  let payload =
-                    json.object([
-                      #("type", json.string("move")),
-                      #("move", cheg.move_to_json(move)),
-                    ])
-                    |> json.to_string
-
-                  case model.websocket, model.player_color {
-                    Some(ws), Some(player_color) if player_color == to_move -> {
-                      case list.contains(cheg.legal_moves(game), move) {
-                        True -> {
-                          websocket.send_message(ws, payload)
-                          None
-                        }
-                        False -> None
-                      }
-                    }
-                    _, _ -> model.premove
-                  }
-                }
-              }
-
-              let effect =
-                effect.batch([
-                  case game_view.game_state != cheg.Continue {
-                    True -> stop_clock()
-                    False -> listen(model.websocket)
-                  },
-                  case game_view.guest_joined {
-                    False -> {
-                      modem.push("/game/" <> game_view.lobby_id, None, None)
-                    }
-                    _ -> effect.none()
-                  },
-                ])
-              let model =
-                Model(
-                  ..model,
-                  game:,
-                  time: shared.Time(..game_view.time, black_tick:, white_tick:),
-                  guest_joined: game_view.guest_joined,
-                  role: Some(game_view.role),
-                  game_state: game_view.game_state,
-                  player_color: game_view.player_color,
-                  is_public: game_view.is_public,
-                  premove:,
-                )
-
-              #(model, effect)
-            }
-            cheg.Ping -> {
-              let payload =
-                json.object([
-                  #("type", json.string("message")),
-                  #("message", json.string("pong")),
-                ])
-                |> json.to_string
-
-              case model.websocket {
-                Some(ws) -> websocket.send_message(ws, payload)
-                None -> Nil
-              }
-
-              let effect = case model.game_state != cheg.Continue {
-                True -> effect.none()
-                False -> listen(model.websocket)
-              }
-
-              #(model, effect)
-            }
-          }
-        Error(_) -> #(model, effect.none())
-      }
-    }
-
-    ClockTickedForward -> {
-      let offset = model.offset
-
-      let #(time, effect) = case cheg.to_move(model.game), model.time.started {
-        shared.Black, True -> {
-          let black_tick = shared.monotonic_time()
-          let black_time =
-            current_time(model.time.black_time, model.time.black_tick, offset)
-
-          let effect = case black_time <= 0 {
-            True -> stop_clock()
-            False -> tick()
-          }
-          #(shared.Time(..model.time, black_time:, black_tick:), effect)
-        }
-        shared.White, True -> {
-          let white_tick = shared.monotonic_time()
-          let white_time =
-            current_time(model.time.white_time, model.time.white_tick, offset)
-          let effect = case white_time <= 0 {
-            True -> stop_clock()
-            False -> tick()
-          }
-
-          #(shared.Time(..model.time, white_time:, white_tick:), effect)
-        }
-        _, _ -> #(model.time, tick())
-      }
-      let model = Model(..model, time:)
-
-      #(model, effect)
-    }
 
     ClockStoppedTicking -> {
       let black_time =
@@ -479,16 +289,213 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
           game_state:,
           premove: None,
         )
-      let effect = effect.none()
+
+      #(model, effect.none())
+    }
+    ClientConnected -> #(model, effect.none())
+    ServerSentMessage(message:) ->
+      case message {
+        off_topic.TextFrame(data:) -> {
+          case json.parse(data, cheg.server_message_decoder()) {
+            Ok(server_message) ->
+              case server_message {
+                cheg.ServerReturnedGame(game_view) -> {
+                  let black_tick = case cheg.to_move(game_view.game) {
+                    shared.Black -> shared.monotonic_time()
+                    shared.White -> model.time.black_tick
+                  }
+                  let white_tick = case cheg.to_move(game_view.game) {
+                    shared.Black -> model.time.white_tick
+                    shared.White -> shared.monotonic_time()
+                  }
+
+                  let game = game_view.game
+
+                  let #(premove, premove_effect) = case model.premove {
+                    None -> #(None, effect.none())
+                    Some(move) -> {
+                      use <- bool.guard(
+                        game_view.game_state != cheg.Continue,
+                        #(None, effect.none()),
+                      )
+
+                      let to_move = cheg.to_move(game)
+                      let payload =
+                        json.object([
+                          #("type", json.string("move")),
+                          #("move", cheg.move_to_json(move)),
+                        ])
+
+                      case model.player_color {
+                        Some(player_color) if player_color == to_move -> {
+                          case list.contains(cheg.legal_moves(game), move) {
+                            True -> {
+                              case model.websocket_url {
+                                Some(url) -> {
+                                  #(None, send(url, payload))
+                                }
+                                None -> #(None, effect.none())
+                              }
+                            }
+                            False -> #(None, effect.none())
+                          }
+                        }
+                        _ -> #(model.premove, effect.none())
+                      }
+                    }
+                  }
+
+                  let effect =
+                    effect.batch([
+                      case game_view.game_state != cheg.Continue {
+                        True -> stop_clock()
+                        False -> effect.none()
+                      },
+                      case game_view.guest_joined {
+                        False -> {
+                          modem.push("/game/" <> game_view.lobby_id, None, None)
+                        }
+                        _ -> effect.none()
+                      },
+                      premove_effect,
+                    ])
+                  let model =
+                    Model(
+                      ..model,
+                      game:,
+                      time: shared.Time(
+                        ..game_view.time,
+                        black_tick:,
+                        white_tick:,
+                      ),
+                      guest_joined: game_view.guest_joined,
+                      role: Some(game_view.role),
+                      game_state: game_view.game_state,
+                      player_color: game_view.player_color,
+                      is_public: game_view.is_public,
+                      premove:,
+                    )
+
+                  #(model, effect)
+                }
+                cheg.Ping -> {
+                  let payload =
+                    json.object([
+                      #("type", json.string("message")),
+                      #("message", json.string("pong")),
+                    ])
+
+                  let effect = case model.websocket_url {
+                    Some(url) -> {
+                      send(url, payload)
+                    }
+                    None -> effect.none()
+                  }
+
+                  #(model, effect)
+                }
+              }
+            Error(_) -> #(model, effect.none())
+          }
+        }
+        off_topic.BinaryFrame(_) -> #(model, effect.none())
+      }
+
+    ClientFailedToConnect(reason: _) -> #(model, effect.none())
+
+    ClockTickedForward(_) -> {
+      let offset = model.offset
+
+      let #(time, effect) = case cheg.to_move(model.game), model.time.started {
+        shared.Black, True -> {
+          let black_tick = shared.monotonic_time()
+          let black_time =
+            current_time(model.time.black_time, model.time.black_tick, offset)
+
+          let effect = case black_time <= 0 {
+            True -> stop_clock()
+            False -> effect.none()
+          }
+          #(shared.Time(..model.time, black_time:, black_tick:), effect)
+        }
+        shared.White, True -> {
+          let white_tick = shared.monotonic_time()
+          let white_time =
+            current_time(model.time.white_time, model.time.white_tick, offset)
+          let effect = case white_time <= 0 {
+            True -> stop_clock()
+            False -> effect.none()
+          }
+
+          #(shared.Time(..model.time, white_time:, white_tick:), effect)
+        }
+        _, _ -> #(model.time, effect.none())
+      }
+      let model = Model(..model, time:)
 
       #(model, effect)
     }
   }
 }
 
+fn send(url: String, json: Json) {
+  let frame = off_topic.TextFrame(data: json.to_string(json))
+  off_topic.websocket_send(url, frame)
+}
+
+fn apply_move(
+  move: cheg.Move,
+  model: Model,
+) -> #(cheg.Game, Option(cheg.Move), effect.Effect(Message)) {
+  let payload =
+    json.object([
+      #("type", json.string("move")),
+      #("move", cheg.move_to_json(move)),
+    ])
+
+  let to_move = cheg.to_move(model.game)
+  let #(game, premove) = case model.player_color {
+    Some(player_color) ->
+      case player_color != to_move {
+        True -> #(model.game, Some(move))
+        False -> #(cheg.apply_move(model.game, move), None)
+      }
+    None -> #(model.game, model.premove)
+  }
+
+  let premove_effect = case premove {
+    Some(_) -> effect.none()
+    None -> {
+      case model.websocket_url {
+        Some(url) -> send(url, payload)
+        None -> effect.none()
+      }
+    }
+  }
+  #(game, premove, premove_effect)
+}
+
 fn current_time(remaining: Int, tick: Int, offset: Int) -> Int {
   let elapsed = shared.monotonic_time() + offset - tick
   remaining - elapsed
+}
+
+// SUBSCRIPTIONS --------------------------------------------------------------
+
+pub fn subscriptions(model: Model) -> Subscription(Message) {
+  let websocket = case model.websocket_url {
+    Some(url) ->
+      off_topic.websocket(
+        url:,
+        on_open: ClientConnected,
+        on_message: fn(message) { ServerSentMessage(message) },
+        on_error: fn(reason) { ClientFailedToConnect(reason) },
+      )
+    None -> off_topic.none()
+  }
+  let timer = off_topic.every(duration.seconds(1), True, ClockTickedForward)
+
+  off_topic.batch([websocket, timer])
 }
 
 // EFFECTS --------------------------------------------------------------------
@@ -500,62 +507,11 @@ fn copy_link(lobby_url: String) -> Effect(Message) {
   })
 }
 
-fn reset_timer(duration: Int) -> Effect(Message) {
-  use dispatch <- effect.from
-  use <- set_timeout(duration)
-
-  dispatch(TimerExpired)
-}
-
-fn get_game_view(init_msg: Option(Promise(String))) -> Effect(Message) {
-  effect.from(fn(dispatch) {
-    case init_msg {
-      Some(init_msg) -> {
-        promise.tap(init_msg, fn(msg) {
-          case json.parse(msg, cheg.server_message_decoder()) {
-            Ok(_) -> dispatch(ServerSentMessage(msg))
-            Error(_) -> Nil
-          }
-        })
-      }
-      None -> promise.resolve("")
-    }
-
-    Nil
-  })
-}
-
-fn listen(ws: Option(websocket.Websocket)) -> Effect(Message) {
-  case ws {
-    Some(ws) ->
-      effect.from(fn(dispatch) {
-        promise.tap(websocket.receive_message(ws), fn(msg) {
-          dispatch(ServerSentMessage(body: msg))
-        })
-
-        Nil
-      })
-    None -> effect.none()
-  }
-}
-
-fn tick() -> Effect(Message) {
-  use dispatch <- effect.from
-  use <- set_timeout(1000)
-
-  dispatch(ClockTickedForward)
-}
-
 fn stop_clock() -> Effect(Message) {
   use dispatch <- effect.from
 
   dispatch(ClockStoppedTicking)
 }
-
-// EXTERNALS ------------------------------------------------------------------
-
-@external(javascript, "../client.ffi.mjs", "set_timeout")
-fn set_timeout(delay: Int, cb: fn() -> a) -> Nil
 
 // VIEW -----------------------------------------------------------------------
 
