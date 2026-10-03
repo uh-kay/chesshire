@@ -512,6 +512,7 @@ pub fn clock_view(
       False -> "rounded-b-none"
     }),
   ]
+  let captured_piece_style = attribute.class("flex max-w-30 flex-wrap")
 
   let state_view = case state {
     cheg.Continue -> element.none()
@@ -553,7 +554,7 @@ pub fn clock_view(
         [
           html.p(time_style, [html.text(black_time)]),
           html.div(
-            [attribute.class("flex max-w-30 flex-wrap")],
+            [captured_piece_style],
             remove_duplicate_piece(shared.White, captured_pieces.captured)
               |> list.map(fn(value) {
                 captured_piece_view(
@@ -633,7 +634,7 @@ pub fn clock_view(
         ],
         [
           html.div(
-            [attribute.class("flex")],
+            [captured_piece_style],
             remove_duplicate_piece(shared.Black, captured_pieces.captured)
               |> list.map(fn(value) {
                 captured_piece_view(
