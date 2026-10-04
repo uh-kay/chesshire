@@ -8,6 +8,7 @@ import gleam/option.{None, Some}
 import gleam/otp/actor.{type Next, type StartError, type Started}
 import gleam/result
 import gleam/string
+import gleam/time/duration
 import repeatedly
 import shared
 import wisp.{type Request, type Response, Signed}
@@ -595,11 +596,12 @@ fn broadcast(
 fn new(
   invite_code: String,
   create_game: shared.CreateGame,
+  duration: duration.Duration,
   is_public,
 ) -> GameActor {
   let game = cheg.new(create_game.board_variant, create_game.game_variant)
   let game_state = cheg.state(game)
-  let time = shared.new_time(shared.monotonic_time())
+  let time = shared.new_time(shared.monotonic_time(), duration)
   let guest_color = case create_game.host_side {
     shared.Black -> shared.White
     shared.White -> shared.Black
@@ -688,6 +690,7 @@ pub type RegistryMsg {
   CreatePrivateLobby(
     invite_code: String,
     create_game: shared.CreateGame,
+    max_time: Int,
     reply_to: Subject(Subject(GameMsg)),
   )
   JoinPrivateLobby(invite_code: String, reply_to: Subject(Subject(GameMsg)))
@@ -718,29 +721,32 @@ fn registry_loop(
           actor.continue(state)
         }
         Error(_) -> {
-          let assert Ok(started) =
-            actor.new(new(
-              invite_code,
-              shared.CreateGame(
-                True,
-                board_variant: shared.TwinPasses,
-                game_variant: shared.RiverSacrifice,
-                host_side: case int.random(2) {
-                  0 -> shared.Black
-                  _ -> shared.White
-                },
-              ),
-              False,
-            ))
-            |> actor.on_message(handle_message)
-            |> actor.start
-          let state =
-            RegistryState(
-              ..state,
-              games: dict.insert(state.games, invite_code, started.data),
-            )
-          actor.send(reply_to, started.data)
-          actor.continue(state)
+          actor.stop_abnormal("lobby does not exists")
+          //   let assert Ok(started) =
+          //     actor.new(new(
+          //       invite_code,
+          //       shared.CreateGame(
+          //         True,
+          //         board_variant: shared.TwinPasses,
+          //         game_variant: shared.RiverSacrifice,
+          //         host_side: case int.random(2) {
+          //           0 -> shared.Black
+          //           _ -> shared.White
+          //         },
+          //         max_time: todo,
+          //       ),
+          //       todo,
+          //       False,
+          //     ))
+          //     |> actor.on_message(handle_message)
+          //     |> actor.start
+          //   let state =
+          //     RegistryState(
+          //       ..state,
+          //       games: dict.insert(state.games, invite_code, started.data),
+          //     )
+          //   actor.send(reply_to, started.data)
+          //   actor.continue(state)
         }
       }
     JoinPublicLobby(reply_to:) -> {
@@ -763,7 +769,9 @@ fn registry_loop(
                   0 -> shared.Black
                   _ -> shared.White
                 },
+                max_time: 10,
               ),
+              duration.minutes(10),
               True,
             ))
             |> actor.on_message(handle_message)
@@ -778,9 +786,14 @@ fn registry_loop(
         }
       }
     }
-    CreatePrivateLobby(invite_code:, create_game:, reply_to:) -> {
+    CreatePrivateLobby(invite_code:, create_game:, reply_to:, max_time:) -> {
       let assert Ok(started) =
-        actor.new(new(invite_code, create_game, False))
+        actor.new(new(
+          invite_code,
+          create_game,
+          duration.minutes(max_time),
+          False,
+        ))
         |> actor.on_message(handle_message)
         |> actor.start
       let state =
@@ -793,7 +806,7 @@ fn registry_loop(
     }
     CreatePublicLobby(create_game:, reply_to:, id:) -> {
       let assert Ok(started) =
-        actor.new(new(id, create_game, True))
+        actor.new(new(id, create_game, duration.minutes(10), True))
         |> actor.on_message(handle_message)
         |> actor.start
 

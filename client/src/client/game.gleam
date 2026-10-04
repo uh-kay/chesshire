@@ -63,7 +63,7 @@ pub fn init(
   lobby_id: String,
 ) -> #(Model, Effect(Message)) {
   let game = cheg.new(shared.TwinPasses, shared.RiverSacrifice)
-  let time = shared.new_time(shared.monotonic_time())
+  let time = shared.new_time(shared.monotonic_time(), duration.minutes(10))
 
   let model =
     Model(
@@ -267,9 +267,9 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
     ClockStoppedTicking -> {
       let black_time =
-        int.clamp(model.time.black_time, shared.min_time, shared.max_time)
+        int.clamp(model.time.black_time, shared.min_time, model.time.black_time)
       let white_time =
-        int.clamp(model.time.white_time, shared.min_time, shared.max_time)
+        int.clamp(model.time.white_time, shared.min_time, model.time.white_time)
 
       let game_state = case model.game_state == cheg.Continue, black_time <= 0 {
         True, True -> cheg.WhiteWin

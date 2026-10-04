@@ -1,9 +1,8 @@
 import gleam/dynamic/decode
 import gleam/json
+import gleam/time/duration
 
 pub const min_time = 0
-
-pub const max_time = 600_000
 
 pub type Time {
   Time(
@@ -15,10 +14,11 @@ pub type Time {
   )
 }
 
-pub fn new_time(now: Int) {
+pub fn new_time(now: Int, duration: duration.Duration) {
+  let ms = duration.to_milliseconds(duration)
   Time(
-    black_time: max_time,
-    white_time: max_time,
+    black_time: ms,
+    white_time: ms,
     black_tick: now,
     white_tick: now,
     started: False,
@@ -31,6 +31,7 @@ pub type CreateGame {
     board_variant: BoardVariant,
     game_variant: GameVariant,
     host_side: PlayerColor,
+    max_time: Int,
   )
 }
 
@@ -82,13 +83,19 @@ pub fn time_decoder() -> decode.Decoder(Time) {
 }
 
 pub fn create_game_to_json(create_game: CreateGame) -> json.Json {
-  let CreateGame(is_public:, board_variant:, game_variant:, host_side:) =
-    create_game
+  let CreateGame(
+    is_public:,
+    board_variant:,
+    game_variant:,
+    host_side:,
+    max_time:,
+  ) = create_game
   json.object([
     #("is_public", json.bool(is_public)),
     #("board_variant", board_variant_to_json(board_variant)),
     #("game_variant", game_variant_to_json(game_variant)),
     #("host_side", player_color_to_json(host_side)),
+    #("max_time", json.int(max_time)),
   ])
 }
 
@@ -97,11 +104,13 @@ pub fn create_game_decoder() -> decode.Decoder(CreateGame) {
   use board_variant <- decode.field("board_variant", board_variant_decoder())
   use game_variant <- decode.field("game_variant", game_variant_decoder())
   use host_side <- decode.field("host_side", player_color_decoder())
+  use max_time <- decode.field("max_time", decode.int)
   decode.success(CreateGame(
     is_public,
     board_variant:,
     game_variant:,
     host_side:,
+    max_time:,
   ))
 }
 

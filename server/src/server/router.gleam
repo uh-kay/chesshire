@@ -75,6 +75,7 @@ fn api_routes(
             actor.call(ctx.registry, 1000, game.CreatePrivateLobby(
               invite_code:,
               create_game:,
+              max_time: create_game.max_time,
               reply_to: _,
             ))
           }

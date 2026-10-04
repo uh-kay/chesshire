@@ -16,6 +16,7 @@ shared = { path = "../shared" }
 cheg = { path = "../cheg" }
 lustre = ">= 5.7.1 and < 6.0.0"
 repeatedly = ">= 2.1.2 and < 3.0.0"
+gleam_time = ">= 1.11.0 and < 2.0.0"
 
 [dev_dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"

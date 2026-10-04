@@ -24,6 +24,7 @@ pub type Model {
     host_side: HostSide,
     board_variant: shared.BoardVariant,
     game_variant: shared.GameVariant,
+    max_time: Int,
   )
 }
 
@@ -38,6 +39,7 @@ pub type Message {
   UserClickedBoardVariant(board_variant: shared.BoardVariant)
   UserClickedGameVariant(game_variant: shared.GameVariant)
   UserClickedPlayingSide(playing_side: HostSide)
+  UserClickedMaxTime(max_time: Int)
   ServerCreatedGame(Result(String, rsvp.Error(String)))
 }
 
@@ -48,6 +50,7 @@ pub fn init(is_public: Bool) -> Model {
       host_side: Random,
       board_variant: shared.TwinPasses,
       game_variant: shared.FlemishGiant,
+      max_time: 10,
     )
 
   model
@@ -73,18 +76,22 @@ pub fn update(model: Model, message: Message) {
           model.board_variant,
           model.game_variant,
           host_side,
+          model.max_time,
         )
 
       #(model, effect)
     }
+
     UserClickedBoardVariant(board_variant:) -> #(
       Model(..model, board_variant:),
       effect.none(),
     )
+
     UserClickedGameVariant(game_variant:) -> #(
       Model(..model, game_variant:),
       effect.none(),
     )
+
     ServerCreatedGame(result) -> {
       let effect = case result {
         Ok(invite_code) -> {
@@ -107,11 +114,13 @@ pub fn update(model: Model, message: Message) {
       }
       #(model, effect)
     }
-    UserClickedPlayingSide(playing_side:) -> {
-      let model = Model(..model, host_side: playing_side)
 
-      #(model, effect.none())
-    }
+    UserClickedPlayingSide(playing_side: host_side) -> #(
+      Model(..model, host_side:),
+      effect.none(),
+    )
+
+    UserClickedMaxTime(max_time:) -> #(Model(..model, max_time:), effect.none())
   }
 }
 
@@ -121,10 +130,17 @@ fn create_game(
   board_variant: shared.BoardVariant,
   game_variant: shared.GameVariant,
   host_side: shared.PlayerColor,
+  max_time: Int,
 ) -> effect.Effect(Message) {
   let url = "/v1/game"
   let body =
-    shared.CreateGame(is_public:, board_variant:, game_variant:, host_side:)
+    shared.CreateGame(
+      is_public:,
+      board_variant:,
+      game_variant:,
+      host_side:,
+      max_time:,
+    )
     |> shared.create_game_to_json
   let decoder = {
     use invite_code <- decode.field("invite_code", decode.string)
@@ -252,6 +268,42 @@ pub fn view(model: Model) -> Element(Message) {
             ),
           ],
         ),
+
+        case model.is_public {
+          True -> element.none()
+          False ->
+            html.div([], [
+              html.label([variant_label_style], [html.text("Max Time")]),
+              html.div(
+                [
+                  attribute.class("flex flex-row mt-2 border-2"),
+                  attribute.class("border-black rounded-xl truncate"),
+                  attribute.class("font-comic w-full divide-x-2 divide-black"),
+                  attribute.class("dark:border-dark dark:divide-dark mb-4"),
+                ],
+                [
+                  component.variant_button_view(
+                    model.max_time,
+                    10,
+                    UserClickedMaxTime(10),
+                    "10 minutes",
+                  ),
+                  component.variant_button_view(
+                    model.max_time,
+                    15,
+                    UserClickedMaxTime(15),
+                    "15 minutes",
+                  ),
+                  component.variant_button_view(
+                    model.max_time,
+                    30,
+                    UserClickedMaxTime(30),
+                    "30 minutes",
+                  ),
+                ],
+              ),
+            ])
+        },
 
         html.button(
           component.button_style([
