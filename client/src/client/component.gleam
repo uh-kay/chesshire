@@ -221,7 +221,11 @@ fn target_square_view(
             None, _ -> ""
           }),
         ],
-        [html.div([attribute.class("w-10 md:w-14")], [piece_view(piece)])],
+        [
+          html.div([attribute.class("w-full md:w-16 select-none touch-none")], [
+            piece_view(piece),
+          ]),
+        ],
       ),
       html.div(
         [
