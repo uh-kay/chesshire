@@ -224,6 +224,8 @@ fn rabbit_moves(game: Game, position: Int, moves: List(Move)) -> List(Move) {
         board.Occupied(_, _) | board.OffBoard | board.River -> moves
       }
 
+      use <- bool.guard(game.game_variant == game.FlemishGiantNoCapture, moves)
+
       let new_position = direction.in_direction(position, two_left)
       let moves = case board.get(game.board, game.river_squares, new_position) {
         board.Occupied(captured_piece, color:) if color != game.to_move ->
@@ -1173,11 +1175,7 @@ fn do_apply(
     list.contains(game.river_squares, to)
   {
     True -> {
-      let board = case game.game_variant {
-        game.RiverSacrifice | game.FlemishGiant -> board |> dict.delete(from)
-        game.BuildBridge ->
-          board |> dict.delete(from) |> dict.insert(to, #(piece, our_color))
-      }
+      let board = dict.delete(board, from)
       let river_squares =
         list.filter(river_squares, fn(square) { square != to })
       let bridge_squares = list.prepend(bridge_squares, to)

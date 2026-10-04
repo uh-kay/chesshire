@@ -177,20 +177,42 @@ pub fn view(model: Model) -> Element(Message) {
               ]),
 
               html.label([variant_label_style], [html.text("Rule Variant")]),
-              html.div(variant_box_style, [
-                component.variant_button_view(
-                  model.game_variant,
-                  shared.RiverSacrifice,
-                  UserClickedGameVariant(shared.RiverSacrifice),
-                  "Classic",
-                ),
-                component.variant_button_view(
-                  model.game_variant,
-                  shared.FlemishGiant,
-                  UserClickedGameVariant(shared.FlemishGiant),
-                  "Default",
-                ),
-              ]),
+              html.div(variant_box_style, case model.is_public {
+                True -> [
+                  component.variant_button_view(
+                    model.game_variant,
+                    shared.RiverSacrifice,
+                    UserClickedGameVariant(shared.RiverSacrifice),
+                    "Classic",
+                  ),
+                  component.variant_button_view(
+                    model.game_variant,
+                    shared.FlemishGiant,
+                    UserClickedGameVariant(shared.FlemishGiant),
+                    "Default",
+                  ),
+                ]
+                False -> [
+                  component.variant_button_view(
+                    model.game_variant,
+                    shared.RiverSacrifice,
+                    UserClickedGameVariant(shared.RiverSacrifice),
+                    "Classic",
+                  ),
+                  component.variant_button_view(
+                    model.game_variant,
+                    shared.FlemishGiant,
+                    UserClickedGameVariant(shared.FlemishGiant),
+                    "Capture",
+                  ),
+                  component.variant_button_view(
+                    model.game_variant,
+                    shared.FlemishGiantNoCapture,
+                    UserClickedGameVariant(shared.FlemishGiantNoCapture),
+                    "No Capture",
+                  ),
+                ]
+              }),
 
               html.label([variant_label_style], [html.text("Side")]),
               html.div(variant_box_style, [

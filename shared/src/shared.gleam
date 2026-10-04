@@ -42,6 +42,7 @@ pub type BoardVariant {
 pub type GameVariant {
   RiverSacrifice
   FlemishGiant
+  FlemishGiantNoCapture
 }
 
 pub type PlayerColor {
@@ -124,6 +125,7 @@ fn game_variant_to_json(game_variant: GameVariant) -> json.Json {
   case game_variant {
     RiverSacrifice -> json.string("river_sacrifice")
     FlemishGiant -> json.string("flemish_giant")
+    FlemishGiantNoCapture -> json.string("flemish_giant_no_capture")
   }
 }
 
@@ -132,6 +134,7 @@ fn game_variant_decoder() -> decode.Decoder(GameVariant) {
   case variant {
     "river_sacrifice" -> decode.success(RiverSacrifice)
     "flemish_giant" -> decode.success(FlemishGiant)
+    "flemish_giant_no_capture" -> decode.success(FlemishGiantNoCapture)
     _ -> decode.failure(RiverSacrifice, "GameVariant")
   }
 }

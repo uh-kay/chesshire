@@ -29,8 +29,8 @@ pub type Message {
   UserClickedFindGame
   UserClickedCreatePrivateGame
   UserClickedReset
-  UserClickedChangeBoardVariant(board_variant: shared.BoardVariant)
-  UserClickedChangeRuleVariant(rule_variant: shared.GameVariant)
+  UserClickedBoardVariant(board_variant: shared.BoardVariant)
+  UserClickedRuleVariant(rule_variant: shared.GameVariant)
 }
 
 pub fn init() -> Model {
@@ -192,7 +192,7 @@ pub fn update(model: Model, message: Message) {
       #(model, effect.none())
     }
 
-    UserClickedChangeBoardVariant(board_variant:) -> {
+    UserClickedBoardVariant(board_variant:) -> {
       let model =
         Model(
           ..model,
@@ -202,7 +202,7 @@ pub fn update(model: Model, message: Message) {
 
       #(model, effect.none())
     }
-    UserClickedChangeRuleVariant(rule_variant:) -> {
+    UserClickedRuleVariant(rule_variant:) -> {
       let model =
         Model(
           ..model,
@@ -307,13 +307,13 @@ pub fn view(model: Model) {
                   component.variant_button_view(
                     model.board_variant,
                     TwinPasses,
-                    UserClickedChangeBoardVariant(shared.TwinPasses),
+                    UserClickedBoardVariant(shared.TwinPasses),
                     "Twin Passes",
                   ),
                   component.variant_button_view(
                     model.board_variant,
                     GreatCrossing,
-                    UserClickedChangeBoardVariant(GreatCrossing),
+                    UserClickedBoardVariant(GreatCrossing),
                     "Great Crossing",
                   ),
                 ]),
@@ -326,15 +326,21 @@ pub fn view(model: Model) {
                   component.variant_button_view(
                     model.rule_variant,
                     shared.RiverSacrifice,
-                    UserClickedChangeRuleVariant(shared.RiverSacrifice),
+                    UserClickedRuleVariant(shared.RiverSacrifice),
                     "Classic",
                   ),
                   component.variant_button_view(
                     model.rule_variant,
                     shared.FlemishGiant,
-                    UserClickedChangeRuleVariant(shared.FlemishGiant),
+                    UserClickedRuleVariant(shared.FlemishGiant),
                     "Default",
                   ),
+                  // component.variant_button_view(
+                //   model.rule_variant,
+                //   shared.FlemishGiantNoCapture,
+                //   UserClickedRuleVariant(shared.FlemishGiantNoCapture),
+                //   "No Capture",
+                // ),
                 ]),
               ]),
             ]),

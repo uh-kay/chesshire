@@ -95,6 +95,7 @@ pub fn new(
   let game_variant = case game_variant {
     shared.RiverSacrifice -> game.RiverSacrifice
     shared.FlemishGiant -> game.FlemishGiant
+    shared.FlemishGiantNoCapture -> game.FlemishGiantNoCapture
   }
 
   Game(game.new(board_variant, game_variant))
@@ -118,6 +119,7 @@ pub fn apply_game_variant(
   let game_variant = case game_variant {
     shared.RiverSacrifice -> game.RiverSacrifice
     shared.FlemishGiant -> game.FlemishGiant
+    shared.FlemishGiantNoCapture -> game.FlemishGiantNoCapture
   }
   Game(game.Game(..game.game, game_variant:))
 }

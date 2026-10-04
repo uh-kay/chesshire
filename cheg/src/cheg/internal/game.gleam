@@ -8,8 +8,8 @@ import gleam/option.{type Option, None}
 
 pub type GameVariant {
   RiverSacrifice
-  BuildBridge
   FlemishGiant
+  FlemishGiantNoCapture
 }
 
 pub type Game {
@@ -60,8 +60,8 @@ pub const all_castling = Castling(True, True, True, True)
 
 pub fn new(board_variant: board.Variant, game_variant: GameVariant) -> Game {
   let board = case game_variant {
-    FlemishGiant -> board.initial_rabbit_position()
-    _ -> board.initial_classic_position()
+    FlemishGiant | FlemishGiantNoCapture -> board.initial_rabbit_position()
+    RiverSacrifice -> board.initial_classic_position()
   }
   let white_king_position = 4
   let black_king_position = 68
@@ -151,8 +151,8 @@ fn is_threefold_repetition_loop(
 pub fn game_variant_to_json(game_variant: GameVariant) -> json.Json {
   case game_variant {
     RiverSacrifice -> json.string("river_sacrifice")
-    BuildBridge -> json.string("build_bridge")
     FlemishGiant -> json.string("flemish_giant")
+    FlemishGiantNoCapture -> json.string("flemish_giant_no_capture")
   }
 }
 
@@ -160,8 +160,8 @@ pub fn game_variant_decoder() -> decode.Decoder(GameVariant) {
   use variant <- decode.then(decode.string)
   case variant {
     "river_sacrifice" -> decode.success(RiverSacrifice)
-    "build_bridge" -> decode.success(BuildBridge)
     "flemish_giant" -> decode.success(FlemishGiant)
+    "flemish_giant_no_capture" -> decode.success(FlemishGiantNoCapture)
     _ -> decode.failure(RiverSacrifice, "GameVariant")
   }
 }
