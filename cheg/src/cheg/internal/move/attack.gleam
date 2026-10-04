@@ -169,18 +169,6 @@ fn get_sliding_pin_lines_loop(
         line,
         position,
       )
-    board.River ->
-      get_sliding_pin_lines_loop(
-        board,
-        river_squares,
-        attacking,
-        position,
-        king_position,
-        direction,
-        lines,
-        [position, ..line],
-        pinned_piece,
-      )
     _ -> lines
   }
 }
