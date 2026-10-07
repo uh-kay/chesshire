@@ -452,34 +452,17 @@ pub fn dragged_piece_view(
 fn captured_piece_view(
   value: #(cheg.PieceType, shared.PlayerColor),
   side: shared.PlayerColor,
-  list: List(#(cheg.PieceType, shared.PlayerColor)),
   fill_color: String,
 ) -> Element(Message) {
   let #(piece, piece_color) = value
-  let pawn_count = count_piece(cheg.Pawn, side, list)
-  let rabbit_count = count_piece(cheg.Rabbit, side, list)
 
   case piece_color == side {
     True ->
       case piece {
         cheg.Pawn ->
-          html.div([attribute.class("flex")], [
-            html.div([attribute.class("w-6 h-6")], [
-              icon.pawn(fill_color),
-            ]),
-            html.p([attribute.class("text-lg")], [
-              html.text(int.to_string(pawn_count)),
-            ]),
-          ])
+          html.div([attribute.class("w-6 h-6")], [icon.pawn(fill_color)])
         cheg.Rabbit ->
-          html.div([attribute.class("flex")], [
-            html.div([attribute.class("w-6 h-6")], [
-              icon.rabbit(fill_color),
-            ]),
-            html.p([attribute.class("text-lg")], [
-              html.text(int.to_string(rabbit_count)),
-            ]),
-          ])
+          html.div([attribute.class("w-6 h-6")], [icon.rabbit(fill_color)])
         cheg.Knight ->
           html.div([attribute.class("w-6")], [icon.knight(fill_color)])
         cheg.Bishop ->
@@ -501,24 +484,158 @@ pub fn clock_view(
   state: cheg.GameState,
   captured_pieces: cheg.CapturedPieces,
 ) -> Element(_) {
+  let #(material_advantage, material_differences) =
+    calculate_material_difference(captured_pieces.captured)
   let black_time = format_time(black_time)
   let white_time = format_time(white_time)
-  let time_style = [
-    attribute.class("w-30 rounded-md bg-blue-300 px-4 py-3 border-2"),
-    attribute.class("text-center text-3xl dark:bg-blue-600 dark:border-dark"),
-    attribute.class("truncate font-comic"),
-  ]
+
+  html.div(
+    [
+      attribute.class("md:ml-8 mt-4 md:mt-0 flex justify-between items-start"),
+      attribute.class(case player_color {
+        Some(shared.Black) -> "flex-col-reverse md:flex-col-reverse"
+        _ -> "flex-col"
+      }),
+    ],
+    [
+      html.div(
+        [
+          attribute.class("flex justify-between w-full md:h-full"),
+          attribute.class(case player_color {
+            Some(shared.Black) -> "md:flex-col-reverse"
+            _ -> "flex-row-reverse md:flex-col"
+          }),
+        ],
+        [
+          html.div(
+            [
+              attribute.class("flex gap-2"),
+              attribute.class(case player_color {
+                Some(shared.Black) -> "flex-col md:flex-col-reverse"
+                _ -> "flex-col md:flex-col"
+              }),
+            ],
+            [
+              captured_pieces_view(
+                material_advantage,
+                material_differences,
+                shared.White,
+              ),
+              time_view(black_time),
+            ],
+          ),
+
+          html.div(
+            [
+              attribute.class("rounded-lg border-black dark:border-dark"),
+              attribute.class("divide-y-2 divide-black dark:divide-dark w-full"),
+              attribute.class("truncate hidden md:inline"),
+              attribute.class(case state == cheg.Continue {
+                True -> ""
+                False -> "border-2"
+              }),
+            ],
+            [
+              state_view(state, False),
+
+              sacrificed_pieces_view(captured_pieces.sacrificed, False),
+            ],
+          ),
+
+          html.div(
+            [
+              attribute.class("flex gap-2"),
+              attribute.class(case player_color {
+                Some(shared.White) -> "flex-col-reverse md:flex-col-reverse"
+                _ -> "flex-col-reverse md:flex-col-reverse"
+              }),
+            ],
+            [
+              captured_pieces_view(
+                material_advantage,
+                material_differences,
+                shared.Black,
+              ),
+              time_view(white_time),
+            ],
+          ),
+        ],
+      ),
+
+      // Small screen
+      html.div(
+        [
+          attribute.class("rounded-lg border-black dark:border-dark"),
+          attribute.class("divide-y-2 divide-black dark:divide-dark md:w-full"),
+          attribute.class("truncate flex flex-col md:hidden mx-auto mt-4"),
+          attribute.class(case state == cheg.Continue {
+            True -> ""
+            False -> "border-2"
+          }),
+        ],
+        [
+          state_view(state, True),
+          sacrificed_pieces_view(captured_pieces.sacrificed, True),
+        ],
+      ),
+    ],
+  )
+}
+
+fn time_view(time: String) -> Element(Message) {
+  html.p(
+    [
+      attribute.class("w-30 rounded-md bg-blue-300 px-4 py-3 border-2"),
+      attribute.class("text-center text-3xl dark:bg-blue-600 dark:border-dark"),
+      attribute.class("truncate font-comic"),
+    ],
+    [html.text(time)],
+  )
+}
+
+fn captured_pieces_view(
+  material_advantage: #(Int, shared.PlayerColor),
+  material_differences: List(#(cheg.PieceType, shared.PlayerColor)),
+  color,
+) -> Element(Message) {
+  html.div([], [
+    case material_advantage.1 == color {
+      False -> element.none()
+      True ->
+        case material_advantage.0 > 0 {
+          True ->
+            html.div([attribute.class("flex")], [
+              html.div(
+                [attribute.class("flex max-w-30 flex-wrap gap-1")],
+                remove_duplicate_piece(color, material_differences)
+                  |> list.map(fn(value) {
+                    case value.1 == color {
+                      False -> element.none()
+                      True -> captured_piece_view(value, color, "#6a7282")
+                    }
+                  }),
+              ),
+              html.p([], [
+                html.text("+" <> int.to_string(material_advantage.0)),
+              ]),
+            ])
+          False -> element.none()
+        }
+    },
+  ])
+}
+
+fn state_view(state: cheg.GameState, is_mobile: Bool) -> Element(Message) {
   let text_box_style = [
-    attribute.class("max-w-30 font-comic dark:bg-blue-600"),
-    attribute.class("bg-blue-300 p-2 text-wrap text-center"),
-    attribute.class(case state == cheg.Continue {
-      True -> ""
-      False -> "rounded-b-none"
+    attribute.class("font-comic dark:bg-blue-600 flex justify-center"),
+    attribute.class("bg-blue-300 p-2 text-wrap text-center items-center"),
+    attribute.class(case is_mobile {
+      True -> "max-w-64"
+      False -> "max-w-30"
     }),
   ]
-  let captured_piece_style = attribute.class("flex max-w-30 flex-wrap")
 
-  let state_view = case state {
+  case state {
     cheg.Continue -> element.none()
     cheg.Draw(reason:) ->
       html.div(text_box_style, [
@@ -531,129 +648,47 @@ pub fn clock_view(
           }),
         ]),
       ])
-
     cheg.WhiteWin ->
       html.div(text_box_style, [html.p([], [html.text("White wins")])])
     cheg.BlackWin ->
       html.div(text_box_style, [html.p([], [html.text("Black wins")])])
   }
+}
 
-  html.div(
-    [
-      attribute.class("md:ml-8 mt-4 md:mt-0 flex justify-between items-start"),
-      attribute.class(case player_color {
-        Some(shared.Black) -> "flex-row md:flex-col-reverse"
-        _ -> "flex-row-reverse md:flex-col"
-      }),
-    ],
-    [
+fn sacrificed_pieces_view(
+  sacrificed_pieces: List(#(cheg.PieceType, shared.PlayerColor)),
+  is_mobile: Bool,
+) -> Element(Message) {
+  case list.is_empty(sacrificed_pieces) {
+    True -> element.none()
+    False ->
       html.div(
         [
-          attribute.class("flex gap-2"),
-          attribute.class(case player_color {
-            Some(shared.Black) -> "flex-col md:flex-col-reverse"
-            _ -> "flex-col md:flex-col"
+          attribute.class("flex flex-col bg-blue-300 p-2 text-center"),
+          attribute.class("dark:bg-blue-600 dark:border-dark-text"),
+          attribute.class(case is_mobile {
+            True -> "max-w-64"
+            False -> "max-w-30"
           }),
         ],
         [
-          html.p(time_style, [html.text(black_time)]),
+          html.p([attribute.class("mb-2 text-md font-comic")], [
+            html.text("Sacrificed:"),
+          ]),
           html.div(
-            [captured_piece_style],
-            remove_duplicate_piece(shared.White, captured_pieces.captured)
-              |> list.map(fn(value) {
-                captured_piece_view(
-                  value,
-                  shared.White,
-                  captured_pieces.captured,
-                  "#6a7282",
-                )
-              }),
+            [attribute.class("flex")],
+            list.map(sacrificed_pieces, fn(value) {
+              let #(_, color) = value
+              let fill_color = case color {
+                shared.Black -> "#000"
+                shared.White -> "#fff"
+              }
+              captured_piece_view(value, color, fill_color)
+            }),
           ),
         ],
-      ),
-
-      html.div(
-        [
-          attribute.class("rounded-lg border-black dark:border-dark"),
-          attribute.class("divide-y-2 divide-black dark:divide-dark w-full"),
-          attribute.class("truncate"),
-          attribute.class(case state == cheg.Continue {
-            True -> ""
-            False -> "border-2"
-          }),
-        ],
-        [
-          state_view,
-
-          case list.is_empty(captured_pieces.sacrificed) {
-            True -> element.none()
-            False ->
-              html.div(
-                [
-                  attribute.class("flex flex-col bg-blue-300 p-2"),
-                  attribute.class("dark:bg-blue-600 dark:border-dark-text"),
-                  attribute.class("max-w-30 rounded-lg text-center"),
-                  attribute.class(case state == cheg.Continue {
-                    True -> "border-2"
-                    False -> "rounded-t-none"
-                  }),
-                ],
-                [
-                  html.p([attribute.class("mb-2 text-md font-comic")], [
-                    html.text("Sacrificed:"),
-                  ]),
-                  html.div(
-                    [attribute.class("flex flex-wrap")],
-                    set.map(
-                      set.from_list(captured_pieces.sacrificed),
-                      fn(value) {
-                        let #(_, color) = value
-                        let fill_color = case color {
-                          shared.Black -> "#fff"
-                          shared.White -> "#000"
-                        }
-                        captured_piece_view(
-                          value,
-                          color,
-                          captured_pieces.sacrificed,
-                          fill_color,
-                        )
-                      },
-                    )
-                      |> set.to_list,
-                  ),
-                ],
-              )
-          },
-        ],
-      ),
-
-      html.div(
-        [
-          attribute.class("flex gap-2"),
-          attribute.class(case player_color {
-            Some(shared.Black) -> "flex-col-reverse md:flex-col-reverse"
-            _ -> "flex-col-reverse md:flex-col"
-          }),
-        ],
-        [
-          html.div(
-            [captured_piece_style],
-            remove_duplicate_piece(shared.Black, captured_pieces.captured)
-              |> list.map(fn(value) {
-                captured_piece_view(
-                  value,
-                  shared.Black,
-                  captured_pieces.captured,
-                  "#6a7282",
-                )
-              }),
-          ),
-          html.p(time_style, [html.text(white_time)]),
-        ],
-      ),
-    ],
-  )
+      )
+  }
 }
 
 pub fn navbar() -> Element(_) {
@@ -800,15 +835,58 @@ fn remove_piece(
   }
 }
 
-fn count_piece(
-  piece_type: cheg.PieceType,
-  piece_color: shared.PlayerColor,
+fn calculate_material_difference(
   list: List(#(cheg.PieceType, shared.PlayerColor)),
-) -> Int {
-  list.count(list, fn(value) {
-    let #(type_, color) = value
-    type_ == piece_type && color == piece_color
-  })
+) -> #(#(Int, shared.PlayerColor), List(#(cheg.PieceType, shared.PlayerColor))) {
+  let white_pieces = list.filter(list, fn(value) { value.1 == shared.White })
+  let black_pieces = list.filter(list, fn(value) { value.1 == shared.Black })
+  let black_piece_types = list.map(black_pieces, fn(value) { value.0 })
+  let white_piece_types = list.map(white_pieces, fn(value) { value.0 })
+
+  let only_white =
+    list.filter(list, fn(value) {
+      value.1 == shared.White && !list.contains(black_piece_types, value.0)
+    })
+  let only_black =
+    list.filter(list, fn(value) {
+      value.1 == shared.Black && !list.contains(white_piece_types, value.0)
+    })
+
+  let piece_differences = list.append(only_white, only_black)
+  let black_material =
+    list.fold(piece_differences, 0, fn(acc, value) {
+      material_value(acc, value, shared.Black)
+    })
+  let white_material =
+    list.fold(piece_differences, 0, fn(acc, value) {
+      material_value(acc, value, shared.White)
+    })
+  let material_advantage = case black_material - white_material > 0 {
+    True -> #(black_material - white_material, shared.Black)
+    False -> #(white_material - black_material, shared.White)
+  }
+
+  #(material_advantage, piece_differences)
+}
+
+fn material_value(
+  acc: Int,
+  piece: #(cheg.PieceType, shared.PlayerColor),
+  color: shared.PlayerColor,
+) {
+  let piece_value = case piece.0 {
+    cheg.Pawn -> 1
+    cheg.Rabbit -> 1
+    cheg.Knight -> 3
+    cheg.Bishop -> 3
+    cheg.Rook -> 5
+    cheg.Queen -> 9
+    cheg.King -> 9001
+  }
+  case piece.1 == color {
+    True -> acc + piece_value
+    False -> acc
+  }
 }
 
 pub fn button_style(

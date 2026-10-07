@@ -1,5 +1,5 @@
-ARG GLEAM_VERSION=v1.18.1
-ARG ERLANG_VERSION=29.0.4
+ARG GLEAM_VERSION=v1.19
+ARG ERLANG_VERSION=29.1
 
 # Build Caddy
 FROM caddy:2-builder-alpine AS caddy-builder
