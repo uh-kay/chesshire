@@ -8,6 +8,7 @@ import gleam/function
 import gleam/int
 import gleam/option.{None, Some}
 import gleam/result
+import lustre
 import lustre/attribute
 import lustre/dev/query
 import lustre/dev/simulate
@@ -28,7 +29,7 @@ pub fn main() {
 
 fn rabbit_story() -> story.Story {
   let app =
-    simulate.application(
+    lustre.application(
       init: function.identity,
       update: fn(model: learn.Model, message: learn.Message) {
         learn.update(model, message)

@@ -725,13 +725,22 @@ pub fn navbar() -> Element(_) {
               html.text("Chesshire"),
             ],
           ),
-          html.a(
-            [
-              attribute.class("hover:text-blue-500 text-lg font-comic"),
-              attribute.href("/learn"),
-            ],
-            [html.text("Learn")],
-          ),
+          html.div([attribute.class("flex gap-4")], [
+            html.a(
+              [
+                attribute.class("hover:text-blue-500 text-lg font-comic"),
+                attribute.href("/learn"),
+              ],
+              [html.text("Learn")],
+            ),
+            html.a(
+              [
+                attribute.href("https://github.com/uh-kay/chesshire"),
+                attribute.class("w-6 dark:text-dark hover:text-blue-600"),
+              ],
+              [icon.github()],
+            ),
+          ]),
         ],
       ),
     ],

@@ -3,3 +3,6 @@ dev:
 
 build:
     gleam run -m lustre/dev build
+
+fable:
+    gleam run -m lustre/dev start storybook
