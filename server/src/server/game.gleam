@@ -1,4 +1,5 @@
 import cheg.{Guest, Host, Spectator}
+import gleam/bool
 import gleam/dict.{type Dict}
 import gleam/erlang/process.{type Subject}
 import gleam/int
@@ -413,11 +414,13 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
           Some(role) -> Ok(role)
           None -> Error(UnknownPlayer)
         })
+
         use player_color <- result.try(case player_role {
           Host -> Ok(state.host_color)
           Guest -> Ok(state.guest_color)
           Spectator -> Error(UnknownPlayer)
         })
+
         let current_turn = cheg.to_move(state.model.game)
         use _ <- result.try(case player_color == current_turn {
           True -> Ok(Nil)
@@ -425,7 +428,6 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
         })
 
         let legal_moves = cheg.legal_moves(state.model.game)
-
         use _ <- result.try(case list.contains(legal_moves, move) {
           True -> Ok(Nil)
           False -> Error(IllegalMove)
@@ -433,7 +435,17 @@ fn handle_message(state: GameActor, message: GameMsg) -> Next(GameActor, _) {
 
         let #(time, game_state) = get_time(state.model.game, state)
         let game = cheg.apply_move(state.model.game, move)
-        let state = GameActor(..state, model: Chesshire(..state.model, game:))
+
+        use <- bool.guard(game_state != cheg.Continue, {
+          Ok(GameActor(..state, model: Chesshire(..state.model, game_state:)))
+        })
+
+        let game_state = cheg.state(game)
+        let state =
+          GameActor(
+            ..state,
+            model: Chesshire(..state.model, game:, game_state:),
+          )
 
         let host_payload =
           cheg.game_view_to_json(cheg.GameView(
@@ -597,7 +609,7 @@ fn new(
   invite_code: String,
   create_game: shared.CreateGame,
   duration: duration.Duration,
-  is_public,
+  is_public: Bool,
 ) -> GameActor {
   let game = cheg.new(create_game.board_variant, create_game.game_variant)
   let game_state = cheg.state(game)
@@ -704,6 +716,7 @@ pub type RegistryMsg {
 
 pub fn start_registry() -> Result(Started(Subject(RegistryMsg)), StartError) {
   let state = RegistryState(waiting: [], games: dict.new())
+
   actor.new(state)
   |> actor.on_message(registry_loop)
   |> actor.start
@@ -720,34 +733,7 @@ fn registry_loop(
           actor.send(reply_to, subject)
           actor.continue(state)
         }
-        Error(_) -> {
-          actor.stop_abnormal("lobby does not exists")
-          //   let assert Ok(started) =
-          //     actor.new(new(
-          //       invite_code,
-          //       shared.CreateGame(
-          //         True,
-          //         board_variant: shared.TwinPasses,
-          //         game_variant: shared.RiverSacrifice,
-          //         host_side: case int.random(2) {
-          //           0 -> shared.Black
-          //           _ -> shared.White
-          //         },
-          //         max_time: todo,
-          //       ),
-          //       todo,
-          //       False,
-          //     ))
-          //     |> actor.on_message(handle_message)
-          //     |> actor.start
-          //   let state =
-          //     RegistryState(
-          //       ..state,
-          //       games: dict.insert(state.games, invite_code, started.data),
-          //     )
-          //   actor.send(reply_to, started.data)
-          //   actor.continue(state)
-        }
+        Error(_) -> actor.continue(state)
       }
     JoinPublicLobby(reply_to:) -> {
       case state.waiting {
@@ -764,7 +750,7 @@ fn registry_loop(
               shared.CreateGame(
                 True,
                 board_variant: shared.TwinPasses,
-                game_variant: shared.RiverSacrifice,
+                game_variant: shared.FlemishGiantNoCapture,
                 host_side: case int.random(2) {
                   0 -> shared.Black
                   _ -> shared.White

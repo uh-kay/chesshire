@@ -295,7 +295,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
     ClientConnected -> #(model, effect.none())
     ServerSentMessage(message:) ->
       case message {
-        off_topic.TextFrame(data:) -> {
+        off_topic.TextFrame(data:) ->
           case json.parse(data, cheg.server_message_decoder()) {
             Ok(server_message) ->
               case server_message {
@@ -327,19 +327,15 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
                         ])
 
                       case model.player_color {
-                        Some(player_color) if player_color == to_move -> {
+                        Some(player_color) if player_color == to_move ->
                           case list.contains(cheg.legal_moves(game), move) {
-                            True -> {
+                            True ->
                               case model.websocket_url {
-                                Some(url) -> {
-                                  #(None, send(url, payload))
-                                }
+                                Some(url) -> #(None, send(url, payload))
                                 None -> #(None, effect.none())
                               }
-                            }
                             False -> #(None, effect.none())
                           }
-                        }
                         _ -> #(model.premove, effect.none())
                       }
                     }
@@ -352,9 +348,8 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
                         False -> effect.none()
                       },
                       case game_view.guest_joined {
-                        False -> {
+                        False ->
                           modem.push("/game/" <> game_view.lobby_id, None, None)
-                        }
                         _ -> effect.none()
                       },
                       premove_effect,
@@ -386,9 +381,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
                     ])
 
                   let effect = case model.websocket_url {
-                    Some(url) -> {
-                      send(url, payload)
-                    }
+                    Some(url) -> send(url, payload)
                     None -> effect.none()
                   }
 
@@ -397,7 +390,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
               }
             Error(_) -> #(model, effect.none())
           }
-        }
+
         off_topic.BinaryFrame(_) -> #(model, effect.none())
       }
 
@@ -438,7 +431,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
   }
 }
 
-fn send(url: String, json: Json) {
+fn send(url: String, json: Json) -> Effect(Message) {
   let frame = off_topic.TextFrame(data: json.to_string(json))
   off_topic.websocket_send(url, frame)
 }
