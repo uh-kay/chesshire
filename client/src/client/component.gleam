@@ -492,10 +492,7 @@ pub fn clock_view(
   html.div(
     [
       attribute.class("md:ml-8 mt-4 md:mt-0 flex justify-between items-start"),
-      attribute.class(case player_color {
-        Some(shared.Black) -> "flex-col-reverse md:flex-col-reverse"
-        _ -> "flex-col"
-      }),
+      attribute.class("flex-col md:flex-col-reverse"),
     ],
     [
       html.div(
@@ -509,10 +506,10 @@ pub fn clock_view(
         [
           html.div(
             [
-              attribute.class("flex gap-2"),
+              attribute.class("flex flex-col"),
               attribute.class(case player_color {
-                Some(shared.Black) -> "flex-col md:flex-col-reverse"
-                _ -> "flex-col md:flex-col"
+                Some(shared.Black) -> "md:flex-col-reverse"
+                _ -> ""
               }),
             ],
             [
@@ -538,7 +535,11 @@ pub fn clock_view(
             [
               state_view(state, False),
 
-              sacrificed_pieces_view(captured_pieces.sacrificed, False),
+              sacrificed_pieces_view(
+                captured_pieces.sacrificed,
+                False,
+                state == cheg.Continue,
+              ),
             ],
           ),
 
@@ -575,7 +576,11 @@ pub fn clock_view(
         ],
         [
           state_view(state, True),
-          sacrificed_pieces_view(captured_pieces.sacrificed, True),
+          sacrificed_pieces_view(
+            captured_pieces.sacrificed,
+            True,
+            state == cheg.Continue,
+          ),
         ],
       ),
     ],
@@ -658,6 +663,7 @@ fn state_view(state: cheg.GameState, is_mobile: Bool) -> Element(Message) {
 fn sacrificed_pieces_view(
   sacrificed_pieces: List(#(cheg.PieceType, shared.PlayerColor)),
   is_mobile: Bool,
+  has_border: Bool,
 ) -> Element(Message) {
   case list.is_empty(sacrificed_pieces) {
     True -> element.none()
@@ -665,10 +671,14 @@ fn sacrificed_pieces_view(
       html.div(
         [
           attribute.class("flex flex-col bg-blue-300 p-2 text-center"),
-          attribute.class("dark:bg-blue-600 dark:border-dark-text"),
+          attribute.class("dark:bg-blue-600 rounded-lg dark:border-dark-text"),
           attribute.class(case is_mobile {
             True -> "max-w-64"
             False -> "max-w-30"
+          }),
+          attribute.class(case has_border {
+            True -> "border-2"
+            False -> "rounded-t-none"
           }),
         ],
         [
