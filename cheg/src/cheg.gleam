@@ -31,6 +31,20 @@ pub type GameState {
   BlackWin
 }
 
+pub fn promote(
+  moves: List(Move),
+  promoted_to: PieceType,
+  promotion_square: Int,
+) {
+  list.find(moves, fn(move) {
+    case move.move {
+      move.Promotion(promoted_to: piece, to:, ..) ->
+        piece_to_piece_type(piece) == promoted_to && to == promotion_square
+      _ -> False
+    }
+  })
+}
+
 pub fn get_full_moves(game: Game) {
   game.game.full_moves
 }

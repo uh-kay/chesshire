@@ -610,26 +610,32 @@ fn in_check_after_en_passant_loop(
 fn add_promotions(
   from: Int,
   to: Int,
-  piece: board.Piece,
+  original_piece: board.Piece,
   captured_piece: Option(board.Piece),
   moves: List(Move),
-  _pieces: List(board.Piece),
+  pieces: List(board.Piece),
 ) {
-  // case pieces {
-  //   [] -> moves
-  //   [piece, ..pieces] ->
-  //     add_promotions(
-  //       from,
-  //       to,
-  //       captured_piece,
-  //       [Promotion(from:, to:, piece: piece, captured_piece:), ..moves],
-  //       pieces,
-  //     )
-  // }
-  [
-    Promotion(from:, to:, piece:, captured_piece:, promoted_to: board.Queen),
-    ..moves
-  ]
+  case pieces {
+    [] -> moves
+    [piece, ..pieces] ->
+      add_promotions(
+        from,
+        to,
+        original_piece,
+        captured_piece,
+        [
+          Promotion(
+            from:,
+            to:,
+            piece: original_piece,
+            captured_piece:,
+            promoted_to: piece,
+          ),
+          ..moves
+        ],
+        pieces,
+      )
+  }
 }
 
 fn knight_moves(

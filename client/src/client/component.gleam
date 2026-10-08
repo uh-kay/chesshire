@@ -36,6 +36,14 @@ pub type Message {
   UserDroppedPiece
   UserCancelledDrag
   UserClickedEmptySquare
+  UserClickedPromotionSquare(position: PromotionSquare)
+  UserDraggedToPromotionSquare(position: PromotionSquare)
+  UserCancelledPromotion
+  UserPromotedTo(
+    moves: List(cheg.Move),
+    piece_type: cheg.PieceType,
+    position: Int,
+  )
 }
 
 pub type Model {
@@ -46,7 +54,14 @@ pub type Model {
     premove: Option(cheg.Move),
     dragged_over_square: Option(Int),
     dragged_piece: Option(DraggedPiece),
+    show_promotion: Bool,
+    promotion_square: Option(PromotionSquare),
+    promotion_moves: List(cheg.Move),
   )
+}
+
+pub type PromotionSquare {
+  PromotionSquare(from: Int, to: Int, left: Int, top: Int)
 }
 
 pub type DraggedPiece {
@@ -72,7 +87,7 @@ pub fn game_view(model: Model) -> Element(Message) {
   html.div([attribute.class("")], [
     html.div(
       [
-        attribute.class("grid grid-cols-8 grid-rows-9 w-fit md:w-full"),
+        attribute.class("grid grid-cols-8 grid-rows-9 w-fit"),
         attribute.class("min-h-fit md:min-h-108 outline-2"),
         case model.player_color {
           Some(shared.White) -> attribute.class("scale-y-[-1]")
@@ -82,6 +97,21 @@ pub fn game_view(model: Model) -> Element(Message) {
       ],
       board_view(model),
     ),
+    case model.show_promotion {
+      True ->
+        case model.promotion_square, model.player_color {
+          Some(promotion_square), Some(player_color) -> {
+            promotion_choice_view(
+              promotion_square,
+              player_color,
+              model.promotion_moves,
+            )
+          }
+          _, _ -> element.none()
+        }
+
+      False -> element.none()
+    },
   ])
 }
 
@@ -150,7 +180,17 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
     }
 
     case list.find(model.moves, fn(move) { cheg.move_to(move) == pos }) {
-      Ok(move) ->
+      Ok(move) -> {
+        let current_move = cheg.to_move(model.game)
+        let is_promotion = case model.player_color {
+          Some(color) if color == current_move ->
+            case color {
+              shared.Black -> cheg.move_to(move) / 8 == 0
+              shared.White -> cheg.move_to(move) / 8 == 8
+            }
+          _ -> False
+        }
+
         target_square_view(
           pos,
           color,
@@ -160,7 +200,9 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
           last_move,
           list.contains(river_square, cheg.move_to(move)),
           model.dragged_over_square == Some(pos),
+          is_promotion,
         )
+      }
       Error(_) ->
         square_view(
           pos,
@@ -171,6 +213,11 @@ pub fn board_view(model: Model) -> List(Element(Message)) {
           checked_piece,
           is_premove,
           dragged_piece_position == pos,
+          case model.promotion_square {
+            Some(square) ->
+              { square.from == pos || square.to == pos } && model.show_promotion
+            None -> False
+          },
         )
     }
   })
@@ -185,6 +232,7 @@ fn target_square_view(
   is_last_move: Bool,
   is_river: Bool,
   is_dragover: Bool,
+  is_promotion: Bool,
 ) -> Element(Message) {
   let has_piece = option.is_some(piece)
 
@@ -196,12 +244,44 @@ fn target_square_view(
         True -> "inset-ring-2 inset-ring-red-500"
         False -> ""
       }),
-      event.on_click(UserClickedTargetSquare(move)),
-      event.on(
-        "pointerenter",
-        decode.success(UserDraggedToTargetSquare(move, position)),
-      ),
-      event.on("pointerleave", decode.success(UserDraggedOutOfTargetSquare)),
+      ..case is_promotion {
+        True -> [
+          event.on("click", {
+            use element <- decode.field("target", decode.dynamic)
+            let rect = dom.get_rect(element)
+
+            decode.success(
+              UserClickedPromotionSquare(position: PromotionSquare(
+                from: cheg.move_from(move),
+                to: cheg.move_to(move),
+                left: rect.left,
+                top: rect.top,
+              )),
+            )
+          }),
+          event.on("pointerenter", {
+            use element <- decode.field("target", decode.dynamic)
+            let rect = dom.get_rect(element)
+
+            decode.success(
+              UserDraggedToPromotionSquare(position: PromotionSquare(
+                from: cheg.move_from(move),
+                to: cheg.move_to(move),
+                left: rect.left,
+                top: rect.top,
+              )),
+            )
+          }),
+        ]
+        False -> [
+          event.on_click(UserClickedTargetSquare(move)),
+          event.on(
+            "pointerenter",
+            decode.success(UserDraggedToTargetSquare(move, position)),
+          ),
+          event.on("pointerleave", decode.success(UserDraggedOutOfTargetSquare)),
+        ]
+      }
     ],
     [
       special_square_marker(square_color, player_color),
@@ -249,6 +329,7 @@ fn square_view(
   checked_king: option.Option(#(cheg.PieceType, shared.PlayerColor)),
   is_premove: Bool,
   is_dragged: Bool,
+  is_promotion: Bool,
 ) -> Element(Message) {
   html.div(
     [
@@ -260,6 +341,7 @@ fn square_view(
         _, _ -> ""
       }),
       attribute.value("pos-" <> int.to_string(position)),
+      event.on_click(UserCancelledPromotion),
       case option.is_none(piece) {
         True -> event.on_click(UserClickedEmptySquare)
         False -> attribute.none()
@@ -320,6 +402,16 @@ fn square_view(
           attribute.class("absolute inset-0"),
           attribute.class(case is_dragged {
             True -> "bg-purple-700/15"
+            False -> ""
+          }),
+        ],
+        [],
+      ),
+      html.div(
+        [
+          attribute.class("absolute inset-0"),
+          attribute.class(case is_promotion {
+            True -> "bg-purple-700/30"
             False -> ""
           }),
         ],
@@ -630,6 +722,57 @@ fn captured_pieces_view(
   ])
 }
 
+fn promotion_choice_view(
+  square: PromotionSquare,
+  color: shared.PlayerColor,
+  moves: List(cheg.Move),
+) {
+  let piece_view = fn(piece, moves) {
+    let #(piece_type, _) = piece
+    html.div(
+      [
+        attribute.class("w-12 md:w-18 hover:bg-orange-400"),
+        event.on(
+          "pointerdown",
+          decode.success(UserPromotedTo(moves, piece_type, square.to)),
+        ),
+        event.on_click(UserPromotedTo(moves, piece_type, square.to)),
+      ],
+      [
+        case piece {
+          #(cheg.Queen, shared.White) -> icon.white_queen()
+          #(cheg.Knight, shared.White) -> icon.white_knight()
+          #(cheg.Bishop, shared.White) -> icon.white_bishop()
+          #(cheg.Rook, shared.White) -> icon.white_rook()
+          #(cheg.Queen, shared.Black) -> icon.black_queen()
+          #(cheg.Knight, shared.Black) -> icon.black_knight()
+          #(cheg.Bishop, shared.Black) -> icon.black_bishop()
+          #(cheg.Rook, shared.Black) -> icon.black_rook()
+          #(_, _) -> element.none()
+        },
+      ],
+    )
+  }
+
+  html.div(
+    [
+      attribute.class("fixed z-50 bg-blue-500 border-2 border-orange-400"),
+      attribute.class("rounded-lg"),
+      attribute.style("left", int.to_string(square.left - 16) <> "px"),
+      attribute.style("top", int.to_string(square.top + 16) <> "px"),
+    ],
+    list.map(
+      [
+        #(cheg.Queen, color),
+        #(cheg.Rook, color),
+        #(cheg.Knight, color),
+        #(cheg.Bishop, color),
+      ],
+      fn(piece) { piece_view(piece, moves) },
+    ),
+  )
+}
+
 fn state_view(state: cheg.GameState, is_mobile: Bool) -> Element(Message) {
   let text_box_style = [
     attribute.class("font-comic dark:bg-blue-600 flex justify-center"),
@@ -787,6 +930,7 @@ pub fn button_group(label_text: String, buttons: List(Element(a))) {
 pub fn game_layout(
   content: Element(msg),
   dragged_piece: Option(DraggedPiece),
+  promotion_square: Option(PromotionSquare),
   to_msg: fn(Message) -> msg,
 ) -> Element(msg) {
   html.div(
@@ -809,6 +953,11 @@ pub fn game_layout(
       event.on("pointerup", decode.success(to_msg(UserDroppedPiece))),
       event.on("pointercancel", decode.success(to_msg(UserCancelledDrag))),
       attribute.class("bg-blue-100 min-h-dvh dark:bg-dark-base dark:text-dark"),
+      case promotion_square {
+        Some(_) ->
+          event.on("pointerup", decode.success(to_msg(UserDroppedPiece)))
+        None -> event.on("pointerup", decode.success(to_msg(UserDroppedPiece)))
+      },
     ],
     [
       navbar(),

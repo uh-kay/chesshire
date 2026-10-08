@@ -20,6 +20,9 @@ pub type Model {
     dragged_over_square: Option(Int),
     dragged_piece: Option(component.DraggedPiece),
     current_move: Option(cheg.Move),
+    promotion_square: Option(component.PromotionSquare),
+    show_promotion: Bool,
+    promotion_moves: List(cheg.Move),
   )
 }
 
@@ -42,11 +45,69 @@ pub fn init() -> Model {
     dragged_over_square: None,
     dragged_piece: None,
     current_move: None,
+    promotion_square: None,
+    show_promotion: False,
+    promotion_moves: [],
   )
 }
 
 pub fn update(model: Model, message: Message) {
   case message {
+    ComponentProducedMessage(component.UserPromotedTo(moves, piece, pos)) ->
+      case cheg.promote(moves, piece, pos) {
+        Ok(move) -> {
+          let game = cheg.apply_move(model.game, move)
+          let model =
+            Model(
+              ..model,
+              game:,
+              show_promotion: False,
+              promotion_moves: [],
+              promotion_square: None,
+            )
+
+          #(model, effect.none())
+        }
+        Error(_) -> {
+          let model =
+            Model(
+              ..model,
+              show_promotion: False,
+              promotion_moves: [],
+              promotion_square: None,
+            )
+
+          #(model, effect.none())
+        }
+      }
+
+    ComponentProducedMessage(component.UserClickedPromotionSquare(
+      promotion_square,
+    )) -> {
+      let model = Model(..model, promotion_square: Some(promotion_square))
+
+      #(model, effect.none())
+    }
+
+    ComponentProducedMessage(component.UserDraggedToPromotionSquare(
+      promotion_square,
+    )) -> {
+      let model =
+        Model(
+          ..model,
+          promotion_square: Some(promotion_square),
+          dragged_over_square: Some(promotion_square.to),
+        )
+
+      #(model, effect.none())
+    }
+
+    ComponentProducedMessage(component.UserCancelledPromotion) -> {
+      let model = Model(..model, promotion_square: None, show_promotion: False)
+
+      #(model, effect.none())
+    }
+
     ComponentProducedMessage(component.UserDraggedPiece(
       from:,
       pointer_x:,
@@ -112,10 +173,12 @@ pub fn update(model: Model, message: Message) {
     }
 
     ComponentProducedMessage(component.UserDroppedPiece) -> {
+      let promotion_moves = model.current_piece_moves
       let game = case model.current_move {
         Some(move) -> cheg.apply_move(model.game, move)
         None -> model.game
       }
+      let show_promotion = option.is_some(model.promotion_square)
 
       let model =
         Model(
@@ -125,6 +188,8 @@ pub fn update(model: Model, message: Message) {
           dragged_over_square: None,
           dragged_piece: None,
           current_move: None,
+          promotion_moves:,
+          show_promotion:,
         )
 
       #(model, effect.none())
@@ -353,6 +418,9 @@ pub fn view(model: Model) {
             premove: None,
             dragged_over_square: model.dragged_over_square,
             dragged_piece: model.dragged_piece,
+            promotion_square: model.promotion_square,
+            show_promotion: model.show_promotion,
+            promotion_moves: model.promotion_moves,
           ))
             |> element.map(ComponentProducedMessage),
         ],
@@ -362,5 +430,9 @@ pub fn view(model: Model) {
         |> element.map(ComponentProducedMessage),
     ],
   )
-  |> component.game_layout(model.dragged_piece, ComponentProducedMessage)
+  |> component.game_layout(
+    model.dragged_piece,
+    model.promotion_square,
+    ComponentProducedMessage,
+  )
 }
