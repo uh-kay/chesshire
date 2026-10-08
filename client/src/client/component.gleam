@@ -862,7 +862,7 @@ pub fn navbar() -> Element(_) {
             [
               html.img([
                 attribute.class("w-10 mr-2 mt-2 ml-4"),
-                attribute.src("/favicon.svg"),
+                attribute.src("/static/favicon.svg"),
                 attribute.alt("Chesshire logo"),
               ]),
               html.p([attribute.class("mt-2")], [html.text("Chesshire")]),
