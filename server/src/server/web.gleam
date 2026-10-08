@@ -39,7 +39,7 @@ pub fn serve_index() -> Response {
       html.meta([attribute.name("description"), attribute.content(description)]),
       html.link([
         attribute.rel("icon"),
-        attribute.href("/chesshire_favicon.svg"),
+        attribute.href("/favicon.svg"),
         attribute.type_("image/svg+xml"),
       ]),
       html.link([

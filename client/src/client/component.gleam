@@ -704,7 +704,7 @@ fn sacrificed_pieces_view(
 pub fn navbar() -> Element(_) {
   html.nav(
     [
-      attribute.class("p-4 h-[60px] border-b-2 bg-blue-200 border-black"),
+      attribute.class("h-[60px] border-b-2 bg-blue-200 border-black"),
       attribute.class("dark:bg-dark-secondary dark:border-dark"),
     ],
     [
@@ -718,14 +718,14 @@ pub fn navbar() -> Element(_) {
             ],
             [
               html.img([
-                attribute.class("w-8 mr-2"),
-                attribute.src("/chesshire_favicon.svg"),
+                attribute.class("w-10 mr-2 mt-2 ml-4"),
+                attribute.src("/favicon.svg"),
                 attribute.alt("Chesshire logo"),
               ]),
-              html.text("Chesshire"),
+              html.p([attribute.class("mt-2")], [html.text("Chesshire")]),
             ],
           ),
-          html.div([attribute.class("flex gap-4")], [
+          html.div([attribute.class("flex gap-4 mt-3 mr-4")], [
             html.a(
               [
                 attribute.class("hover:text-blue-500 text-lg font-comic"),
@@ -919,7 +919,7 @@ pub fn button_style(
     attribute.class("hover:drop-shadow-none active:translate-x-[4px]"),
     attribute.class("active:translate-y-[4px] active:drop-shadow-none"),
     attribute.class("dark:drop-shadow-[4px_4px_0_hsl(217_100_90)]"),
-    attribute.class("dark:border-dark"),
+    attribute.class("dark:border-dark hover:bg-orange-400"),
     ..attributes
   ]
 }
