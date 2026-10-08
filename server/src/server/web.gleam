@@ -18,7 +18,7 @@ pub fn middleware(
   use <- wisp.log_request(req)
   use <- wisp.rescue_crashes
   use req <- wisp.handle_head(req)
-  use <- wisp.serve_static(req, under: "/", from: static_directory)
+  use <- wisp.serve_static(req, under: "/static", from: static_directory)
   use req <- wisp.csrf_known_header_protection(req)
 
   handle_request(req)
@@ -39,12 +39,12 @@ pub fn serve_index() -> Response {
       html.meta([attribute.name("description"), attribute.content(description)]),
       html.link([
         attribute.rel("icon"),
-        attribute.href("/favicon.svg"),
+        attribute.href("/static/favicon.svg"),
         attribute.type_("image/svg+xml"),
       ]),
       html.link([
         attribute.rel("stylesheet"),
-        attribute.href("/client.css"),
+        attribute.href("/static/client.css"),
       ]),
       html.link([
         attribute.rel("preconnect"),
@@ -61,7 +61,10 @@ pub fn serve_index() -> Response {
         ),
         attribute.rel("stylesheet"),
       ]),
-      html.script([attribute.type_("module"), attribute.src("/client.js")], ""),
+      html.script(
+        [attribute.type_("module"), attribute.src("/static/client.js")],
+        "",
+      ),
     ]),
     html.body([], [html.div([attribute.id("app")], [])]),
   ])
